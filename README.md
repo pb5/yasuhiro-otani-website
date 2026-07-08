@@ -11,7 +11,7 @@ Yasuhiro Otani 公式サイト（GitHub Pages 静的サイト）。
 - `index.html` — トップページ（WebGL背景 + 各セクションへの導線）
 - `profile.html` — プロフィール（実写真使用）
 - `artistic.html` — 音楽活動（音楽家としての芸術活動：演奏・自主制作楽曲・Max/MSPサウンド作品・既存プロジェクト「Thresholds」アーカイブへのリンク、実写真使用）
-- `commercial.html` — 商業作曲（作曲家としての商業活動：BGM・CM・映像音楽などのクライアントワーク）
+- `commercial.html` — 商業作曲（作曲家としての商業活動：映画・ラジオ・TV向けの音楽制作。料金は個別相談）
 - `lessons/index.html` — 作曲教室（教育：ギター / DTMコース紹介、授業で使用しているリポジトリ一覧）
 - `lessons/mv-song-template.html` — 教材ページ（[pb5/mv_song_templete](https://github.com/pb5/mv_song_templete) の「ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版）」を組み込み）
 - `contact.html` — お問い合わせ
@@ -30,7 +30,5 @@ Yasuhiro Otani 公式サイト（GitHub Pages 静的サイト）。
 
 以下は実データ未確認のため、ページ内に `⚠ PLACEHOLDER` として明記しています。公開前に差し替えてください。
 
-- `profile.html` — 経歴文
-- `artistic.html` / `commercial.html` — 作品タイトル・音源リンク・制作実績・料金
-- `contact.html` — フォーム送信先（Formspree等のエンドポイント）またはメールアドレス
-- `lessons/index.html` — メディア制作の授業で使用しているリポジトリ
+- `artistic.html` — 自主制作楽曲・Max/MSP作品の音源/リンク（ディスコグラフィ以外の未公開音源など）
+- `contact.html` — フォーム送信先（Formspree等のエンドポイント）
