@@ -9,31 +9,34 @@
 </head>
 <body>
 
-<header class="site-header">
-  <div class="wrap">
-    <a class="logo" href="../index.html">YASUHIRO <span>OTANI</span></a>
-    <nav class="nav-links">
-      <a href="../index.html">Home</a>
-      <a href="../profile.html">プロフィール</a>
-      <a href="../artistic.html">音楽活動</a>
-      <a href="../commercial.html">商業作曲</a>
-      <a href="index.html" class="active">作曲教室</a>
-      <a href="../contact.html">お問い合わせ</a>
-    </nav>
-    <button class="nav-toggle" aria-label="メニュー">☰</button>
+<div class="corner-logo">Y<span>/</span>O</div>
+<button class="menu-trigger" aria-label="メニュー">
+  <span>MENU</span>
+  <span class="bars"><span></span><span></span><span></span></span>
+</button>
+<nav class="nav-overlay">
+  <div class="nav-overlay-list">
+    <a href="../index.html"><span class="idx">00</span> Home</a>
+    <a href="../profile.html"><span class="idx">01</span> Profile</a>
+    <a href="../artistic.html"><span class="idx">02</span> Artistic</a>
+    <a href="../commercial.html"><span class="idx">03</span> Commercial</a>
+    <a href="index.html" class="active"><span class="idx">04</span> Lessons</a>
+    <a href="../contact.html"><span class="idx">05</span> Contact</a>
   </div>
-</header>
+  <div class="nav-overlay-foot">© 2026 Yasuhiro Otani</div>
+</nav>
+<div class="scanlines"></div>
 
-<div class="hero small">
-  <p class="hero-eyebrow">Guitar & DTM Lessons</p>
-  <h1 class="gradient-text">作曲教室</h1>
-  <p>ギターと作曲(DTM)、両方の視点から「曲を作れるようになる」ことを目標にしたレッスンです。<br>実在曲のステム解析にもとづく実測教材を使い、再現性のある作曲メソッドを指導します。</p>
+<header class="impact-hero light compact">
+  <p class="hero-eyebrow">Guitar &amp; DTM Lessons</p>
+  <h1>作曲教室</h1>
+  <p class="hero-desc">ギターと作曲(DTM)、両方の視点から「曲を作れるようになる」ことを目標にしたレッスンです。実在曲のステム解析にもとづく実測教材を使い、再現性のある作曲メソッドを指導します。</p>
   <div class="badge-row">
     <span class="badge">初心者歓迎</span>
     <span class="badge pink">オンライン対応</span>
     <span class="badge gold">実測データ準拠の教材</span>
   </div>
-</div>
+</header>
 
 <div class="wrap">
 
@@ -66,6 +69,26 @@
         <h3>ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版）</h3>
         <p>BPM・帯域・構成・打ち込み・パン処理まで、すべて実測値ベースで解説する教材ページです。</p>
         <a class="card-link" href="mv-song-template.html">教材を見る →</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-eyebrow">Resources</p>
+    <h2 class="section-title cyan">授業で使用しているリポジトリ</h2>
+    <p class="lead">作曲・メディア制作の授業で実際に使用している教材やツールをGitHub上で公開しています。</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">作曲</div>
+        <h3>mv_song_templete</h3>
+        <p>「ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版）」の教材ソース。</p>
+        <a class="card-link" href="https://github.com/pb5/mv_song_templete" target="_blank" rel="noopener">GitHubで見る ↗</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">メディア制作</div>
+        <h3>[リポジトリ名]</h3>
+        <p>⚠ PLACEHOLDER — メディア制作の授業で使用しているリポジトリをここに追加してください。</p>
+        <a class="card-link" href="#">準備中</a>
       </div>
     </div>
   </section>

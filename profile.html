@@ -9,41 +9,45 @@
 </head>
 <body>
 
-<header class="site-header">
-  <div class="wrap">
-    <a class="logo" href="index.html">YASUHIRO <span>OTANI</span></a>
-    <nav class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="profile.html" class="active">プロフィール</a>
-      <a href="artistic.html">音楽活動</a>
-      <a href="commercial.html">商業作曲</a>
-      <a href="lessons/index.html">作曲教室</a>
-      <a href="contact.html">お問い合わせ</a>
-    </nav>
-    <button class="nav-toggle" aria-label="メニュー">☰</button>
+<div class="corner-logo">Y<span>/</span>O</div>
+<button class="menu-trigger" aria-label="メニュー">
+  <span>MENU</span>
+  <span class="bars"><span></span><span></span><span></span></span>
+</button>
+<nav class="nav-overlay">
+  <div class="nav-overlay-list">
+    <a href="index.html"><span class="idx">00</span> Home</a>
+    <a href="profile.html" class="active"><span class="idx">01</span> Profile</a>
+    <a href="artistic.html"><span class="idx">02</span> Artistic</a>
+    <a href="commercial.html"><span class="idx">03</span> Commercial</a>
+    <a href="lessons/index.html"><span class="idx">04</span> Lessons</a>
+    <a href="contact.html"><span class="idx">05</span> Contact</a>
   </div>
+  <div class="nav-overlay-foot">© 2026 Yasuhiro Otani</div>
+</nav>
+<div class="scanlines"></div>
+
+<header class="impact-hero light compact">
+  <p class="hero-eyebrow">Profile</p>
+  <h1>大谷 泰弘</h1>
+  <p class="hero-desc">ギタリスト・作編曲家 / DTM講師</p>
 </header>
 
-<div class="hero small">
-  <p class="hero-eyebrow">Profile</p>
-  <h1 class="gradient-text">プロフィール</h1>
-  <p>ギタリスト・作編曲家 / DTM講師</p>
-</div>
+<section class="visual-block" style="min-height:72vh;">
+  <svg class="portrait-silhouette" style="width:clamp(220px, 30vw, 380px);" viewBox="0 0 200 240" aria-hidden="true">
+    <circle cx="100" cy="70" r="52"/>
+    <path d="M20 240 C20 150 60 130 100 130 C140 130 180 150 180 240 Z"/>
+  </svg>
+  <div class="visual-label floating">⚠ PLACEHOLDER — ポートレート写真をここに配置</div>
+</section>
 
 <div class="wrap">
 
   <section>
-    <div class="placeholder-note">⚠ PLACEHOLDER — ここに実際のプロフィール写真・経歴文を差し替えてください</div>
-    <div class="card-grid" style="grid-template-columns: 220px 1fr;">
-      <div class="card" style="align-items:center; justify-content:center;">
-        <div class="card-icon">PHOTO</div>
-        <p>[プロフィール写真をここに配置]</p>
-      </div>
-      <div class="card">
-        <h3>大谷 泰弘（おおたに やすひろ）</h3>
-        <p>[ここに経歴・自己紹介文を記載してください。出身、活動開始のきっかけ、これまでの主な活動歴など。]</p>
-      </div>
-    </div>
+    <div class="placeholder-note">⚠ PLACEHOLDER — ここに実際の経歴文を差し替えてください</div>
+    <p class="section-eyebrow">Bio</p>
+    <h2 class="section-title">経歴</h2>
+    <p class="lead">[ここに経歴・自己紹介文を記載してください。出身、活動開始のきっかけ、これまでの主な活動歴など。]</p>
   </section>
 
   <section>

@@ -24,7 +24,7 @@
   .arr-wrap{overflow-x:auto;}
   .arr-table{width:100%;min-width:640px;border-collapse:separate;border-spacing:2px;}
   .arr-table th{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);padding:6px 2px;font-weight:500;}
-  .arr-table th.sec{font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:.04em;}
+  .arr-table th.sec{font-family:'DM Mono',monospace;font-weight:700;font-size:.68rem;letter-spacing:.04em;}
   .arr-table td{padding:0;}
   .arr-name{font-family:'DM Mono',monospace;font-size:.6rem;font-weight:700;text-align:right;padding:0 8px 0 0 !important;white-space:nowrap;}
   .cell{height:26px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:.5rem;font-weight:700;}
@@ -66,7 +66,7 @@
 
   .steps{display:flex;flex-direction:column;gap:8px;}
   .step{display:flex;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
-  .step-num{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(77,216,232,.15);border:1px solid var(--accent);color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:.95rem;display:flex;align-items:center;justify-content:center;}
+  .step-num{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(77,216,232,.15);border:1px solid var(--accent);color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;font-size:.8rem;display:flex;align-items:center;justify-content:center;}
   .step-title{font-size:.8rem;font-weight:700;margin-bottom:2px;}
   .step-desc{font-size:.72rem;color:var(--muted);line-height:1.7;}
   .step-tip{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--accent3);margin-top:5px;}
@@ -93,31 +93,34 @@
 </head>
 <body>
 
-<header class="site-header">
-  <div class="wrap">
-    <a class="logo" href="../index.html">YASUHIRO <span>OTANI</span></a>
-    <nav class="nav-links">
-      <a href="../index.html">Home</a>
-      <a href="../profile.html">プロフィール</a>
-      <a href="../artistic.html">音楽活動</a>
-      <a href="../commercial.html">商業作曲</a>
-      <a href="index.html" class="active">作曲教室</a>
-      <a href="../contact.html">お問い合わせ</a>
-    </nav>
-    <button class="nav-toggle" aria-label="メニュー">☰</button>
+<div class="corner-logo">Y<span>/</span>O</div>
+<button class="menu-trigger" aria-label="メニュー">
+  <span>MENU</span>
+  <span class="bars"><span></span><span></span><span></span></span>
+</button>
+<nav class="nav-overlay">
+  <div class="nav-overlay-list">
+    <a href="../index.html"><span class="idx">00</span> Home</a>
+    <a href="../profile.html"><span class="idx">01</span> Profile</a>
+    <a href="../artistic.html"><span class="idx">02</span> Artistic</a>
+    <a href="../commercial.html"><span class="idx">03</span> Commercial</a>
+    <a href="index.html" class="active"><span class="idx">04</span> Lessons</a>
+    <a href="../contact.html"><span class="idx">05</span> Contact</a>
   </div>
-</header>
+  <div class="nav-overlay-foot">© 2026 Yasuhiro Otani</div>
+</nav>
+<div class="scanlines"></div>
 
-<div class="hero">
+<header class="impact-hero compact">
   <p class="hero-eyebrow">One Loop × Layer Arrangement / MV Style — Measured Edition</p>
-  <h1 class="gradient-text">ワンループ×レイヤー構成<br>MV系楽曲テンプレ</h1>
-  <p>コード進行は4小節ループ1個だけ。展開は「トラックの出し入れ」で作る。<br>数値はすべて実在曲のステム解析による実測値。</p>
+  <h1 class="glitch">ワンループ×レイヤー構成<br>MV系楽曲テンプレ</h1>
+  <p class="hero-desc">コード進行は4小節ループ1個だけ。展開は「トラックの出し入れ」で作る。数値はすべて実在曲のステム解析による実測値。</p>
   <div class="badge-row">
     <span class="badge">汎用DAW対応</span>
     <span class="badge pink">4小節ループ×1</span>
     <span class="badge gold">実測データ準拠</span>
   </div>
-</div>
+</header>
 
 <div class="wrap" style="padding-bottom:56px;">
 

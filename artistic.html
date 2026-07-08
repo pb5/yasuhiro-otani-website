@@ -4,42 +4,78 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>音楽活動（アーティストとして） | Yasuhiro Otani</title>
-<meta name="description" content="Yasuhiro Otani の音楽家としての芸術活動。演奏、楽曲制作、Max/MSPによるサウンド作品など。">
+<meta name="description" content="Yasuhiro Otani の音楽家としての芸術活動。演奏、楽曲制作、Max/MSPによるサウンド作品、アーカイブなど。">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<header class="site-header">
-  <div class="wrap">
-    <a class="logo" href="index.html">YASUHIRO <span>OTANI</span></a>
-    <nav class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="profile.html">プロフィール</a>
-      <a href="artistic.html" class="active">音楽活動</a>
-      <a href="commercial.html">商業作曲</a>
-      <a href="lessons/index.html">作曲教室</a>
-      <a href="contact.html">お問い合わせ</a>
-    </nav>
-    <button class="nav-toggle" aria-label="メニュー">☰</button>
+<div class="corner-logo">Y<span>/</span>O</div>
+<button class="menu-trigger" aria-label="メニュー">
+  <span>MENU</span>
+  <span class="bars"><span></span><span></span><span></span></span>
+</button>
+<nav class="nav-overlay">
+  <div class="nav-overlay-list">
+    <a href="index.html"><span class="idx">00</span> Home</a>
+    <a href="profile.html"><span class="idx">01</span> Profile</a>
+    <a href="artistic.html" class="active"><span class="idx">02</span> Artistic</a>
+    <a href="commercial.html"><span class="idx">03</span> Commercial</a>
+    <a href="lessons/index.html"><span class="idx">04</span> Lessons</a>
+    <a href="contact.html"><span class="idx">05</span> Contact</a>
   </div>
-</header>
+  <div class="nav-overlay-foot">© 2026 Yasuhiro Otani</div>
+</nav>
+<div class="scanlines"></div>
 
-<div class="hero small">
+<header class="impact-hero compact">
+  <canvas id="hero-canvas" class="impact-canvas"></canvas>
   <p class="hero-eyebrow">Artistic Activity</p>
-  <h1 class="gradient-text">音楽活動</h1>
-  <p>ギタリスト・音楽家としての演奏・作品制作。自主制作の楽曲や、Max/MSPを使ったインタラクティブサウンド作品など、表現としての活動です。</p>
+  <h1 class="glitch">音楽活動</h1>
+  <p class="hero-desc">ギタリスト・音楽家としての演奏・作品制作。自主制作の楽曲や、Max/MSPを使ったインタラクティブサウンド作品など、表現としての活動です。</p>
   <div class="badge-row">
     <span class="badge">演奏</span>
     <span class="badge pink">自主制作楽曲</span>
     <span class="badge gold">Max/MSP サウンド作品</span>
   </div>
-</div>
+</header>
 
 <div class="wrap">
 
   <section>
     <div class="placeholder-note">⚠ PLACEHOLDER — 実際の作品タイトル・音源/動画・説明文に差し替えてください</div>
 
+    <p class="section-eyebrow">Archive</p>
+    <h2 class="section-title cyan">アーカイブ — Thresholds</h2>
+    <p class="lead">既存プロジェクト「Thresholds」のアーカイブページです。各ページは外部サイト（yasuhiro-otani.com）で公開しています。</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">00</div>
+        <h3>Index</h3>
+        <p>プロジェクトのトップページ。</p>
+        <a class="card-link" href="https://yasuhiro-otani.com/otn_archive_26/thresholds/index.html" target="_blank" rel="noopener">開く ↗</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">01</div>
+        <h3>Timeline</h3>
+        <p>制作・展開の時系列記録。</p>
+        <a class="card-link" href="https://yasuhiro-otani.com/otn_archive_26/thresholds/timeline.html" target="_blank" rel="noopener">開く ↗</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">02</div>
+        <h3>Observation</h3>
+        <p>観察・考察の記録。</p>
+        <a class="card-link" href="https://yasuhiro-otani.com/otn_archive_26/thresholds/observation.html" target="_blank" rel="noopener">開く ↗</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">03</div>
+        <h3>Press</h3>
+        <p>掲載・報道関連。</p>
+        <a class="card-link" href="https://yasuhiro-otani.com/otn_archive_26/thresholds/press.html" target="_blank" rel="noopener">開く ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <p class="section-eyebrow">Performance</p>
     <h2 class="section-title">演奏活動</h2>
     <p class="lead">[バンド活動・ライブ・セッションなどの実績をここに記載]</p>
@@ -116,6 +152,16 @@
   </div>
 </footer>
 
+<script type="module">
+  import { initBlobBackground } from './js/blob-bg.js';
+  initBlobBackground(document.getElementById('hero-canvas'), {
+    colorA: 0x4dd8e8,
+    colorB: 0xff5fa2,
+    intensity: 0.24,
+    speed: 1,
+    glitch: true,
+  });
+</script>
 <script src="js/main.js"></script>
 </body>
 </html>

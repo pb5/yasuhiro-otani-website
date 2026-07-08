@@ -9,37 +9,50 @@
 </head>
 <body>
 
-<header class="site-header">
-  <div class="wrap">
-    <a class="logo" href="index.html">YASUHIRO <span>OTANI</span></a>
-    <nav class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="profile.html">プロフィール</a>
-      <a href="artistic.html">音楽活動</a>
-      <a href="commercial.html" class="active">商業作曲</a>
-      <a href="lessons/index.html">作曲教室</a>
-      <a href="contact.html">お問い合わせ</a>
-    </nav>
-    <button class="nav-toggle" aria-label="メニュー">☰</button>
+<div class="corner-logo">Y<span>/</span>O</div>
+<button class="menu-trigger" aria-label="メニュー">
+  <span>MENU</span>
+  <span class="bars"><span></span><span></span><span></span></span>
+</button>
+<nav class="nav-overlay">
+  <div class="nav-overlay-list">
+    <a href="index.html"><span class="idx">00</span> Home</a>
+    <a href="profile.html"><span class="idx">01</span> Profile</a>
+    <a href="artistic.html"><span class="idx">02</span> Artistic</a>
+    <a href="commercial.html" class="active"><span class="idx">03</span> Commercial</a>
+    <a href="lessons/index.html"><span class="idx">04</span> Lessons</a>
+    <a href="contact.html"><span class="idx">05</span> Contact</a>
   </div>
-</header>
+  <div class="nav-overlay-foot">© 2026 Yasuhiro Otani</div>
+</nav>
+<div class="scanlines"></div>
 
-<div class="hero small">
+<header class="impact-hero light compact">
   <p class="hero-eyebrow">Commercial Composition</p>
-  <h1 class="gradient-text">商業作曲</h1>
-  <p>作曲家としてのクライアントワーク。BGM・CM・映像音楽などの制作依頼を承っています。</p>
+  <h1>商業作曲</h1>
+  <p class="hero-desc">作曲家としてのクライアントワーク。BGM・CM・映像音楽などの制作依頼を承っています。</p>
   <div class="badge-row">
     <span class="badge">BGM制作</span>
     <span class="badge pink">CM・映像音楽</span>
     <span class="badge gold">編曲・トラックメイク</span>
   </div>
-</div>
+</header>
 
 <div class="wrap">
 
   <section>
     <div class="placeholder-note">⚠ PLACEHOLDER — 実際の制作実績・クライアント名・料金体系に差し替えてください</div>
 
+    <p class="section-eyebrow">Track Record</p>
+    <h2 class="section-title">実績</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num">[--]</div><span class="stat-label">制作実績数</span></div>
+      <div class="stat"><div class="stat-num">[--]</div><span class="stat-label">対応年数</span></div>
+      <div class="stat"><div class="stat-num">[--]</div><span class="stat-label">クライアント数</span></div>
+    </div>
+  </section>
+
+  <section>
     <p class="section-eyebrow">Services</p>
     <h2 class="section-title">対応できる制作</h2>
     <div class="card-grid">
@@ -62,7 +75,7 @@
   </section>
 
   <section>
-    <p class="section-eyebrow">Track Record</p>
+    <p class="section-eyebrow">Case Studies</p>
     <h2 class="section-title pink">制作実績</h2>
     <div class="card-grid">
       <div class="card">
