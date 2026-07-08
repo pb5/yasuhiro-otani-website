@@ -384,6 +384,19 @@ section { padding: 64px 0; }
   stroke-width: 1.5;
 }
 
+.visual-block img.visual-photo {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+.visual-block img.visual-photo.muted {
+  filter: grayscale(.85) contrast(1.15) brightness(.65) sepia(.12);
+}
+
 /* ----------------------------- stat row (editorial numbers) -------------- */
 
 .stat-row {
