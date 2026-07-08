@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版） | 作曲教室 | Yasuhiro Otani</title>
+<meta name="description" content="実在曲のステム解析による実測データにもとづく、ワンループ×レイヤー構成のMV系楽曲作曲テンプレート教材。">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .config{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:20px 0 0;}
+  .cfg{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:9px;text-align:center;}
+  .cfg-l{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px;}
+  .cfg-v{font-family:'DM Mono',monospace;font-size:.82rem;color:var(--accent3);font-weight:500;}
+
+  .spectrum{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 14px 10px;}
+  .spec-row{display:grid;grid-template-columns:110px 1fr 150px;gap:8px;align-items:center;margin-bottom:5px;}
+  .spec-name{font-family:'DM Mono',monospace;font-size:.62rem;font-weight:700;text-align:right;}
+  .spec-lane{position:relative;height:22px;background:rgba(255,255,255,.03);border-radius:3px;border:1px dashed rgba(255,255,255,.06);}
+  .spec-band{position:absolute;top:2px;bottom:2px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:.52rem;font-weight:700;color:#0a0e1a;}
+  .spec-eq{font-family:'DM Mono',monospace;font-size:.53rem;color:var(--muted);line-height:1.4;}
+  .spec-axis{display:grid;grid-template-columns:110px 1fr 150px;gap:8px;margin-top:4px;}
+  .spec-axis-lane{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);}
+
+  .arr-wrap{overflow-x:auto;}
+  .arr-table{width:100%;min-width:640px;border-collapse:separate;border-spacing:2px;}
+  .arr-table th{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);padding:6px 2px;font-weight:500;}
+  .arr-table th.sec{font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:.04em;}
+  .arr-table td{padding:0;}
+  .arr-name{font-family:'DM Mono',monospace;font-size:.6rem;font-weight:700;text-align:right;padding:0 8px 0 0 !important;white-space:nowrap;}
+  .cell{height:26px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:.5rem;font-weight:700;}
+  .cell.off{background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.06);color:var(--muted);}
+  .on-pad{background:rgba(139,124,246,.35);border:1px solid #8b7cf6;color:#d9d2ff;}
+  .on-sub{background:rgba(255,95,162,.3);border:1px solid var(--accent2);color:#ffc4dd;}
+  .on-drum{background:rgba(77,216,232,.28);border:1px solid var(--accent);color:#c8f4fa;}
+  .on-gtr{background:rgba(147,160,181,.25);border:1px solid #93a0b5;color:#dbe2ec;}
+  .on-syn{background:rgba(255,209,102,.28);border:1px solid var(--accent3);color:#ffe9b3;}
+  .on-mel{background:rgba(124,255,155,.25);border:1px solid #7cff9b;color:#d2ffdd;}
+  .dim{opacity:.45;}
+
+  .score-table{width:100%;border-collapse:separate;border-spacing:2px;}
+  .score-table th{font-family:'DM Mono',monospace;font-size:.62rem;padding:7px 4px;background:rgba(255,255,255,.03);border-radius:3px;color:var(--muted);font-weight:500;}
+  .score-table td{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:8px 6px;text-align:center;vertical-align:top;}
+  .np{display:block;font-family:'DM Mono',monospace;font-size:.72rem;font-weight:700;}
+  .np.pad{color:#8b7cf6;} .np.sub{color:var(--accent2);} .np.syn{color:var(--accent3);} .np.mel{color:#7cff9b;} .np.gtr{color:#93a0b5;}
+  .nd{display:block;font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);margin-top:2px;line-height:1.4;}
+
+  .chord-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:8px 0;}
+  .chord{background:rgba(139,124,246,.15);border:1px solid rgba(139,124,246,.4);border-radius:5px;padding:9px 4px;text-align:center;font-family:'DM Mono',monospace;}
+  .chord .c-main{font-size:1rem;font-weight:700;color:#8b7cf6;}
+  .chord .c-sub{font-size:.52rem;color:var(--muted);margin-top:2px;}
+  .chord.sabi{background:rgba(255,95,162,.12);border-color:rgba(255,95,162,.4);}
+  .chord.sabi .c-main{color:var(--accent2);}
+
+  .beat-grid{background:rgba(77,216,232,.04);border:1px solid rgba(77,216,232,.2);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;margin-top:6px;}
+  .beat-caption{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--accent);font-weight:700;margin-bottom:2px;}
+  .beat-nums{display:grid;grid-template-columns:52px repeat(16,1fr);gap:2px;margin-bottom:1px;}
+  .bn{height:12px;text-align:center;font-family:'DM Mono',monospace;font-size:.45rem;color:var(--muted);}
+  .bn.s{color:var(--accent);font-weight:700;}
+  .beat-row{display:grid;grid-template-columns:52px repeat(16,1fr);gap:2px;align-items:center;}
+  .bi{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);text-align:right;padding-right:4px;}
+  .b{height:18px;border-radius:2px;border:1px solid var(--border);}
+  .b.k{background:rgba(77,216,232,.45);border-color:var(--accent);}
+  .b.s{background:rgba(255,209,102,.4);border-color:var(--accent3);}
+  .b.h{background:rgba(139,124,246,.2);border-color:rgba(139,124,246,.35);}
+  .beat-note{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--accent3);margin-top:3px;}
+
+  .steps{display:flex;flex-direction:column;gap:8px;}
+  .step{display:flex;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+  .step-num{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(77,216,232,.15);border:1px solid var(--accent);color:var(--accent);font-family:'Bebas Neue',sans-serif;font-size:.95rem;display:flex;align-items:center;justify-content:center;}
+  .step-title{font-size:.8rem;font-weight:700;margin-bottom:2px;}
+  .step-desc{font-size:.72rem;color:var(--muted);line-height:1.7;}
+  .step-tip{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--accent3);margin-top:5px;}
+
+  .checklist{display:flex;flex-direction:column;gap:6px;}
+  .check-item{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;cursor:pointer;transition:opacity .15s;}
+  .check-box{flex-shrink:0;width:16px;height:16px;border:2px solid var(--accent);border-radius:4px;position:relative;}
+  .check-item.done{opacity:.45;}
+  .check-item.done .check-box{background:var(--accent);}
+  .check-item.done .check-box::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#0a0e1a;font-size:.7rem;font-weight:900;}
+  .check-item.done .check-text{text-decoration:line-through;}
+  .check-text{font-size:.75rem;}
+
+  .link-box{background:var(--card);border:1px solid rgba(255,95,162,.3);border-radius:8px;padding:12px 14px;font-size:.75rem;line-height:1.8;margin-top:28px;}
+  .link-box a{color:var(--accent2);font-weight:700;}
+
+  @media (max-width:640px){
+    .spec-row{grid-template-columns:78px 1fr;}
+    .spec-eq{display:none;}
+    .spec-axis{grid-template-columns:78px 1fr;}
+    .config{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="logo" href="../index.html">YASUHIRO <span>OTANI</span></a>
+    <nav class="nav-links">
+      <a href="../index.html">Home</a>
+      <a href="../profile.html">プロフィール</a>
+      <a href="../artistic.html">音楽活動</a>
+      <a href="../commercial.html">商業作曲</a>
+      <a href="index.html" class="active">作曲教室</a>
+      <a href="../contact.html">お問い合わせ</a>
+    </nav>
+    <button class="nav-toggle" aria-label="メニュー">☰</button>
+  </div>
+</header>
+
+<div class="hero">
+  <p class="hero-eyebrow">One Loop × Layer Arrangement / MV Style — Measured Edition</p>
+  <h1 class="gradient-text">ワンループ×レイヤー構成<br>MV系楽曲テンプレ</h1>
+  <p>コード進行は4小節ループ1個だけ。展開は「トラックの出し入れ」で作る。<br>数値はすべて実在曲のステム解析による実測値。</p>
+  <div class="badge-row">
+    <span class="badge">汎用DAW対応</span>
+    <span class="badge pink">4小節ループ×1</span>
+    <span class="badge gold">実測データ準拠</span>
+  </div>
+</div>
+
+<div class="wrap" style="padding-bottom:56px;">
+
+  <p style="font-family:'DM Mono',monospace; font-size:.68rem;"><a href="index.html" style="color:var(--accent);">← 作曲教室トップに戻る</a></p>
+
+  <div class="config">
+    <div class="cfg"><div class="cfg-l">BPM（実測）</div><div class="cfg-v">137</div></div>
+    <div class="cfg"><div class="cfg-l">Key（実測）</div><div class="cfg-v">B♭m → 打込はAm</div></div>
+    <div class="cfg"><div class="cfg-l">拍子</div><div class="cfg-v">4 / 4</div></div>
+    <div class="cfg"><div class="cfg-l">トラック</div><div class="cfg-v">6本</div></div>
+  </div>
+
+  <!-- ══════ 考え方 ══════ -->
+  <h2 class="section-title pink">このテンプレの考え方</h2>
+  <div class="concept-box">
+    普通の曲はセクションごとにコード進行が変わることで時間が進む。分析した曲は<strong>4小節のループ1個がほぼ全編を支配</strong>し（サビだけ2コード交互）、
+    代わりに<strong>①どの帯域に何を置くか（帯域の塗り分け）</strong>と<strong>②どのセクションでどのトラックを鳴らすか（レイヤーの出し入れ）</strong>で曲を成立させている。
+    MVと一緒に流れる前提の音楽では、場面転換は映像が担当するので、音側はこれで足りる——という設計。以下の数値は全てステム解析の実測。
+  </div>
+
+  <!-- ══════ コードループ ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">STEP 0：ループを覚える（コードはこれで終わり）</h2>
+  <p class="lead">実測キーはB♭マイナー。打ち込みやすいようにAマイナーへ移調した版で作る（構造は同一）。</p>
+  <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:#8b7cf6;font-weight:700;margin-bottom:4px;">メインループ（イントロ・Aメロ・2番…ほぼ全部これ）</div>
+  <div class="chord-strip">
+    <div class="chord"><div class="c-main">Am</div><div class="c-sub">実測: B♭m（i）</div></div>
+    <div class="chord"><div class="c-main">Am</div><div class="c-sub">実測: B♭m（i）</div></div>
+    <div class="chord"><div class="c-main">C</div><div class="c-sub">実測: D♭（III）</div></div>
+    <div class="chord"><div class="c-main">G</div><div class="c-sub">実測: A♭（VII）</div></div>
+  </div>
+  <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--accent2);font-weight:700;margin:10px 0 4px;">サビだけ（2コード交互）</div>
+  <div class="chord-strip">
+    <div class="chord sabi"><div class="c-main">C</div><div class="c-sub">実測: D♭（III）</div></div>
+    <div class="chord sabi"><div class="c-main">E</div><div class="c-sub">実測: F（V）</div></div>
+    <div class="chord sabi"><div class="c-main">C</div><div class="c-sub">実測: D♭</div></div>
+    <div class="chord sabi"><div class="c-main">E</div><div class="c-sub">実測: F</div></div>
+  </div>
+  <div class="point-box cyan">
+    <strong>💡 実測メモ</strong>
+    i → III → VII のループはマイナーキーの最頻出パターンのひとつ。終盤は全体が2半音上（実測でCm/E♭圏）へ持ち上がる「ラスサビ転調」の挙動も検出された。まずは転調なしで完成させ、余力があれば最後のサビだけリージョンごと+2半音してみる。
+  </div>
+
+  <!-- ══════ 帯域の地図 ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">STEP 1：帯域の地図（ステム実測値）</h2>
+  <p class="lead">各ステムのエネルギーがどの帯域に集中していたかの実測。全員の「住所」が見事に分かれている。</p>
+  <div class="spectrum">
+    <div class="spec-row">
+      <div class="spec-name" style="color:#93a0b5;">ギター</div>
+      <div class="spec-lane"><div class="spec-band" style="left:44%;width:22%;background:#93a0b5;opacity:.75;">400–1k</div><div class="spec-band" style="left:70%;width:16%;background:#93a0b5;">2.5–6k</div></div>
+      <div class="spec-eq">実測: 400-1k 33% / 2.5-6k 30%（二山）</div>
+    </div>
+    <div class="spec-row">
+      <div class="spec-name" style="color:var(--accent3);">シンセ（上物）</div>
+      <div class="spec-lane"><div class="spec-band" style="left:42%;width:26%;background:var(--accent3);">400–1kHz</div></div>
+      <div class="spec-eq">実測: 400-1kに55%集中</div>
+    </div>
+    <div class="spec-row">
+      <div class="spec-name" style="color:#7cff9b;">歌</div>
+      <div class="spec-lane"><div class="spec-band" style="left:30%;width:34%;background:#7cff9b;">150Hz–2.5kHz</div></div>
+      <div class="spec-eq">実測: 400-1k 38% / 150-400 28% / 1-2.5k 22%</div>
+    </div>
+    <div class="spec-row">
+      <div class="spec-name" style="color:#8b7cf6;">ピアノ（パッド役）</div>
+      <div class="spec-lane"><div class="spec-band" style="left:24%;width:20%;background:#8b7cf6;">150–400Hz</div></div>
+      <div class="spec-eq">実測: 150-400に76%集中</div>
+    </div>
+    <div class="spec-row">
+      <div class="spec-name" style="color:var(--accent);">ドラム</div>
+      <div class="spec-lane"><div class="spec-band" style="left:4%;width:22%;background:var(--accent);">20–150Hz</div></div>
+      <div class="spec-eq">実測: 20-150に83%（キック支配）</div>
+    </div>
+    <div class="spec-row">
+      <div class="spec-name" style="color:var(--accent2);">ベース</div>
+      <div class="spec-lane"><div class="spec-band" style="left:8%;width:20%;background:var(--accent2);">60–150Hz</div></div>
+      <div class="spec-eq">実測: 60-150 63% / 20-60 14%。400Hz以上ほぼゼロ</div>
+    </div>
+    <div class="spec-axis">
+      <div></div>
+      <div class="spec-axis-lane"><span>20Hz</span><span>100Hz</span><span>500Hz</span><span>2kHz</span><span>10kHz</span></div>
+      <div></div>
+    </div>
+  </div>
+  <div class="point-box cyan">
+    <strong>💡 実測が教えること</strong>
+    ベースは400Hz以上をほぼ持たない＝倍音を削った「低域専任」。ピアノは76%が150–400Hzに集中＝コードを鳴らすというより低中域を面で埋めるパッド。
+    そしてシンセと歌は同じ400–1kHzに住んでいる——この競合をどう解決しているかがSTEP 2の構成表に表れる。
+  </div>
+
+  <!-- ══════ 構成表 ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">STEP 2：構成表（実測RMSから復元したレイヤーの出し入れ）</h2>
+  <p class="lead">各ステムの音量推移から復元した実際の構成。コードは変わらないのに、この出し入れだけで2分49秒が持つ。</p>
+  <div class="arr-wrap">
+  <table class="arr-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th class="sec" style="color:var(--muted);">イントロ<br><span style="font-size:.5rem;">8小節/歌あり</span></th>
+        <th class="sec" style="color:var(--accent);">間奏<br><span style="font-size:.5rem;">8小節</span></th>
+        <th class="sec" style="color:var(--accent);">Aメロ<br><span style="font-size:.5rem;">12小節</span></th>
+        <th class="sec" style="color:var(--accent2);">サビ<br><span style="font-size:.5rem;">12小節</span></th>
+        <th class="sec" style="color:var(--muted);">落ち<br><span style="font-size:.5rem;">8小節</span></th>
+        <th class="sec" style="color:var(--accent);">2番<br><span style="font-size:.5rem;">12小節</span></th>
+        <th class="sec" style="color:var(--accent2);">サビ2<br><span style="font-size:.5rem;">20小節/+2転調</span></th>
+        <th class="sec" style="color:var(--accent3);">ソロ<br><span style="font-size:.5rem;">8小節</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="arr-name" style="color:#7cff9b;">歌</td>
+        <td><div class="cell on-mel">中央1本</div></td><td><div class="cell off">—</div></td><td><div class="cell on-mel">中央1本</div></td><td><div class="cell on-mel">ワイド</div></td><td><div class="cell on-mel">中央1本</div></td><td><div class="cell on-mel">中央1本</div></td><td><div class="cell on-mel">ワイド</div></td><td><div class="cell off">—</div></td>
+      </tr>
+      <tr>
+        <td class="arr-name" style="color:#93a0b5;">ギター</td>
+        <td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr">前面!</div></td>
+      </tr>
+      <tr>
+        <td class="arr-name" style="color:var(--accent3);">シンセ</td>
+        <td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell off">抜く</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell off">抜く</div></td><td><div class="cell off">—</div></td>
+      </tr>
+      <tr>
+        <td class="arr-name" style="color:#8b7cf6;">ピアノ</td>
+        <td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad dim">薄</div></td>
+      </tr>
+      <tr>
+        <td class="arr-name" style="color:var(--accent2);">ベース</td>
+        <td><div class="cell off">後半IN</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell off">完全OFF</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td>
+      </tr>
+      <tr>
+        <td class="arr-name" style="color:var(--accent);">ドラム</td>
+        <td><div class="cell on-drum dim">薄</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum dim">薄</div></td><td><div class="cell on-drum">中</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum">フル</div></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="point-box pink">
+    <strong>💡 実測で見つかった3つの技</strong>
+    ①<b>サビでシンセが抜ける</b>：歌と同じ400–1kHzに住むシンセを、歌が主役の場面で退避させている。帯域の競合をアレンジ（出し入れ）で解決する実例。<br>
+    ②<b>落ちでベースが完全OFF</b>（実測-135dB＝無音）：低域を根こそぎ抜いてサビ2の落差を最大化。<br>
+    ③<b>アウトロは歌が消えてギターソロ</b>：最後の8小節でギターが約8dB前に出る。歌の帯域が空いた席にギターが座る。
+  </div>
+
+  <!-- ══════ 打ち込み表 ══════ -->
+  <h2 class="section-title gold" style="margin-top:34px;">STEP 3：打ち込み表（Am移調版）</h2>
+  <table class="score-table">
+    <thead><tr>
+      <th style="width:90px;">トラック</th>
+      <th>置く音</th>
+      <th>リズム</th>
+      <th>実測からのメモ</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="np pad">ピアノ</span></td>
+        <td><span class="np pad">Am: A2+E3+A3+C4<br>C: C3+G3+C4+E4<br>G: G2+D3+G3+B3</span><span class="nd">ループのコードを密集で</span></td>
+        <td><span class="nd" style="font-size:.65rem;">全音符。小節頭で押さえて伸ばす</span></td>
+        <td><span class="nd" style="font-size:.65rem;">低中域（150-400Hz）を面で埋める係。高い音域に広げない</span></td>
+      </tr>
+      <tr>
+        <td><span class="np sub">ベース</span></td>
+        <td><span class="np sub">A1 / A1 / C2 / G1</span><span class="nd">ループのルートを追う</span></td>
+        <td><span class="nd" style="font-size:.65rem;">基本は全音符〜2分。サビは8分で刻む</span></td>
+        <td><span class="nd" style="font-size:.65rem;">音色は倍音の少ないシンセベース。EQで400Hz以上をカット（実測でほぼゼロ）</span></td>
+      </tr>
+      <tr>
+        <td><span class="np syn">シンセ</span></td>
+        <td><span class="np syn">A4→B4→C5→E5</span><span class="nd">Amペンタから4音</span></td>
+        <td><span class="nd" style="font-size:.65rem;">8分ループ。2拍で1周</span></td>
+        <td><span class="nd" style="font-size:.65rem;">400-1kHzの住人。サビでは必ずミュート（構成表①）</span></td>
+      </tr>
+      <tr>
+        <td><span class="np gtr">ギター</span></td>
+        <td><span class="np gtr">コードトーンを単音で</span><span class="nd">なければ省略可</span></td>
+        <td><span class="nd" style="font-size:.65rem;">サビ・2番でバッキング、最後の8小節でソロ</span></td>
+        <td><span class="nd" style="font-size:.65rem;">実測は400-1kと2.5-6kの二山。ソロは高い方の山で弾く</span></td>
+      </tr>
+      <tr>
+        <td><span class="np mel">メロ（歌）</span></td>
+        <td><span class="np mel">A・C・D・E・G</span><span class="nd">Amペンタ／A4〜A5</span></td>
+        <td><span class="nd" style="font-size:.65rem;">2小節単位で同じ形を繰り返すと様式に合う</span></td>
+        <td><span class="nd" style="font-size:.65rem;">歌でもリードシンセでも可。広げ方はSTEP 5</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="beat-grid">
+    <div class="beat-caption">ドラム基本形（実測: Aメロ〜サビ共通の骨格）— 1小節。コピペで増やす</div>
+    <div class="beat-nums">
+      <div></div>
+      <div class="bn s">1</div><div class="bn">e</div><div class="bn">+</div><div class="bn">a</div>
+      <div class="bn s">2</div><div class="bn">e</div><div class="bn">+</div><div class="bn">a</div>
+      <div class="bn s">3</div><div class="bn">e</div><div class="bn">+</div><div class="bn">a</div>
+      <div class="bn s">4</div><div class="bn">e</div><div class="bn">+</div><div class="bn">a</div>
+    </div>
+    <div class="beat-row">
+      <div class="bi">Hat</div>
+      <div class="b h"></div><div class="b"></div><div class="b h"></div><div class="b"></div>
+      <div class="b h"></div><div class="b"></div><div class="b h"></div><div class="b"></div>
+      <div class="b h"></div><div class="b"></div><div class="b h"></div><div class="b"></div>
+      <div class="b h"></div><div class="b"></div><div class="b h"></div><div class="b"></div>
+    </div>
+    <div class="beat-row">
+      <div class="bi">Snare</div>
+      <div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      <div class="b s"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      <div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      <div class="b s"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+    </div>
+    <div class="beat-row">
+      <div class="bi">Kick</div>
+      <div class="b k"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      <div class="b k"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      <div class="b k"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      <div class="b k"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+    </div>
+    <div class="beat-note">↑ 四つ打ち＋2・4拍スネア＋8分ハット（実測グリッドと一致）。サビは4拍目のキックを16分で2連にすると実測の「追い打ち」が再現できる</div>
+  </div>
+
+  <!-- ══════ 歌の広げ方 ══════ -->
+  <h2 class="section-title gold" style="margin-top:34px;">STEP 4：歌の広げ方（実測L/R分析より）</h2>
+  <div class="point-box pink">
+    <strong>🎤 実測結果</strong>
+    Aメロの歌はL/R相関 0.97＝<b>中央1本</b>（同じ素材を中央に重ねても計測上は1本と区別できない）。
+    サビはL/R相関 0.3〜0.6、周波数コヒーレンス 0.1〜0.3＝<b>左右に「別内容」の声</b>が置かれている。単なる同一コピーの左右振りではなく、左右で中身が違う。
+  </div>
+  <div class="point-box">
+    <strong>🎛 テンプレでの再現手順</strong>
+    Aメロ：メロは1トラック、パン中央。それだけ。<br>
+    サビ：メロのリージョンを複製して2トラックにし、L100/R100に振る。そのうえで<b>左右を「別物」にする</b>——片方を+10〜20セント持ち上げる、フォルマントを少しずらす、タイミングを崩さず別テイクを録る、のどれでも可。左右が同じままだと中央に戻って広がらない（実測が示す通り）。
+  </div>
+
+  <!-- ══════ 作業順 ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">作業順</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div><div class="step-title">プロジェクト設定：BPM 137・4/4</div><div class="step-desc">トラック6本：ピアノ／ベース／ドラム／シンセ／ギター（省略可）／メロ。サビ用のメロ複製トラックも1本。</div></div></div>
+    <div class="step"><div class="step-num">2</div><div><div class="step-title">ループを4小節作る：Am | Am | C | G</div><div class="step-desc">ピアノ（全音符）とベース（ルート）だけでよい。これが曲の地面。</div><div class="step-tip">💡 できたら曲の長さぶん全部コピペ。ループは最後まで変わらない</div></div></div>
+    <div class="step"><div class="step-num">3</div><div><div class="step-title">ドラム基本形を1小節→コピペ</div><div class="step-desc">上のグリッド通り。イントロと落ちは後で音量を下げるか間引く。</div></div></div>
+    <div class="step"><div class="step-num">4</div><div><div class="step-title">シンセ8分ループを乗せる</div><div class="step-desc">A4→B4→C5→E5。EQで400Hz以下をカットして住所を守る。</div></div></div>
+    <div class="step"><div class="step-num">5</div><div><div class="step-title">構成表どおりにリージョンを消す</div><div class="step-desc">全部並べてから、STEP 2の表で「—」「抜く」のリージョンを削除。特に：サビのシンセを抜く、落ちのベースを消す。</div><div class="step-tip">💡 展開を作る＝どこで何を黙らせるか決めること</div></div></div>
+    <div class="step"><div class="step-num">6</div><div><div class="step-title">サビだけコードをC | E交互に差し替え</div><div class="step-desc">サビ区間のピアノとベースだけ、C→E→C→Eに置き換える。Eの音はE2+B2+E3+G#3（ベースはE1）。</div></div></div>
+    <div class="step"><div class="step-num">7</div><div><div class="step-title">メロ→サビでワイド化</div><div class="step-desc">Amペンタでメロを作り、サビ区間だけSTEP 4の手順で左右に広げる。</div></div></div>
+    <div class="step"><div class="step-num">8</div><div><div class="step-title">仕上げ：帯域の掃除と、余力があれば+2転調</div><div class="step-desc">STEP 1の実測帯域に合わせてEQで各トラックの住所の外を削る。最後のサビをリージョンごと+2半音すると実測曲と同じ挙動になる。</div></div></div>
+  </div>
+
+  <!-- ══════ チェックリスト ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">チェックリスト</h2>
+  <div class="checklist">
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">4小節ループ（Am|Am|C|G）以外のコードを使っていない（サビのC|E交互を除く）</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">ベースのEQで400Hz以上を削った（実測準拠）</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">サビでシンセを抜いて歌に帯域の席を空けた</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">落ちでベースを完全に消した</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">サビの歌を左右で「別物」にして広げた</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">通して聴いて「ループ1個なのに飽きなかった」</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">元になった曲を聴き直して、同じ場所（サビのシンセ抜き・落ちの無音ベース・アウトロのソロ）を確認した</div></div>
+  </div>
+
+  <div class="link-box">
+    📝 なぜコードが動かない曲が成立するのか？——この設計の背景にある考え方は解説記事を読んでください：<br>
+    <a href="https://note.com/pb5/n/n56479fa38b4a" target="_blank" rel="noopener">▶ 解説記事：コードが動かない曲は、どこで音楽になっているのか（note）</a>
+  </div>
+
+  <div class="link-box">
+    🎸 この教材を使ったレッスンにご興味があれば、<a href="../contact.html">お問い合わせ</a>からご連絡ください。
+  </div>
+
+</div>
+
+<footer class="site-footer">
+  <div>© 2026 Yasuhiro Otani</div>
+  <div class="footer-links">
+    <a href="../profile.html">プロフィール</a>
+    <a href="../artistic.html">音楽活動</a>
+    <a href="../commercial.html">商業作曲</a>
+    <a href="index.html">作曲教室</a>
+    <a href="../contact.html">お問い合わせ</a>
+  </div>
+</footer>
+
+<script src="../js/main.js"></script>
+</body>
+</html>
