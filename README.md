@@ -8,17 +8,19 @@ Sherman Filterbank 2 is specific to the *Thresholds of Presence* project, not a 
 
 Bold editorial typography, high-contrast black/white sections, and a minimal corner `MENU` trigger that opens a full-screen nav. Music-related pages use a WebGL (Three.js) mouse-reactive wireframe object; the homepage keeps it quiet and monochrome. The palette is restrained — warm neutral tones only, no neon, no gradients.
 
-This site and `yasuhiro-otani.com` (hosted separately, on a rental server) intentionally play different roles and cross-link each other: this site is the current profile/lessons/contact presence, while `yasuhiro-otani.com` continues to host the existing `Thresholds` archive project. See "Domain" below.
+This site and `yasuhiro-otani.com` (hosted separately, on a rental server) intentionally play different roles and cross-link each other: this site is the current profile/lessons/contact presence, while `yasuhiro-otani.com` continues to host its own existing content. See "Domain" below.
 
 ## Structure
 
 - `index.html` — homepage (WebGL background + links into each section)
 - `profile.html` — profile (bio, activity, gear; real portrait photo)
-- `artistic.html` — artistic activity (awards, discography with Bandcamp/Apple Music links, selected performances, link to the existing `Thresholds` archive)
+- `artistic.html` — artistic activity (awards, discography with Bandcamp/Apple Music links, selected performances, dance collaborations)
+- `projects/utsuro-bune.html` — project page for *Utsuro Bune* (空舟), a 2019 guitar/dance collaboration with Masayuki Sumi (Vimeo embed, choreography excerpt in Japanese)
+- `projects/lost-body.html` — project page for *Lost Body*, a dance collaboration with Masayuki Sumi supported by the Agency for Cultural Affairs (Vimeo embed, artist statement in Japanese)
 - `lessons/index.html` — composition lessons (guitar/DTM courses, repositories used in class)
 - `lessons/mv-song-template.html` — teaching material page, in Japanese (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "ワンループ×レイヤー構成 MV系楽曲テンプレ"); presented as one worked example among the template series, not the flagship — simpler templates like Lo-fi are noted as an easier starting point
 - `contact.html` — contact form (submits via Formspree)
-- footer — on every page: link to the `yasuhiro-otani.com` archive, plus Facebook / Bandcamp / Apple Music
+- footer — on every page: link to the `yasuhiro-otani.com` archive, plus Facebook / Bandcamp / Apple Music / YouTube
 - `css/style.css` — shared design system (Noto Sans JP + DM Mono, dark/light sections)
 - `js/main.js` — full-screen nav toggle, glitch-text initialization
 - `js/blob-bg.js` — Three.js mouse-reactive wireframe background (color/speed/glitch configurable per page)

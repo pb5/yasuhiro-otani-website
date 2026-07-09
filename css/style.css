@@ -390,6 +390,43 @@ section { padding: 64px 0; }
   filter: grayscale(.85) contrast(1.15) brightness(.65) sepia(.12);
 }
 
+/* ----------------------------- video embed -------------------------------- */
+
+.video-embed {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  background: #050505;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.video-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.video-caption {
+  font-family: 'DM Mono', monospace;
+  font-size: .68rem;
+  color: var(--muted);
+  margin-top: 10px;
+  font-style: italic;
+}
+
+blockquote.verse {
+  border-left: 3px solid var(--accent3);
+  padding: 4px 0 4px 18px;
+  margin: 14px 0;
+  font-size: .88rem;
+  line-height: 2;
+  color: var(--text);
+}
+
 /* ----------------------------- stat row (editorial numbers) -------------- */
 
 .stat-row {
