@@ -1,6 +1,8 @@
 # yasuhiro-otani-website
 
-Yasuhiro Otani's site (static, GitHub Pages). All copy is in English; the composition template repositories linked from the Lessons page are Japanese-language material.
+Yasuhiro Otani's site (static, GitHub Pages). Site chrome and most copy is in English; the composition-template teaching page (`lessons/mv-song-template.html`) is in Japanese, as it's real lesson material for Japanese-speaking students, and the composition template repositories linked from the Lessons page are Japanese-language material.
+
+Sherman Filterbank 2 is specific to the *Thresholds of Presence* project, not a general instrument/identity — mentions of it stay scoped to that project rather than appearing as a site-wide badge. The broader practice is guitar + computer (Max/MSP).
 
 ## Design direction
 
@@ -14,7 +16,7 @@ This site and `yasuhiro-otani.com` (hosted separately, on a rental server) inten
 - `profile.html` — profile (bio, activity, gear; real portrait photo)
 - `artistic.html` — artistic activity (awards, discography with Bandcamp/Apple Music links, selected performances, link to the existing `Thresholds` archive)
 - `lessons/index.html` — composition lessons (guitar/DTM courses, repositories used in class)
-- `lessons/mv-song-template.html` — teaching material page (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "One Loop × Layered Arrangement — MV-Style Template")
+- `lessons/mv-song-template.html` — teaching material page, in Japanese (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "ワンループ×レイヤー構成 MV系楽曲テンプレ"); presented as one worked example among the template series, not the flagship — simpler templates like Lo-fi are noted as an easier starting point
 - `contact.html` — contact form (submits via Formspree)
 - footer — on every page: link to the `yasuhiro-otani.com` archive, plus Facebook / Bandcamp / Apple Music
 - `css/style.css` — shared design system (Noto Sans JP + DM Mono, dark/light sections)
