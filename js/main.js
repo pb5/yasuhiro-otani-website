@@ -2,11 +2,18 @@ document.addEventListener('DOMContentLoaded', function () {
   var trigger = document.querySelector('.menu-trigger');
   var overlay = document.querySelector('.nav-overlay');
   if (trigger && overlay) {
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', 'nav-overlay');
+    overlay.id = 'nav-overlay';
     trigger.addEventListener('click', function () {
-      overlay.classList.toggle('open');
+      var open = overlay.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
     overlay.querySelectorAll('a').forEach(function (a) {
-      a.addEventListener('click', function () { overlay.classList.remove('open'); });
+      a.addEventListener('click', function () {
+        overlay.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+      });
     });
   }
 
