@@ -1,6 +1,6 @@
 # yasuhiro-otani-website
 
-Yasuhiro Otani's site (static, GitHub Pages). Site chrome and most copy is in English; the composition-template teaching page (`lessons/mv-song-template.html`) is in Japanese, as it's real lesson material for Japanese-speaking students, and the composition template repositories linked from the Lessons page are Japanese-language material.
+Yasuhiro Otani's site (static, GitHub Pages). Most of the site is in English; the Lessons pages (`lessons/index.html`, `lessons/mv-song-template.html`) are in Japanese, since lessons and their teaching material are for Japanese-speaking students, and the composition template repositories linked from the Lessons page are Japanese-language material too. The full-screen nav labels stay in English on every page, including the Japanese ones.
 
 Sherman Filterbank 2 is specific to the *Thresholds of Presence* project, not a general instrument/identity — mentions of it stay scoped to that project rather than appearing as a site-wide badge. The broader practice is guitar + computer (Max/MSP).
 
@@ -18,7 +18,7 @@ This site and `yasuhiro-otani.com` (hosted separately, on a rental server) inten
 - `projects/utsuro-bune.html` — project page for *Utsuro Bune* (空舟), a 2019 guitar/dance collaboration with Masayuki Sumi (Vimeo embed, choreography excerpt in Japanese)
 - `projects/lost-body.html` — project page for *Lost Body*, a dance collaboration with Masayuki Sumi supported by the Agency for Cultural Affairs (Vimeo embed, artist statement in Japanese)
 - `projects/vamp.html` — project page for *VAMP*, music by Yasuhiro Otani for an 8mm experimental film by Tatsu Aoki (Vimeo embed)
-- `lessons/index.html` — composition lessons (guitar/DTM courses, repositories used in class)
+- `lessons/index.html` — composition lessons, in Japanese (guitar/DTM courses, repositories used in class)
 - `lessons/mv-song-template.html` — teaching material page, in Japanese (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "ワンループ×レイヤー構成 MV系楽曲テンプレ"); presented as one worked example among the template series, not the flagship — simpler templates like Lo-fi are noted as an easier starting point
 - `contact.html` — contact form (submits via Formspree)
 - `privacy-policy.html` — privacy policy (contact form data handling via Formspree; no cookies/analytics)
