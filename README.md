@@ -39,5 +39,4 @@ In the repo's Settings → Pages, set Source to "Deploy from a branch" and pick 
 
 ## Outstanding items
 
-- `profile.html` / `lessons/index.html` — lesson pricing and format details are marked with placeholder text
-- `contact.html` — Formspree endpoint is live (`xlgyyjqr`)
+None currently. `lessons/index.html` positions lessons as application-based, for committed students (including university entrance preparation); fees and format are handled by individual consultation rather than a published price list. The `contact.html` Formspree endpoint (`xlgyyjqr`) is live.

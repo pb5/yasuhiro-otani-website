@@ -553,6 +553,15 @@ blockquote.verse {
 .card h3 { font-size: 1rem; font-weight: 700; }
 .card p { font-size: .8rem; color: var(--muted); }
 
+.card-price {
+  font-family: 'DM Mono', monospace;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--accent3);
+  letter-spacing: .02em;
+}
+.card-price small { display: block; font-weight: 400; color: var(--muted); font-size: .68rem; margin-top: 2px; }
+
 .card a.card-link {
   margin-top: auto;
   font-family: 'DM Mono', monospace;
