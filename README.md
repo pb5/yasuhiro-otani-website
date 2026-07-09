@@ -10,7 +10,7 @@ Yasuhiro Otani 公式サイト（GitHub Pages 静的サイト）。
 
 - `index.html` — トップページ（WebGL背景 + 各セクションへの導線）
 - `profile.html` — プロフィール（実写真使用）
-- `artistic.html` — 音楽活動（音楽家としての芸術活動：演奏・自主制作楽曲・Max/MSPサウンド作品・既存プロジェクト「Thresholds」アーカイブへのリンク、実写真使用）
+- `artistic.html` — 音楽活動（受賞歴・代表的パフォーマンス・ディスコグラフィ〔Bandcamp / Apple Musicへのリンク〕・既存プロジェクト「Thresholds」アーカイブへのリンク、実写真使用）
 - `commercial.html` — 商業作曲（作曲家としての商業活動：映画・ラジオ・TV向けの音楽制作。料金は個別相談）
 - `lessons/index.html` — 作曲教室（教育：ギター / DTMコース紹介、授業で使用しているリポジトリ一覧）
 - `lessons/mv-song-template.html` — 教材ページ（[pb5/mv_song_templete](https://github.com/pb5/mv_song_templete) の「ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版）」を組み込み）
@@ -27,8 +27,6 @@ Yasuhiro Otani 公式サイト（GitHub Pages 静的サイト）。
 
 リポジトリの Settings → Pages で Source を「Deploy from a branch」、ブランチをこのリポジトリのデフォルトブランチ / ルート (`/`) に設定してください。`CNAME` によりカスタムドメイン `yasuhiro-otani.com` で公開されます。
 
-## 未確定のプレースホルダー
+## プレースホルダーについて
 
-以下は実データ未確認のため、ページ内に `⚠ PLACEHOLDER` として明記しています。公開前に差し替えてください。
-
-- `artistic.html` — 自主制作楽曲・Max/MSP作品の音源/リンク（ディスコグラフィ以外の未公開音源など）
+現時点で `⚠ PLACEHOLDER` の明記が必要な項目はありません。Max/MSPのパッチ自体は非公開のため制作歴の説明にとどめ、音源はBandcamp / Apple Musicへのリンクのみで案内しています。
