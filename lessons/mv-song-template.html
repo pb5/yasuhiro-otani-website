@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版） | 作曲教室 | Yasuhiro Otani</title>
-<meta name="description" content="実在曲のステム解析による実測データにもとづく、ワンループ×レイヤー構成のMV系楽曲作曲テンプレート教材。">
+<title>One Loop × Layered Arrangement — MV-Style Template (Measured Edition) | Lessons | Yasuhiro Otani</title>
+<meta name="description" content="A composition template for MV-style tracks, built entirely from measured stem analysis of a real track: one loop, layered arrangement.">
 <link rel="stylesheet" href="../css/style.css">
 <style>
   .config{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:20px 0 0;}
@@ -94,7 +94,7 @@
 <body>
 
 <div class="corner-logo">Y<span>/</span>O</div>
-<button class="menu-trigger" aria-label="メニュー">
+<button class="menu-trigger" aria-label="Menu">
   <span>MENU</span>
   <span class="bars"><span></span><span></span><span></span></span>
 </button>
@@ -103,9 +103,8 @@
     <a href="../index.html"><span class="idx">00</span> Home</a>
     <a href="../profile.html"><span class="idx">01</span> Profile</a>
     <a href="../artistic.html"><span class="idx">02</span> Artistic</a>
-    <a href="../commercial.html"><span class="idx">03</span> Commercial</a>
-    <a href="index.html" class="active"><span class="idx">04</span> Lessons</a>
-    <a href="../contact.html"><span class="idx">05</span> Contact</a>
+    <a href="index.html" class="active"><span class="idx">03</span> Lessons</a>
+    <a href="../contact.html"><span class="idx">04</span> Contact</a>
   </div>
   <div class="nav-overlay-foot">© 2026 Yasuhiro Otani</div>
 </nav>
@@ -113,89 +112,88 @@
 
 <header class="impact-hero compact">
   <p class="hero-eyebrow">One Loop × Layer Arrangement / MV Style — Measured Edition</p>
-  <h1 class="glitch">ワンループ×レイヤー構成<br>MV系楽曲テンプレ</h1>
-  <p class="hero-desc">コード進行は4小節ループ1個だけ。展開は「トラックの出し入れ」で作る。数値はすべて実在曲のステム解析による実測値。</p>
+  <h1 class="glitch">One Loop × Layered<br>Arrangement Template</h1>
+  <p class="hero-desc">Just one 4-bar chord loop. The arrangement is built entirely by switching tracks in and out. Every number here comes from measured stem analysis of a real track.</p>
   <div class="badge-row">
-    <span class="badge">汎用DAW対応</span>
-    <span class="badge pink">4小節ループ×1</span>
-    <span class="badge gold">実測データ準拠</span>
+    <span class="badge">Any DAW</span>
+    <span class="badge pink">One 4-bar loop</span>
+    <span class="badge gold">Measured data</span>
   </div>
 </header>
 
 <div class="wrap" style="padding-bottom:56px;">
 
-  <p style="font-family:'DM Mono',monospace; font-size:.68rem;"><a href="index.html" style="color:var(--accent);">← 作曲教室トップに戻る</a></p>
+  <p style="font-family:'DM Mono',monospace; font-size:.68rem;"><a href="index.html" style="color:var(--accent);">← Back to Lessons</a></p>
 
   <div class="config">
-    <div class="cfg"><div class="cfg-l">BPM（実測）</div><div class="cfg-v">137</div></div>
-    <div class="cfg"><div class="cfg-l">Key（実測）</div><div class="cfg-v">B♭m → 打込はAm</div></div>
-    <div class="cfg"><div class="cfg-l">拍子</div><div class="cfg-v">4 / 4</div></div>
-    <div class="cfg"><div class="cfg-l">トラック</div><div class="cfg-v">6本</div></div>
+    <div class="cfg"><div class="cfg-l">BPM (measured)</div><div class="cfg-v">137</div></div>
+    <div class="cfg"><div class="cfg-l">Key (measured)</div><div class="cfg-v">B♭m → Am for MIDI</div></div>
+    <div class="cfg"><div class="cfg-l">Time signature</div><div class="cfg-v">4 / 4</div></div>
+    <div class="cfg"><div class="cfg-l">Tracks</div><div class="cfg-v">6</div></div>
   </div>
 
-  <!-- ══════ 考え方 ══════ -->
-  <h2 class="section-title pink">このテンプレの考え方</h2>
+  <!-- ══════ concept ══════ -->
+  <h2 class="section-title pink">The idea behind this template</h2>
   <div class="concept-box">
-    普通の曲はセクションごとにコード進行が変わることで時間が進む。分析した曲は<strong>4小節のループ1個がほぼ全編を支配</strong>し（サビだけ2コード交互）、
-    代わりに<strong>①どの帯域に何を置くか（帯域の塗り分け）</strong>と<strong>②どのセクションでどのトラックを鳴らすか（レイヤーの出し入れ）</strong>で曲を成立させている。
-    MVと一緒に流れる前提の音楽では、場面転換は映像が担当するので、音側はこれで足りる——という設計。以下の数値は全てステム解析の実測。
+    A typical song moves forward by changing chord progressions section to section. The track analyzed here is dominated almost entirely by <strong>a single 4-bar loop</strong> (the chorus alternates between just two chords), and instead builds the song through <strong>① which frequency range each part occupies (spectral zoning)</strong> and <strong>② which tracks play in which section (layering tracks in and out)</strong>.
+    Because this music is designed to run alongside a music video, scene changes are handled by the visuals — so the audio side doesn't need to do it. Every number below is measured directly from stem analysis.
   </div>
 
-  <!-- ══════ コードループ ══════ -->
-  <h2 class="section-title" style="margin-top:34px;">STEP 0：ループを覚える（コードはこれで終わり）</h2>
-  <p class="lead">実測キーはB♭マイナー。打ち込みやすいようにAマイナーへ移調した版で作る（構造は同一）。</p>
-  <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:#8b7cf6;font-weight:700;margin-bottom:4px;">メインループ（イントロ・Aメロ・2番…ほぼ全部これ）</div>
+  <!-- ══════ chord loop ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">STEP 0: Learn the loop (that's all the chords you need)</h2>
+  <p class="lead">The measured key is B♭ minor. For easier programming, this template transposes to A minor (the structure is identical).</p>
+  <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:#8b7cf6;font-weight:700;margin-bottom:4px;">Main loop (intro, verse, second verse — almost everything)</div>
   <div class="chord-strip">
-    <div class="chord"><div class="c-main">Am</div><div class="c-sub">実測: B♭m（i）</div></div>
-    <div class="chord"><div class="c-main">Am</div><div class="c-sub">実測: B♭m（i）</div></div>
-    <div class="chord"><div class="c-main">C</div><div class="c-sub">実測: D♭（III）</div></div>
-    <div class="chord"><div class="c-main">G</div><div class="c-sub">実測: A♭（VII）</div></div>
+    <div class="chord"><div class="c-main">Am</div><div class="c-sub">Measured: B♭m (i)</div></div>
+    <div class="chord"><div class="c-main">Am</div><div class="c-sub">Measured: B♭m (i)</div></div>
+    <div class="chord"><div class="c-main">C</div><div class="c-sub">Measured: D♭ (III)</div></div>
+    <div class="chord"><div class="c-main">G</div><div class="c-sub">Measured: A♭ (VII)</div></div>
   </div>
-  <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--accent2);font-weight:700;margin:10px 0 4px;">サビだけ（2コード交互）</div>
+  <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--accent2);font-weight:700;margin:10px 0 4px;">Chorus only (two chords alternating)</div>
   <div class="chord-strip">
-    <div class="chord sabi"><div class="c-main">C</div><div class="c-sub">実測: D♭（III）</div></div>
-    <div class="chord sabi"><div class="c-main">E</div><div class="c-sub">実測: F（V）</div></div>
-    <div class="chord sabi"><div class="c-main">C</div><div class="c-sub">実測: D♭</div></div>
-    <div class="chord sabi"><div class="c-main">E</div><div class="c-sub">実測: F</div></div>
+    <div class="chord sabi"><div class="c-main">C</div><div class="c-sub">Measured: D♭ (III)</div></div>
+    <div class="chord sabi"><div class="c-main">E</div><div class="c-sub">Measured: F (V)</div></div>
+    <div class="chord sabi"><div class="c-main">C</div><div class="c-sub">Measured: D♭</div></div>
+    <div class="chord sabi"><div class="c-main">E</div><div class="c-sub">Measured: F</div></div>
   </div>
   <div class="point-box cyan">
-    <strong>💡 実測メモ</strong>
-    i → III → VII のループはマイナーキーの最頻出パターンのひとつ。終盤は全体が2半音上（実測でCm/E♭圏）へ持ち上がる「ラスサビ転調」の挙動も検出された。まずは転調なしで完成させ、余力があれば最後のサビだけリージョンごと+2半音してみる。
+    <strong>💡 Measurement note</strong>
+    An i → III → VII loop is one of the most common patterns in a minor key. Near the end, the whole track was measured shifting up two semitones (into Cm/E♭ territory) — a "final chorus key change." Finish the track without the key change first, then try shifting just the final chorus up +2 semitones if you have the energy for it.
   </div>
 
-  <!-- ══════ 帯域の地図 ══════ -->
-  <h2 class="section-title" style="margin-top:34px;">STEP 1：帯域の地図（ステム実測値）</h2>
-  <p class="lead">各ステムのエネルギーがどの帯域に集中していたかの実測。全員の「住所」が見事に分かれている。</p>
+  <!-- ══════ frequency map ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">STEP 1: The frequency map (measured stem data)</h2>
+  <p class="lead">Where each stem's energy actually concentrates. Every part has its own clearly separated "address."</p>
   <div class="spectrum">
     <div class="spec-row">
-      <div class="spec-name" style="color:#93a0b5;">ギター</div>
+      <div class="spec-name" style="color:#93a0b5;">Guitar</div>
       <div class="spec-lane"><div class="spec-band" style="left:44%;width:22%;background:#93a0b5;opacity:.75;">400–1k</div><div class="spec-band" style="left:70%;width:16%;background:#93a0b5;">2.5–6k</div></div>
-      <div class="spec-eq">実測: 400-1k 33% / 2.5-6k 30%（二山）</div>
+      <div class="spec-eq">Measured: 400–1k 33% / 2.5–6k 30% (two peaks)</div>
     </div>
     <div class="spec-row">
-      <div class="spec-name" style="color:var(--accent3);">シンセ（上物）</div>
+      <div class="spec-name" style="color:var(--accent3);">Synth (lead)</div>
       <div class="spec-lane"><div class="spec-band" style="left:42%;width:26%;background:var(--accent3);">400–1kHz</div></div>
-      <div class="spec-eq">実測: 400-1kに55%集中</div>
+      <div class="spec-eq">Measured: 55% concentrated in 400–1k</div>
     </div>
     <div class="spec-row">
-      <div class="spec-name" style="color:#7cff9b;">歌</div>
+      <div class="spec-name" style="color:#7cff9b;">Vocal</div>
       <div class="spec-lane"><div class="spec-band" style="left:30%;width:34%;background:#7cff9b;">150Hz–2.5kHz</div></div>
-      <div class="spec-eq">実測: 400-1k 38% / 150-400 28% / 1-2.5k 22%</div>
+      <div class="spec-eq">Measured: 400–1k 38% / 150–400 28% / 1–2.5k 22%</div>
     </div>
     <div class="spec-row">
-      <div class="spec-name" style="color:#8b7cf6;">ピアノ（パッド役）</div>
+      <div class="spec-name" style="color:#8b7cf6;">Piano (pad role)</div>
       <div class="spec-lane"><div class="spec-band" style="left:24%;width:20%;background:#8b7cf6;">150–400Hz</div></div>
-      <div class="spec-eq">実測: 150-400に76%集中</div>
+      <div class="spec-eq">Measured: 76% concentrated in 150–400</div>
     </div>
     <div class="spec-row">
-      <div class="spec-name" style="color:var(--accent);">ドラム</div>
+      <div class="spec-name" style="color:var(--accent);">Drums</div>
       <div class="spec-lane"><div class="spec-band" style="left:4%;width:22%;background:var(--accent);">20–150Hz</div></div>
-      <div class="spec-eq">実測: 20-150に83%（キック支配）</div>
+      <div class="spec-eq">Measured: 83% in 20–150 (kick-dominated)</div>
     </div>
     <div class="spec-row">
-      <div class="spec-name" style="color:var(--accent2);">ベース</div>
+      <div class="spec-name" style="color:var(--accent2);">Bass</div>
       <div class="spec-lane"><div class="spec-band" style="left:8%;width:20%;background:var(--accent2);">60–150Hz</div></div>
-      <div class="spec-eq">実測: 60-150 63% / 20-60 14%。400Hz以上ほぼゼロ</div>
+      <div class="spec-eq">Measured: 60–150 63% / 20–60 14%. Near zero above 400Hz</div>
     </div>
     <div class="spec-axis">
       <div></div>
@@ -204,109 +202,109 @@
     </div>
   </div>
   <div class="point-box cyan">
-    <strong>💡 実測が教えること</strong>
-    ベースは400Hz以上をほぼ持たない＝倍音を削った「低域専任」。ピアノは76%が150–400Hzに集中＝コードを鳴らすというより低中域を面で埋めるパッド。
-    そしてシンセと歌は同じ400–1kHzに住んでいる——この競合をどう解決しているかがSTEP 2の構成表に表れる。
+    <strong>💡 What the measurements show</strong>
+    Bass carries almost nothing above 400Hz — its harmonics are stripped, leaving it purely a low-end part. Piano puts 76% of its energy in 150–400Hz — less a chord instrument than a pad filling the low-mids as a solid block.
+    Synth and vocal both live in the same 400–1kHz range — how that conflict gets resolved is exactly what STEP 2's arrangement chart shows.
   </div>
 
-  <!-- ══════ 構成表 ══════ -->
-  <h2 class="section-title" style="margin-top:34px;">STEP 2：構成表（実測RMSから復元したレイヤーの出し入れ）</h2>
-  <p class="lead">各ステムの音量推移から復元した実際の構成。コードは変わらないのに、この出し入れだけで2分49秒が持つ。</p>
+  <!-- ══════ arrangement chart ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">STEP 2: Arrangement chart (layering reconstructed from measured RMS)</h2>
+  <p class="lead">The actual arrangement, reconstructed from each stem's level over time. The chords never change — this in/out layering alone carries all 2:49.</p>
   <div class="arr-wrap">
   <table class="arr-table">
     <thead>
       <tr>
         <th></th>
-        <th class="sec" style="color:var(--muted);">イントロ<br><span style="font-size:.5rem;">8小節/歌あり</span></th>
-        <th class="sec" style="color:var(--accent);">間奏<br><span style="font-size:.5rem;">8小節</span></th>
-        <th class="sec" style="color:var(--accent);">Aメロ<br><span style="font-size:.5rem;">12小節</span></th>
-        <th class="sec" style="color:var(--accent2);">サビ<br><span style="font-size:.5rem;">12小節</span></th>
-        <th class="sec" style="color:var(--muted);">落ち<br><span style="font-size:.5rem;">8小節</span></th>
-        <th class="sec" style="color:var(--accent);">2番<br><span style="font-size:.5rem;">12小節</span></th>
-        <th class="sec" style="color:var(--accent2);">サビ2<br><span style="font-size:.5rem;">20小節/+2転調</span></th>
-        <th class="sec" style="color:var(--accent3);">ソロ<br><span style="font-size:.5rem;">8小節</span></th>
+        <th class="sec" style="color:var(--muted);">Intro<br><span style="font-size:.5rem;">8 bars / vocal</span></th>
+        <th class="sec" style="color:var(--accent);">Interlude<br><span style="font-size:.5rem;">8 bars</span></th>
+        <th class="sec" style="color:var(--accent);">Verse<br><span style="font-size:.5rem;">12 bars</span></th>
+        <th class="sec" style="color:var(--accent2);">Chorus<br><span style="font-size:.5rem;">12 bars</span></th>
+        <th class="sec" style="color:var(--muted);">Breakdown<br><span style="font-size:.5rem;">8 bars</span></th>
+        <th class="sec" style="color:var(--accent);">Verse 2<br><span style="font-size:.5rem;">12 bars</span></th>
+        <th class="sec" style="color:var(--accent2);">Chorus 2<br><span style="font-size:.5rem;">20 bars / +2 key change</span></th>
+        <th class="sec" style="color:var(--accent3);">Solo<br><span style="font-size:.5rem;">8 bars</span></th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td class="arr-name" style="color:#7cff9b;">歌</td>
-        <td><div class="cell on-mel">中央1本</div></td><td><div class="cell off">—</div></td><td><div class="cell on-mel">中央1本</div></td><td><div class="cell on-mel">ワイド</div></td><td><div class="cell on-mel">中央1本</div></td><td><div class="cell on-mel">中央1本</div></td><td><div class="cell on-mel">ワイド</div></td><td><div class="cell off">—</div></td>
+        <td class="arr-name" style="color:#7cff9b;">Vocal</td>
+        <td><div class="cell on-mel">Center, 1x</div></td><td><div class="cell off">—</div></td><td><div class="cell on-mel">Center, 1x</div></td><td><div class="cell on-mel">Wide</div></td><td><div class="cell on-mel">Center, 1x</div></td><td><div class="cell on-mel">Center, 1x</div></td><td><div class="cell on-mel">Wide</div></td><td><div class="cell off">—</div></td>
       </tr>
       <tr>
-        <td class="arr-name" style="color:#93a0b5;">ギター</td>
-        <td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr dim">薄</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr">前面!</div></td>
+        <td class="arr-name" style="color:#93a0b5;">Guitar</td>
+        <td><div class="cell on-gtr dim">Thin</div></td><td><div class="cell on-gtr dim">Thin</div></td><td><div class="cell on-gtr dim">Thin</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr dim">Thin</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr">ON</div></td><td><div class="cell on-gtr">Forward!</div></td>
       </tr>
       <tr>
-        <td class="arr-name" style="color:var(--accent3);">シンセ</td>
-        <td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell off">抜く</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell off">抜く</div></td><td><div class="cell off">—</div></td>
+        <td class="arr-name" style="color:var(--accent3);">Synth</td>
+        <td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell off">Out</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell on-syn">ON</div></td><td><div class="cell off">Out</div></td><td><div class="cell off">—</div></td>
       </tr>
       <tr>
-        <td class="arr-name" style="color:#8b7cf6;">ピアノ</td>
-        <td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad dim">薄</div></td>
+        <td class="arr-name" style="color:#8b7cf6;">Piano</td>
+        <td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad">ON</div></td><td><div class="cell on-pad dim">Thin</div></td>
       </tr>
       <tr>
-        <td class="arr-name" style="color:var(--accent2);">ベース</td>
-        <td><div class="cell off">後半IN</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell off">完全OFF</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td>
+        <td class="arr-name" style="color:var(--accent2);">Bass</td>
+        <td><div class="cell off">In at 2nd half</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell off">Fully OFF</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td><td><div class="cell on-sub">ON</div></td>
       </tr>
       <tr>
-        <td class="arr-name" style="color:var(--accent);">ドラム</td>
-        <td><div class="cell on-drum dim">薄</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum dim">薄</div></td><td><div class="cell on-drum">中</div></td><td><div class="cell on-drum">フル</div></td><td><div class="cell on-drum">フル</div></td>
+        <td class="arr-name" style="color:var(--accent);">Drums</td>
+        <td><div class="cell on-drum dim">Thin</div></td><td><div class="cell on-drum">Full</div></td><td><div class="cell on-drum">Full</div></td><td><div class="cell on-drum">Full</div></td><td><div class="cell on-drum dim">Thin</div></td><td><div class="cell on-drum">Med</div></td><td><div class="cell on-drum">Full</div></td><td><div class="cell on-drum">Full</div></td>
       </tr>
     </tbody>
   </table>
   </div>
   <div class="point-box pink">
-    <strong>💡 実測で見つかった3つの技</strong>
-    ①<b>サビでシンセが抜ける</b>：歌と同じ400–1kHzに住むシンセを、歌が主役の場面で退避させている。帯域の競合をアレンジ（出し入れ）で解決する実例。<br>
-    ②<b>落ちでベースが完全OFF</b>（実測-135dB＝無音）：低域を根こそぎ抜いてサビ2の落差を最大化。<br>
-    ③<b>アウトロは歌が消えてギターソロ</b>：最後の8小節でギターが約8dB前に出る。歌の帯域が空いた席にギターが座る。
+    <strong>💡 Three techniques found in the measurements</strong>
+    ① <b>The synth drops out in the chorus</b>: the synth, which lives in the same 400–1kHz range as the vocal, steps aside when the vocal takes the lead — a real example of resolving frequency conflict through arrangement.<br>
+    ② <b>Bass is completely OFF in the breakdown</b> (measured at −135dB, effectively silent): stripping the low end entirely to maximize the drop into chorus 2.<br>
+    ③ <b>The vocal drops out for a guitar solo in the outro</b>: the guitar pushes forward roughly 8dB in the final 8 bars, taking the seat the vocal's frequency range just vacated.
   </div>
 
-  <!-- ══════ 打ち込み表 ══════ -->
-  <h2 class="section-title gold" style="margin-top:34px;">STEP 3：打ち込み表（Am移調版）</h2>
+  <!-- ══════ MIDI programming chart ══════ -->
+  <h2 class="section-title gold" style="margin-top:34px;">STEP 3: MIDI programming chart (A minor transposition)</h2>
   <table class="score-table">
     <thead><tr>
-      <th style="width:90px;">トラック</th>
-      <th>置く音</th>
-      <th>リズム</th>
-      <th>実測からのメモ</th>
+      <th style="width:90px;">Track</th>
+      <th>Notes</th>
+      <th>Rhythm</th>
+      <th>Notes from measurement</th>
     </tr></thead>
     <tbody>
       <tr>
-        <td><span class="np pad">ピアノ</span></td>
-        <td><span class="np pad">Am: A2+E3+A3+C4<br>C: C3+G3+C4+E4<br>G: G2+D3+G3+B3</span><span class="nd">ループのコードを密集で</span></td>
-        <td><span class="nd" style="font-size:.65rem;">全音符。小節頭で押さえて伸ばす</span></td>
-        <td><span class="nd" style="font-size:.65rem;">低中域（150-400Hz）を面で埋める係。高い音域に広げない</span></td>
+        <td><span class="np pad">Piano</span></td>
+        <td><span class="np pad">Am: A2+E3+A3+C4<br>C: C3+G3+C4+E4<br>G: G2+D3+G3+B3</span><span class="nd">Dense loop chords</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Whole notes, held from the downbeat</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Fills the low-mids (150–400Hz) as a solid block. Don't extend it into higher registers</span></td>
       </tr>
       <tr>
-        <td><span class="np sub">ベース</span></td>
-        <td><span class="np sub">A1 / A1 / C2 / G1</span><span class="nd">ループのルートを追う</span></td>
-        <td><span class="nd" style="font-size:.65rem;">基本は全音符〜2分。サビは8分で刻む</span></td>
-        <td><span class="nd" style="font-size:.65rem;">音色は倍音の少ないシンセベース。EQで400Hz以上をカット（実測でほぼゼロ）</span></td>
+        <td><span class="np sub">Bass</span></td>
+        <td><span class="np sub">A1 / A1 / C2 / G1</span><span class="nd">Follows the loop's root</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Whole to half notes normally; eighth notes in the chorus</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Use a low-harmonic synth bass tone. EQ out everything above 400Hz (measured at near zero)</span></td>
       </tr>
       <tr>
-        <td><span class="np syn">シンセ</span></td>
-        <td><span class="np syn">A4→B4→C5→E5</span><span class="nd">Amペンタから4音</span></td>
-        <td><span class="nd" style="font-size:.65rem;">8分ループ。2拍で1周</span></td>
-        <td><span class="nd" style="font-size:.65rem;">400-1kHzの住人。サビでは必ずミュート（構成表①）</span></td>
+        <td><span class="np syn">Synth</span></td>
+        <td><span class="np syn">A4→B4→C5→E5</span><span class="nd">Four notes from the A minor pentatonic</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Eighth-note loop, one cycle every two beats</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Lives in 400–1kHz. Always muted in the chorus (see arrangement chart, ①)</span></td>
       </tr>
       <tr>
-        <td><span class="np gtr">ギター</span></td>
-        <td><span class="np gtr">コードトーンを単音で</span><span class="nd">なければ省略可</span></td>
-        <td><span class="nd" style="font-size:.65rem;">サビ・2番でバッキング、最後の8小節でソロ</span></td>
-        <td><span class="nd" style="font-size:.65rem;">実測は400-1kと2.5-6kの二山。ソロは高い方の山で弾く</span></td>
+        <td><span class="np gtr">Guitar</span></td>
+        <td><span class="np gtr">Single-note chord tones</span><span class="nd">Can be omitted if unavailable</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Backing in chorus and verse 2, solo in the final 8 bars</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Measured with two peaks at 400–1k and 2.5–6k. Play the solo in the higher of the two</span></td>
       </tr>
       <tr>
-        <td><span class="np mel">メロ（歌）</span></td>
-        <td><span class="np mel">A・C・D・E・G</span><span class="nd">Amペンタ／A4〜A5</span></td>
-        <td><span class="nd" style="font-size:.65rem;">2小節単位で同じ形を繰り返すと様式に合う</span></td>
-        <td><span class="nd" style="font-size:.65rem;">歌でもリードシンセでも可。広げ方はSTEP 5</span></td>
+        <td><span class="np mel">Melody (vocal)</span></td>
+        <td><span class="np mel">A · C · D · E · G</span><span class="nd">A minor pentatonic / A4–A5</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Repeating the same 2-bar shape fits the style</span></td>
+        <td><span class="nd" style="font-size:.65rem;">Works as vocal or lead synth. See STEP 4 for widening</span></td>
       </tr>
     </tbody>
   </table>
 
   <div class="beat-grid">
-    <div class="beat-caption">ドラム基本形（実測: Aメロ〜サビ共通の骨格）— 1小節。コピペで増やす</div>
+    <div class="beat-caption">Basic drum pattern (measured: shared skeleton of verse through chorus) — 1 bar, copy-paste to extend</div>
     <div class="beat-nums">
       <div></div>
       <div class="bn s">1</div><div class="bn">e</div><div class="bn">+</div><div class="bn">a</div>
@@ -335,54 +333,54 @@
       <div class="b k"></div><div class="b"></div><div class="b"></div><div class="b"></div>
       <div class="b k"></div><div class="b"></div><div class="b"></div><div class="b"></div>
     </div>
-    <div class="beat-note">↑ 四つ打ち＋2・4拍スネア＋8分ハット（実測グリッドと一致）。サビは4拍目のキックを16分で2連にすると実測の「追い打ち」が再現できる</div>
+    <div class="beat-note">↑ Four-on-the-floor kick + backbeat snare on 2 &amp; 4 + eighth-note hats (matches the measured grid). In the chorus, double the beat-4 kick into sixteenth notes to reproduce the measured "kick flourish."</div>
   </div>
 
-  <!-- ══════ 歌の広げ方 ══════ -->
-  <h2 class="section-title gold" style="margin-top:34px;">STEP 4：歌の広げ方（実測L/R分析より）</h2>
+  <!-- ══════ widening the vocal ══════ -->
+  <h2 class="section-title gold" style="margin-top:34px;">STEP 4: Widening the vocal (from measured L/R analysis)</h2>
   <div class="point-box pink">
-    <strong>🎤 実測結果</strong>
-    Aメロの歌はL/R相関 0.97＝<b>中央1本</b>（同じ素材を中央に重ねても計測上は1本と区別できない）。
-    サビはL/R相関 0.3〜0.6、周波数コヒーレンス 0.1〜0.3＝<b>左右に「別内容」の声</b>が置かれている。単なる同一コピーの左右振りではなく、左右で中身が違う。
+    <strong>🎤 Measured result</strong>
+    In the verse, the vocal's L/R correlation is 0.97 — effectively <b>a single center track</b> (even the same material layered onto itself reads as one source at this correlation).
+    In the chorus, L/R correlation drops to 0.3–0.6 with frequency coherence of 0.1–0.3 — meaning <b>genuinely different content sits in the left and right channels</b>. It's not just one take panned both ways; the left and right content actually differs.
   </div>
   <div class="point-box">
-    <strong>🎛 テンプレでの再現手順</strong>
-    Aメロ：メロは1トラック、パン中央。それだけ。<br>
-    サビ：メロのリージョンを複製して2トラックにし、L100/R100に振る。そのうえで<b>左右を「別物」にする</b>——片方を+10〜20セント持ち上げる、フォルマントを少しずらす、タイミングを崩さず別テイクを録る、のどれでも可。左右が同じままだと中央に戻って広がらない（実測が示す通り）。
+    <strong>🎛 How to reproduce it in this template</strong>
+    Verse: melody on a single track, panned center. That's it.<br>
+    Chorus: duplicate the melody region onto two tracks, pan L100/R100, then <b>make the two sides genuinely different</b> — raise one side 10–20 cents, shift the formant slightly, or record a separate take without disturbing the timing. Any of these works. If both sides stay identical, the image collapses back to center — exactly what the measurements show.
   </div>
 
-  <!-- ══════ 作業順 ══════ -->
-  <h2 class="section-title" style="margin-top:34px;">作業順</h2>
+  <!-- ══════ build order ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">Build order</h2>
   <div class="steps">
-    <div class="step"><div class="step-num">1</div><div><div class="step-title">プロジェクト設定：BPM 137・4/4</div><div class="step-desc">トラック6本：ピアノ／ベース／ドラム／シンセ／ギター（省略可）／メロ。サビ用のメロ複製トラックも1本。</div></div></div>
-    <div class="step"><div class="step-num">2</div><div><div class="step-title">ループを4小節作る：Am | Am | C | G</div><div class="step-desc">ピアノ（全音符）とベース（ルート）だけでよい。これが曲の地面。</div><div class="step-tip">💡 できたら曲の長さぶん全部コピペ。ループは最後まで変わらない</div></div></div>
-    <div class="step"><div class="step-num">3</div><div><div class="step-title">ドラム基本形を1小節→コピペ</div><div class="step-desc">上のグリッド通り。イントロと落ちは後で音量を下げるか間引く。</div></div></div>
-    <div class="step"><div class="step-num">4</div><div><div class="step-title">シンセ8分ループを乗せる</div><div class="step-desc">A4→B4→C5→E5。EQで400Hz以下をカットして住所を守る。</div></div></div>
-    <div class="step"><div class="step-num">5</div><div><div class="step-title">構成表どおりにリージョンを消す</div><div class="step-desc">全部並べてから、STEP 2の表で「—」「抜く」のリージョンを削除。特に：サビのシンセを抜く、落ちのベースを消す。</div><div class="step-tip">💡 展開を作る＝どこで何を黙らせるか決めること</div></div></div>
-    <div class="step"><div class="step-num">6</div><div><div class="step-title">サビだけコードをC | E交互に差し替え</div><div class="step-desc">サビ区間のピアノとベースだけ、C→E→C→Eに置き換える。Eの音はE2+B2+E3+G#3（ベースはE1）。</div></div></div>
-    <div class="step"><div class="step-num">7</div><div><div class="step-title">メロ→サビでワイド化</div><div class="step-desc">Amペンタでメロを作り、サビ区間だけSTEP 4の手順で左右に広げる。</div></div></div>
-    <div class="step"><div class="step-num">8</div><div><div class="step-title">仕上げ：帯域の掃除と、余力があれば+2転調</div><div class="step-desc">STEP 1の実測帯域に合わせてEQで各トラックの住所の外を削る。最後のサビをリージョンごと+2半音すると実測曲と同じ挙動になる。</div></div></div>
+    <div class="step"><div class="step-num">1</div><div><div class="step-title">Project setup: BPM 137, 4/4</div><div class="step-desc">Six tracks: piano, bass, drums, synth, guitar (optional), melody. Add one more track for the duplicated chorus melody.</div></div></div>
+    <div class="step"><div class="step-num">2</div><div><div class="step-title">Build the 4-bar loop: Am | Am | C | G</div><div class="step-desc">Piano (whole notes) and bass (root notes) are enough. This is the ground the whole song stands on.</div><div class="step-tip">💡 Once it's built, copy-paste it for the entire length of the song. The loop never changes.</div></div></div>
+    <div class="step"><div class="step-num">3</div><div><div class="step-title">Copy the basic drum pattern from 1 bar</div><div class="step-desc">Follow the grid above. Lower the volume or thin out the intro and breakdown later.</div></div></div>
+    <div class="step"><div class="step-num">4</div><div><div class="step-title">Add the eighth-note synth loop</div><div class="step-desc">A4→B4→C5→E5. EQ out everything below 400Hz to protect its address.</div></div></div>
+    <div class="step"><div class="step-num">5</div><div><div class="step-title">Remove regions to match the arrangement chart</div><div class="step-desc">Lay everything out first, then delete the regions marked "—" or "Out" in STEP 2's chart. In particular: pull the synth out of the chorus, and remove bass entirely from the breakdown.</div><div class="step-tip">💡 Building a section means deciding what to silence, not what to add.</div></div></div>
+    <div class="step"><div class="step-num">6</div><div><div class="step-title">Swap in C | E alternating chords for the chorus only</div><div class="step-desc">Replace piano and bass in the chorus section only, alternating C→E→C→E. The E chord is E2+B2+E3+G#3 (bass on E1).</div></div></div>
+    <div class="step"><div class="step-num">7</div><div><div class="step-title">Widen the melody in the chorus</div><div class="step-desc">Write the melody from the A minor pentatonic, then widen it in stereo for the chorus only, following STEP 4.</div></div></div>
+    <div class="step"><div class="step-num">8</div><div><div class="step-title">Finishing: clean up frequencies, and +2 key change if you have energy left</div><div class="step-desc">EQ each track to stay within its measured frequency range from STEP 1. Shifting the final chorus up +2 semitones as a whole region matches the behavior of the measured track.</div></div></div>
   </div>
 
-  <!-- ══════ チェックリスト ══════ -->
-  <h2 class="section-title" style="margin-top:34px;">チェックリスト</h2>
+  <!-- ══════ checklist ══════ -->
+  <h2 class="section-title" style="margin-top:34px;">Checklist</h2>
   <div class="checklist">
-    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">4小節ループ（Am|Am|C|G）以外のコードを使っていない（サビのC|E交互を除く）</div></div>
-    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">ベースのEQで400Hz以上を削った（実測準拠）</div></div>
-    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">サビでシンセを抜いて歌に帯域の席を空けた</div></div>
-    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">落ちでベースを完全に消した</div></div>
-    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">サビの歌を左右で「別物」にして広げた</div></div>
-    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">通して聴いて「ループ1個なのに飽きなかった」</div></div>
-    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">元になった曲を聴き直して、同じ場所（サビのシンセ抜き・落ちの無音ベース・アウトロのソロ）を確認した</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">No chords used outside the 4-bar loop (Am|Am|C|G), except the chorus's alternating C|E</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">EQ'd out everything above 400Hz on the bass (matches measurement)</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">Pulled the synth out of the chorus to make room for the vocal</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">Removed the bass entirely in the breakdown</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">Widened the chorus vocal by making left and right genuinely different</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">Listened through and it didn't feel monotonous despite being one loop</div></div>
+    <div class="check-item" onclick="this.classList.toggle('done')"><div class="check-box"></div><div class="check-text">Re-listened to the reference track and confirmed the same moments (synth dropping in chorus, silent bass in breakdown, outro solo)</div></div>
   </div>
 
   <div class="link-box">
-    📝 なぜコードが動かない曲が成立するのか？——この設計の背景にある考え方は解説記事を読んでください：<br>
-    <a href="https://note.com/pb5/n/n56479fa38b4a" target="_blank" rel="noopener">▶ 解説記事：コードが動かない曲は、どこで音楽になっているのか（note）</a>
+    📝 Why does a song with no chord movement still work? For the thinking behind this design, read the companion essay (Japanese):<br>
+    <a href="https://note.com/pb5/n/n56479fa38b4a" target="_blank" rel="noopener">▶ Essay: Where does the music happen in a song whose chords don't move? (note, in Japanese)</a>
   </div>
 
   <div class="link-box">
-    🎸 この教材を使ったレッスンにご興味があれば、<a href="../contact.html">お問い合わせ</a>からご連絡ください。
+    🎸 Interested in lessons built around this material? Get in touch via the <a href="../contact.html">contact page</a>.
   </div>
 
 </div>
@@ -390,13 +388,13 @@
 <footer class="site-footer">
   <div>© 2026 Yasuhiro Otani</div>
   <div class="footer-links">
-    <a href="../profile.html">プロフィール</a>
-    <a href="../artistic.html">音楽活動</a>
-    <a href="../commercial.html">商業作曲</a>
-    <a href="index.html">作曲教室</a>
-    <a href="../contact.html">お問い合わせ</a>
+    <a href="../profile.html">Profile</a>
+    <a href="../artistic.html">Artistic</a>
+    <a href="index.html">Lessons</a>
+    <a href="../contact.html">Contact</a>
   </div>
   <div class="footer-social">
+    <a href="https://yasuhiro-otani.com" target="_blank" rel="noopener">Archive (yasuhiro-otani.com)</a>
     <a href="https://www.facebook.com/yasuhirootani" target="_blank" rel="noopener">Facebook</a>
     <a href="https://kajiru.bandcamp.com" target="_blank" rel="noopener">Bandcamp</a>
     <a href="https://music.apple.com/jp/artist/%E5%A4%A7%E8%B0%B7%E5%AE%89%E5%AE%8F/1528258952" target="_blank" rel="noopener">Apple Music</a>

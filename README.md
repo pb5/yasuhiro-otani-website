@@ -1,32 +1,37 @@
 # yasuhiro-otani-website
 
-Yasuhiro Otani 公式サイト（GitHub Pages 静的サイト）。
+Yasuhiro Otani's site (static, GitHub Pages). All copy is in English; the composition template repositories linked from the Lessons page are Japanese-language material.
 
-## デザイン方針
+## Design direction
 
-「ページごとにインパクトで惹きつける」— 巨大な太字タイポグラフィのヒーロー、白/黒の強いコントラスト、隅の小さな `MENU` トリガーから開くフルスクリーン型ナビ。音楽関連ページには WebGL（Three.js）によるマウス反応3Dオブジェクトとグリッチ演出、トップページは「深い静寂と張り詰めた音」を意識した静かな単色トーンにしている。
+Bold editorial typography, high-contrast black/white sections, and a minimal corner `MENU` trigger that opens a full-screen nav. Music-related pages use a WebGL (Three.js) mouse-reactive wireframe object; the homepage keeps it quiet and monochrome. The palette is restrained — warm neutral tones only, no neon, no gradients.
 
-## 構成
+This site and `yasuhiro-otani.com` (hosted separately, on a rental server) intentionally play different roles and cross-link each other: this site is the current profile/lessons/contact presence, while `yasuhiro-otani.com` continues to host the existing `Thresholds` archive project. See "Domain" below.
 
-- `index.html` — トップページ（WebGL背景 + 各セクションへの導線）
-- `profile.html` — プロフィール（実写真使用）
-- `artistic.html` — 音楽活動（受賞歴・代表的パフォーマンス・ディスコグラフィ〔Bandcamp / Apple Musicへのリンク〕・既存プロジェクト「Thresholds」アーカイブへのリンク、実写真使用）
-- `commercial.html` — 商業作曲（作曲家としての商業活動：映画・ラジオ・TV向けの音楽制作。料金は個別相談）
-- `lessons/index.html` — 作曲教室（教育：ギター / DTMコース紹介、授業で使用しているリポジトリ一覧）
-- `lessons/mv-song-template.html` — 教材ページ（[pb5/mv_song_templete](https://github.com/pb5/mv_song_templete) の「ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版）」を組み込み）
-- `contact.html` — お問い合わせ（Formspree経由でフォーム送信）
-- footer — 全ページ共通で Facebook / Bandcamp / Apple Music へのリンクを設置（プロモ用の見せ方として）
-- `css/style.css` — 共通デザインシステム（Noto Sans JP + DM Mono、ダーク/ライト両対応）
-- `js/main.js` — フルスクリーンナビの開閉、グリッチテキストの初期化
-- `js/blob-bg.js` — Three.js製、マウス反応のワイヤーフレーム3Dオブジェクト背景（ページごとに色・速度・グリッチ有無を指定可能）
-- `js/vendor/` — Three.js本体をローカルにバンドル（CDN非依存）
-- `images/` — 実写真（ポートレート・演奏風景）
-- `CNAME` — カスタムドメイン設定（yasuhiro-otani.com）
+## Structure
 
-## 公開（GitHub Pages）
+- `index.html` — homepage (WebGL background + links into each section)
+- `profile.html` — profile (bio, activity, gear; real portrait photo)
+- `artistic.html` — artistic activity (awards, discography with Bandcamp/Apple Music links, selected performances, link to the existing `Thresholds` archive)
+- `lessons/index.html` — composition lessons (guitar/DTM courses, repositories used in class)
+- `lessons/mv-song-template.html` — teaching material page (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "One Loop × Layered Arrangement — MV-Style Template")
+- `contact.html` — contact form (submits via Formspree)
+- footer — on every page: link to the `yasuhiro-otani.com` archive, plus Facebook / Bandcamp / Apple Music
+- `css/style.css` — shared design system (Noto Sans JP + DM Mono, dark/light sections)
+- `js/main.js` — full-screen nav toggle, glitch-text initialization
+- `js/blob-bg.js` — Three.js mouse-reactive wireframe background (color/speed/glitch configurable per page)
+- `js/vendor/` — Three.js bundled locally (no CDN dependency)
+- `images/` — real photos (portrait, performance)
 
-リポジトリの Settings → Pages で Source を「Deploy from a branch」、ブランチをこのリポジトリのデフォルトブランチ / ルート (`/`) に設定してください。`CNAME` によりカスタムドメイン `yasuhiro-otani.com` で公開されます。
+## Domain
 
-## プレースホルダーについて
+There is currently no `CNAME` file in this repo, so GitHub Pages serves only at `https://pb5.github.io/yasuhiro-otani-website/`. `yasuhiro-otani.com`'s DNS still points at the existing rental-server host and is untouched by this repo. If a custom domain is wanted for this site later, re-add a `CNAME` file and point DNS at GitHub Pages — but note that will not affect `yasuhiro-otani.com`, which is a separate, already-configured domain.
 
-現時点で `⚠ PLACEHOLDER` の明記が必要な項目はありません。Max/MSPのパッチ自体は非公開のため制作歴の説明にとどめ、音源はBandcamp / Apple Musicへのリンクのみで案内しています。
+## Publishing (GitHub Pages)
+
+In the repo's Settings → Pages, set Source to "Deploy from a branch" and pick the branch you want to publish, with `/` (root) as the folder.
+
+## Outstanding items
+
+- `profile.html` / `lessons/index.html` — lesson pricing and format details are marked with placeholder text
+- `contact.html` — Formspree endpoint is live (`xlgyyjqr`)
