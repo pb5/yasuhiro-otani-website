@@ -20,6 +20,7 @@ This site and `yasuhiro-otani.com` (hosted separately, on a rental server) inten
 - `lessons/index.html` — composition lessons (guitar/DTM courses, repositories used in class)
 - `lessons/mv-song-template.html` — teaching material page, in Japanese (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "ワンループ×レイヤー構成 MV系楽曲テンプレ"); presented as one worked example among the template series, not the flagship — simpler templates like Lo-fi are noted as an easier starting point
 - `contact.html` — contact form (submits via Formspree)
+- `privacy-policy.html` — privacy policy (contact form data handling via Formspree; no cookies/analytics)
 - footer — on every page: link to the `yasuhiro-otani.com` archive, plus Facebook / Bandcamp / Apple Music / YouTube
 - `css/style.css` — shared design system (Noto Sans JP + DM Mono, dark/light sections)
 - `js/main.js` — full-screen nav toggle, glitch-text initialization
