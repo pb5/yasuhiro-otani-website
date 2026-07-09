@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://yasuhiro-otani.com/sitemap.xml

@@ -462,6 +462,33 @@ blockquote.verse {
   display: block;
 }
 
+/* ----------------------------- news list ---------------------------------- */
+
+.news-list { margin-top: 18px; }
+
+.news-item {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  font-size: .82rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.news-item:first-child { border-top: none; }
+
+.light-section .news-item { border-top-color: #d8d2c2; }
+
+.news-date {
+  font-family: 'DM Mono', monospace;
+  font-size: .68rem;
+  color: var(--accent3);
+  flex-shrink: 0;
+  width: 40px;
+  padding-top: 2px;
+}
+
 /* ----------------------------- buttons ----------------------------------- */
 
 .btn-row {

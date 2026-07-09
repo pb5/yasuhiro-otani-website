@@ -12,7 +12,8 @@ This site now lives at `yasuhiro-otani.com`, replacing the old WordPress site th
 
 ## Structure
 
-- `index.html` — homepage (WebGL background + links into each section)
+- `index.html` — homepage (WebGL background, News list, links into each section); includes Person JSON-LD structured data
+- `sitemap.xml`, `robots.txt` — for search engine indexing
 - `profile.html` — profile (bio, activity, gear; real portrait photo)
 - `artistic.html` — artistic activity (awards, discography with Bandcamp/Apple Music links, selected performances, dance collaborations)
 - `projects/utsuro-bune.html` — project page for *Utsuro Bune* (空舟), a 2019 guitar/dance collaboration with Masayuki Sumi (Vimeo embed, choreography excerpt in Japanese)
