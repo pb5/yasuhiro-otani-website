@@ -8,7 +8,7 @@ Sherman Filterbank 2 is specific to the *Thresholds of Presence* project, not a 
 
 Bold editorial typography, high-contrast black/white sections, and a minimal corner `MENU` trigger that opens a full-screen nav. Music-related pages use a WebGL (Three.js) mouse-reactive wireframe object; the homepage keeps it quiet and monochrome. The palette is restrained — warm neutral tones only, no neon, no gradients.
 
-This site and `yasuhiro-otani.com` (hosted separately, on a rental server) intentionally play different roles and cross-link each other: this site is the current profile/lessons/contact presence, while `yasuhiro-otani.com` continues to host its own existing content. See "Domain" below.
+This site is migrating onto the `yasuhiro-otani.com` domain, replacing the old WordPress site on the rental server. See "Domain" below.
 
 ## Structure
 
@@ -22,7 +22,8 @@ This site and `yasuhiro-otani.com` (hosted separately, on a rental server) inten
 - `lessons/mv-song-template.html` — teaching material page, in Japanese (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "ワンループ×レイヤー構成 MV系楽曲テンプレ"); presented as one worked example among the template series, not the flagship — simpler templates like Lo-fi are noted as an easier starting point
 - `contact.html` — contact form (submits via Formspree)
 - `privacy-policy.html` — privacy policy (contact form data handling via Formspree; no cookies/analytics)
-- footer — on every page: link to the `yasuhiro-otani.com` archive, plus Facebook / Bandcamp / Apple Music / YouTube
+- footer — on every page: link to the `yasuhiro-otani.com` archive, plus Facebook / Bandcamp / Apple Music / YouTube (this footer link is now redundant with the domain migration and can be removed once DNS has cut over)
+- `about/`, `utsuro-bune/`, `audio-visual/`, `privacy-policy/`, `ホームページ/sumishworld/`, `お問い合わせ/` — redirect stubs (meta refresh + canonical link) for old WordPress URLs that Google had indexed, forwarding to the equivalent new page
 - `css/style.css` — shared design system (Noto Sans JP + DM Mono, dark/light sections)
 - `js/main.js` — full-screen nav toggle, glitch-text initialization
 - `js/blob-bg.js` — Three.js mouse-reactive wireframe background (color/speed/glitch configurable per page)
@@ -31,7 +32,14 @@ This site and `yasuhiro-otani.com` (hosted separately, on a rental server) inten
 
 ## Domain
 
-There is currently no `CNAME` file in this repo, so GitHub Pages serves only at `https://pb5.github.io/yasuhiro-otani-website/`. `yasuhiro-otani.com`'s DNS still points at the existing rental-server host and is untouched by this repo. If a custom domain is wanted for this site later, re-add a `CNAME` file and point DNS at GitHub Pages — but note that will not affect `yasuhiro-otani.com`, which is a separate, already-configured domain.
+`CNAME` is set to `yasuhiro-otani.com`. To complete the cutover from the old Lolipop-hosted WordPress site, point DNS at the registrar (MuuMuu Domain) to GitHub Pages:
+
+- Apex (`yasuhiro-otani.com`): four `A` records to `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+- `www` (optional): `CNAME` to `pb5.github.io`
+
+No email is hosted on this domain, so there's no MX record to preserve. DNS propagation is usually well under 24 hours. Once live, GitHub Pages auto-issues an HTTPS certificate for the domain (may take a few minutes to an hour after DNS resolves).
+
+Old WordPress URLs that Google had indexed (`/about`, `/utsuro-bune`, `/audio-visual`, `/privacy-policy`, `/ホームページ/sumishworld`, `/お問い合わせ`) now have redirect stubs in this repo forwarding to their new equivalent page, so existing search/social links don't just 404.
 
 ## Publishing (GitHub Pages)
 
