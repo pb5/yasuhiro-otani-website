@@ -14,7 +14,8 @@ Yasuhiro Otani 公式サイト（GitHub Pages 静的サイト）。
 - `commercial.html` — 商業作曲（作曲家としての商業活動：映画・ラジオ・TV向けの音楽制作。料金は個別相談）
 - `lessons/index.html` — 作曲教室（教育：ギター / DTMコース紹介、授業で使用しているリポジトリ一覧）
 - `lessons/mv-song-template.html` — 教材ページ（[pb5/mv_song_templete](https://github.com/pb5/mv_song_templete) の「ワンループ×レイヤー構成 MV系楽曲テンプレ（実測版）」を組み込み）
-- `contact.html` — お問い合わせ
+- `contact.html` — お問い合わせ（Formspree経由でフォーム送信）
+- footer — 全ページ共通で Facebook / Bandcamp / Apple Music へのリンクを設置（プロモ用の見せ方として）
 - `css/style.css` — 共通デザインシステム（Noto Sans JP + DM Mono、ダーク/ライト両対応）
 - `js/main.js` — フルスクリーンナビの開閉、グリッチテキストの初期化
 - `js/blob-bg.js` — Three.js製、マウス反応のワイヤーフレーム3Dオブジェクト背景（ページごとに色・速度・グリッチ有無を指定可能）
@@ -31,4 +32,3 @@ Yasuhiro Otani 公式サイト（GitHub Pages 静的サイト）。
 以下は実データ未確認のため、ページ内に `⚠ PLACEHOLDER` として明記しています。公開前に差し替えてください。
 
 - `artistic.html` — 自主制作楽曲・Max/MSP作品の音源/リンク（ディスコグラフィ以外の未公開音源など）
-- `contact.html` — フォーム送信先（Formspree等のエンドポイント）
