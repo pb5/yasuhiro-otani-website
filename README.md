@@ -18,6 +18,7 @@ This site now lives at `yasuhiro-otani.com`, replacing the old WordPress site th
 - `projects/utsuro-bune.html` — project page for *Utsuro Bune* (空舟), a 2019 guitar/dance collaboration with Masayuki Sumi (Vimeo embed, choreography excerpt in Japanese)
 - `projects/lost-body.html` — project page for *Lost Body*, a dance collaboration with Masayuki Sumi supported by the Agency for Cultural Affairs (Vimeo embed, artist statement in Japanese)
 - `projects/vamp.html` — project page for *VAMP*, music by Yasuhiro Otani for an 8mm experimental film by Tatsu Aoki (Vimeo embed)
+- `projects/thresholds-of-presence.html` — promo/booking page for *Thresholds of Presence*'s live configuration (guitar + Sherman Filterbank 2), rebuilt from the old promo microsite (YouTube embed, system diagram, format/tech, booking CTA); linked from artistic.html's Current Work section
 - `lessons/index.html` — composition lessons, in Japanese (guitar/DTM courses, repositories used in class)
 - `lessons/mv-song-template.html` — teaching material page, in Japanese (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "ワンループ×レイヤー構成 MV系楽曲テンプレ"); presented as one worked example among the template series, not the flagship — simpler templates like Lo-fi are noted as an easier starting point
 - `contact.html` — contact form (submits via Formspree)
