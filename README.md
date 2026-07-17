@@ -25,7 +25,7 @@ This site now lives at `yasuhiro-otani.com`, replacing the old WordPress site th
 - `contact.html` — contact form (submits via Formspree)
 - `privacy-policy.html` — privacy policy (contact form data handling via Formspree; no cookies/analytics)
 - footer — on every page: Facebook / Bandcamp / Apple Music / YouTube
-- `about/`, `utsuro-bune/`, `audio-visual/`, `privacy-policy/`, `ホームページ/sumishworld/`, `お問い合わせ/` — redirect stubs (meta refresh + canonical link) for old WordPress URLs that Google had indexed, forwarding to the equivalent new page
+- `about/`, `utsuro-bune/`, `audio-visual/`, `privacy-policy/`, `ホームページ/sumishworld/`, `お問い合わせ/`, `otn_archive_26/thresholdsofpresence/` — redirect stubs (meta refresh + JS redirect) for old URLs, forwarding to the equivalent new page
 - `css/style.css` — shared design system (Noto Sans JP + DM Mono, dark/light sections)
 - `js/main.js` — full-screen nav toggle, glitch-text initialization
 - `js/blob-bg.js` — Three.js mouse-reactive wireframe background (color/speed/glitch configurable per page)
@@ -36,7 +36,7 @@ This site now lives at `yasuhiro-otani.com`, replacing the old WordPress site th
 
 Live at `yasuhiro-otani.com` (migrated from the old Lolipop-hosted WordPress site; `CNAME` is set accordingly). DNS is on ムームーDNS, pointed at GitHub Pages: four apex `A` records to `185.199.108.153` / `.109.153` / `.110.153` / `.111.153`, plus `www` as a `CNAME` to `pb5.github.io`. No email is hosted on this domain.
 
-Old WordPress URLs that Google had indexed (`/about`, `/utsuro-bune`, `/audio-visual`, `/privacy-policy`, `/ホームページ/sumishworld`, `/お問い合わせ`) have redirect stubs in this repo forwarding to their new equivalent page, so existing search/social links don't just 404.
+Old URLs that Google had indexed or that were promoted elsewhere (`/about`, `/utsuro-bune`, `/audio-visual`, `/privacy-policy`, `/ホームページ/sumishworld`, `/お問い合わせ`, `/otn_archive_26/thresholdsofpresence`) have redirect stubs in this repo forwarding to their new equivalent page, so existing search/social links don't just 404.
 
 ## Publishing (GitHub Pages)
 
