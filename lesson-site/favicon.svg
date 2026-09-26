@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" fill="#0a0a0a"/>
-  <text x="32" y="40" font-family="monospace" font-size="26" font-weight="700" text-anchor="middle" fill="#e9e6df">Y<tspan fill="#bfae8a">/</tspan>O</text>
+  <rect width="64" height="64" rx="14" fill="#d9622b"/>
+  <text x="32" y="43" font-family="'Zen Maru Gothic', sans-serif" font-size="34" font-weight="900" text-anchor="middle" fill="#fbf3e9">A</text>
 </svg>

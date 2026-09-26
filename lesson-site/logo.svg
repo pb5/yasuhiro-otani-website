@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 130" width="460" height="130">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&family=Noto+Sans+JP:wght@400;700&display=swap');
+    .word { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 54px; }
+    .cap { fill: #b0491f; }
+    .ink { fill: #2c2420; }
+    .sub { font-family: 'Noto Sans JP', sans-serif; font-weight: 400; font-size: 15px; fill: #7a6d5d; letter-spacing: .04em; }
+  ]]></style>
+
+  <!-- icon: audio waveform morphing into MIDI blocks -->
+  <g>
+    <rect x="10" y="70"  width="8" height="40" rx="4" fill="#2f6f5e"/>
+    <rect x="24" y="45"  width="8" height="65" rx="4" fill="#2f6f5e"/>
+    <rect x="38" y="80"  width="8" height="30" rx="4" fill="#2f6f5e"/>
+
+    <text x="52" y="96" font-family="Noto Sans JP, sans-serif" font-size="20" fill="#a89b7c">→</text>
+
+    <rect x="74"  y="75" width="16" height="35" rx="4" fill="#d9622b"/>
+    <rect x="96"  y="50" width="16" height="60" rx="4" fill="#d9622b"/>
+    <rect x="118" y="25" width="16" height="85" rx="4" fill="#d9622b"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="160" y="78" class="word">
+    <tspan class="cap">A</tspan><tspan class="ink">to</tspan><tspan class="cap">M</tspan><tspan class="ink">usic</tspan>
+  </text>
+  <text x="161" y="104" class="sub">AUDIO TO MIDI</text>
+</svg>
