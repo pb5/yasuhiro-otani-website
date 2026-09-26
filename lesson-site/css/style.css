@@ -267,6 +267,21 @@ section { padding: 72px 0; }
   display: block;
 }
 
+.mascot-caption {
+  max-width: 340px;
+  margin: 10px auto 0;
+  text-align: center;
+  font-size: .68rem;
+  color: var(--muted);
+}
+
+.mascot-caption span {
+  display: block;
+  font-size: .64rem;
+  opacity: .75;
+  margin-top: 2px;
+}
+
 /* ----------------------------- waveform accent (animated) ----------------- */
 
 .waveform {
