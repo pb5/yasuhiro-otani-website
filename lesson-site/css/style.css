@@ -93,6 +93,8 @@ section { padding: 72px 0; }
 }
 
 .corner-logo span { color: var(--accent); }
+.corner-logo .brand-cap { color: var(--accent); font-weight: 900; }
+.corner-logo .brand-mid { color: var(--muted); font-size: .82em; }
 
 .menu-trigger {
   position: fixed;
