@@ -82,19 +82,16 @@ section { padding: 72px 0; }
 
 .corner-logo {
   position: fixed;
-  top: 20px;
+  top: 16px;
   left: 24px;
   z-index: 300;
-  font-family: 'Zen Maru Gothic', sans-serif;
-  font-weight: 700;
-  font-size: .8rem;
-  letter-spacing: .04em;
-  color: var(--ink);
 }
 
-.corner-logo span { color: var(--accent); }
-.corner-logo .brand-cap { color: var(--accent); font-weight: 900; }
-.corner-logo .brand-mid { color: var(--muted); font-size: .82em; }
+.corner-logo img {
+  height: 34px;
+  width: auto;
+  display: block;
+}
 
 .menu-trigger {
   position: fixed;
