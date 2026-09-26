@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /lesson-site/
 
 Sitemap: https://yasuhiro-otani.com/sitemap.xml

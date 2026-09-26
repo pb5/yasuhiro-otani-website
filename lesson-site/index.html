@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作曲教室(ギター/DTM) | Yasuhiro Otani</title>
+<meta name="description" content="感覚じゃない、データで作曲を。実在曲のステム解析にもとづく再現性の高い作曲メソッドで学ぶ、ギター・DTM作曲教室。大学受験対応、応募制。">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="作曲教室(ギター/DTM) | Yasuhiro Otani">
+<meta property="og:description" content="感覚じゃない、データで作曲を。実在曲のステム解析にもとづく再現性の高い作曲メソッドで学ぶ、ギター・DTM作曲教室。">
+<meta property="og:url" content="https://lesson.yasuhiro-otani.com/">
+<meta property="og:image" content="https://lesson.yasuhiro-otani.com/images/otani-guitar-live.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .hook-line { display:block; }
+  .hook-line.accent { color: var(--accent); }
+  .authority-grid { display:grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 720px) { .authority-grid { grid-template-columns: 1fr; } }
+  .authority-photo { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .authority-photo img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(.7) contrast(1.1) brightness(.8) sepia(.08); }
+  .cred-list { list-style: none; margin-top: 16px; font-size: .82rem; color: var(--muted); }
+  .cred-list li { padding: 8px 0; border-top: 1px solid var(--border); }
+  .cred-list li:first-child { border-top: none; }
+  .cred-list b { color: var(--text); font-weight: 700; }
+  .faq-item { border-top: 1px solid var(--border); padding: 18px 0; }
+  .faq-item:first-child { border-top: none; }
+  .faq-q { font-weight: 700; font-size: .92rem; margin-bottom: 8px; }
+  .faq-q::before { content: "Q. "; color: var(--accent3); }
+  .faq-a { font-size: .84rem; color: var(--muted); }
+  .faq-a::before { content: "A. "; color: var(--accent); font-weight: 700; }
+  .cta-band { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 40px 32px; text-align: center; }
+  .cta-band h2 { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="corner-logo">Y<span>/</span>O</div>
+<button class="menu-trigger" aria-label="Menu">
+  <span>MENU</span>
+  <span class="bars"><span></span><span></span><span></span></span>
+</button>
+<nav class="nav-overlay">
+  <div class="nav-overlay-list">
+    <a href="#method"><span class="idx">01</span> Method</a>
+    <a href="#courses"><span class="idx">02</span> Courses</a>
+    <a href="#instructor"><span class="idx">03</span> Instructor</a>
+    <a href="#faq"><span class="idx">04</span> FAQ</a>
+    <a href="https://yasuhiro-otani.com/contact.html"><span class="idx">05</span> Contact</a>
+  </div>
+  <div class="nav-overlay-foot">© 2026 Yasuhiro Otani — <a href="https://yasuhiro-otani.com/" style="color:inherit;">yasuhiro-otani.com</a></div>
+</nav>
+<div class="scanlines"></div>
+
+<header class="impact-hero light">
+  <p class="hero-eyebrow">ギター &amp; DTM 作曲教室 — 生徒募集中</p>
+  <h1><span class="hook-line">感覚じゃない、</span><span class="hook-line accent">データで作曲を。</span></h1>
+  <p class="hero-desc">実在曲のステム解析(周波数帯域、レベル変化、パンニング、MIDI打ち込み)にもとづく、再現性の高い作曲メソッド。本気で音楽に向き合いたい方のための、応募制の個別指導です。</p>
+  <div class="badge-row">
+    <span class="badge">応募制</span>
+    <span class="badge pink">大学受験対応</span>
+    <span class="badge gold">実測データにもとづく教材</span>
+  </div>
+  <div class="btn-row">
+    <a class="btn primary" href="https://yasuhiro-otani.com/contact.html">お問い合わせフォーム →</a>
+    <a class="btn ghost" href="#method">メソッドを見る ↓</a>
+  </div>
+</header>
+
+<section class="visual-block" style="min-height:56vh;">
+  <img class="visual-photo muted" src="images/otani-guitar-live.jpg" alt="Yasuhiro Otani performing with guitar">
+  <span class="visual-label floating">Guitar &amp; Computer — 30年以上の実践</span>
+</section>
+
+<div class="wrap">
+
+  <section id="method">
+    <p class="section-eyebrow">メソッド</p>
+    <h2 class="section-title cyan">なぜ「データ」なのか</h2>
+    <p class="lead">「なんとなく良い感じ」を頼りにした作曲は、再現性がありません。このレッスンでは、実在するプロの楽曲をステム単位で解析し、構成・BPM・周波数帯域・レベル変化・パンニング・MIDI打ち込みまで数値として分解した上で、同じ構造を自分の手で組み立て直す方法を教えます。</p>
+    <div class="card-grid">
+      <div class="point-box cyan">
+        <strong>01 — 解析</strong>
+        実在曲をステムごとに分解し、BPM・周波数帯域・レベル変化・パンニングを実測します。
+      </div>
+      <div class="point-box pink">
+        <strong>02 — 構造化</strong>
+        構成(イントロ/Aメロ/サビなど)とレイヤーの積み方を、感覚ではなく設計図として理解します。
+      </div>
+      <div class="point-box">
+        <strong>03 — 再構築</strong>
+        同じ設計をもとに、自分自身の楽曲として一曲を最後まで仕上げます。
+      </div>
+    </div>
+    <p class="lead" style="margin-top:28px;">実際の教材はテンプレシリーズとして公開しています。ワンループ×レイヤー構成のMV系楽曲テンプレでは、BPM・周波数帯域・構成・MIDI打ち込み・パンニングまで、すべて実測データにもとづいて解説しています。</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">MV</div>
+        <h3>ワンループ×レイヤー構成 — MV系楽曲テンプレ(実測版)</h3>
+        <p>もっとも密度の高い教材です。初めての方はLo-fiテンプレのようなシンプルなものから始めるのがおすすめです。</p>
+        <a class="card-link" href="https://yasuhiro-otani.com/lessons/mv-song-template.html" target="_blank" rel="noopener">教材を見る →</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">LO-FI</div>
+        <h3>lofi-template</h3>
+        <p>Lo-fi系楽曲向けの作曲テンプレ。まず全体像をつかむのに向いています。</p>
+        <a class="card-link" href="https://pb5.github.io/lofi-template/" target="_blank" rel="noopener">サイトを見る →</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">ANISON</div>
+        <h3>anison-template</h3>
+        <p>アニソン系楽曲向けの作曲テンプレ。</p>
+        <a class="card-link" href="https://pb5.github.io/anison-template/" target="_blank" rel="noopener">サイトを見る →</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">J-POP</div>
+        <h3>j-pop</h3>
+        <p>J-POP系楽曲向けの作曲テンプレ。</p>
+        <a class="card-link" href="https://pb5.github.io/j-pop/" target="_blank" rel="noopener">サイトを見る →</a>
+      </div>
+      <div class="card">
+        <div class="card-icon">ROCK</div>
+        <h3>summerfest-rock</h3>
+        <p>フェス・ロック系楽曲向けの作曲テンプレ。</p>
+        <a class="card-link" href="https://pb5.github.io/summerfest-rock/" target="_blank" rel="noopener">サイトを見る →</a>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:16px; font-size:.78rem;">楽曲分析の読み物は<a href="https://note.com/pb5" target="_blank" rel="noopener" class="link-accent">noteのマガジン</a>でも公開しています。</p>
+  </section>
+
+</div>
+
+<section id="courses" class="light-section">
+  <div class="wrap">
+    <p class="section-eyebrow">コース</p>
+    <h2 class="section-title gold">コース</h2>
+    <p class="lead">目標とレベルに応じて個別に設計します。料金・形式・頻度は面談の上で決定します。</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">GUITAR</div>
+        <h3>ギター</h3>
+        <p>基本のフォームやコードストロークから、バッキングパターン、ソロ構築まで — ソロ・バンド演奏どちらにも対応。</p>
+        <p class="card-price">ご相談ください<small>目標とレベルに応じて個別に設定</small></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">DTM</div>
+        <h3>DTM作曲</h3>
+        <p>DAWの基礎からアレンジ、ミックスまで。ワンループ×レイヤー構成のメソッドで、1曲を最後まで仕上げます。</p>
+        <p class="card-price">ご相談ください<small>目標とレベルに応じて個別に設定</small></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">MIX</div>
+        <h3>ミックスメディア表現</h3>
+        <p>音楽制作とコーディング的な手法を組み合わせた表現。音と技術を横断する作品づくりを通じて、ポートフォリオ制作につなげます。</p>
+        <p class="card-price">ご相談ください<small>目標とレベルに応じて個別に設定</small></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <section id="instructor">
+    <p class="section-eyebrow">講師</p>
+    <h2 class="section-title cyan">講師</h2>
+    <div class="authority-grid">
+      <div class="authority-photo">
+        <img src="images/otani-practice.jpg" alt="Yasuhiro Otani practicing guitar">
+      </div>
+      <div>
+        <p class="lead" style="margin-bottom:0;">東京を拠点に30年以上活動する、現役の作曲家・ギタリストが指導します。ギターを「生の楽器」と「電子的な音源」の両面から探求し、コンピューターとギターを横断する作品を制作。1995年よりIRCAM Forum会員。</p>
+        <ul class="cred-list">
+          <li><b>2026</b> — Forum Wallis(スイス)選出 — <em>Thresholds of Presence</em></li>
+          <li><b>2016</b> — New York Philharmonic Biennial / NYCEMF(ブルックリン)世界初演</li>
+          <li><b>2013</b> — ICMC Perth(オーストラリア)</li>
+          <li><b>1999</b> — Rockefeller Foundation Artist Grant / Mills College(米国)レジデンシー</li>
+          <li>著書『Max/MSP/Jitter』入門(BNN, 2009)、Sound &amp; Recording Magazine 技術連載(1996–1997)</li>
+        </ul>
+        <div class="btn-row">
+          <a class="btn ghost" href="https://yasuhiro-otani.com/profile.html" target="_blank" rel="noopener">プロフィール →</a>
+          <a class="btn ghost" href="https://yasuhiro-otani.com/artistic.html" target="_blank" rel="noopener">音楽活動 →</a>
+          <a class="btn ghost" href="https://kajiru.bandcamp.com" target="_blank" rel="noopener">▶ Bandcamp</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-eyebrow">流れ</p>
+    <h2 class="section-title pink">レッスンの流れ</h2>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">01</div>
+        <h3>お問い合わせ</h3>
+        <p>お問い合わせフォームより、ご経歴・目標(大学受験、継続的な学習など)・ご都合をお知らせください。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">02</div>
+        <h3>面談</h3>
+        <p>目標やご経験、相性を確認するための最初の面談です。形式と料金はここで個別に決定します。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">03</div>
+        <h3>レッスン開始</h3>
+        <p>対面/オンラインの形式や頻度は、面談の上で目標に合わせて決定します。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <p class="section-eyebrow">FAQ</p>
+    <h2 class="section-title">よくあるご質問</h2>
+    <div class="faq-item">
+      <p class="faq-q">経験がなくても受講できますか?</p>
+      <p class="faq-a">面談で目標とレベルを確認し、個別にカリキュラムを設計します。</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">オンラインでも受講できますか?</p>
+      <p class="faq-a">対面/オンラインの形式は、面談の上で目標に合わせて決定します。</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">大学受験には対応していますか?</p>
+      <p class="faq-a">対応しています。実技・作品制作を含めた個別のサポートが可能です。</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">料金はいくらですか?</p>
+      <p class="faq-a">目標とレベルに応じて個別に設定しています。まずは面談でご相談ください。</p>
+    </div>
+    <div class="faq-item">
+      <p class="faq-q">誰でも申し込めますか?</p>
+      <p class="faq-a">応募制です。お問い合わせフォームからご経歴・目標をお知らせください。内容を確認した上で面談のご案内をします。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="cta-band">
+      <p class="section-eyebrow" style="text-align:center;">お申し込み</p>
+      <h2 class="section-title">本気で学びたい方へ</h2>
+      <p class="lead" style="margin:0 auto 24px; text-align:center;">ご経歴・目標・ご都合をお問い合わせフォームよりお知らせください。</p>
+      <a class="btn primary" href="https://yasuhiro-otani.com/contact.html">お問い合わせフォーム →</a>
+    </div>
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  <div>© 2026 Yasuhiro Otani</div>
+  <div class="footer-links">
+    <a href="https://yasuhiro-otani.com/">yasuhiro-otani.com</a>
+    <a href="https://yasuhiro-otani.com/profile.html">プロフィール</a>
+    <a href="https://yasuhiro-otani.com/artistic.html">音楽活動</a>
+    <a href="https://yasuhiro-otani.com/contact.html">お問い合わせ</a>
+    <a href="https://yasuhiro-otani.com/privacy-policy.html">Privacy</a>
+  </div>
+  <div class="footer-social">
+    <a href="https://www.facebook.com/yasuhirootani" target="_blank" rel="noopener">Facebook</a>
+    <a href="https://kajiru.bandcamp.com" target="_blank" rel="noopener">Bandcamp</a>
+    <a href="https://music.apple.com/jp/artist/%E5%A4%A7%E8%B0%B7%E5%AE%89%E5%AE%8F/1528258952" target="_blank" rel="noopener">Apple Music</a>
+    <a href="https://youtube.com/@otaniyasu2454" target="_blank" rel="noopener">YouTube</a>
+    <a href="https://note.com/pb5" target="_blank" rel="noopener">note</a>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
