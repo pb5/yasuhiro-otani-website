@@ -24,7 +24,6 @@ This site now lives at `yasuhiro-otani.com`, replacing the old WordPress site th
 - `lessons/mv-song-template.html` — teaching material page, in Japanese (built from [pb5/mv_song_templete](https://github.com/pb5/mv_song_templete), "ワンループ×レイヤー構成 MV系楽曲テンプレ"); presented as one worked example among the template series, not the flagship — simpler templates like Lo-fi are noted as an easier starting point
 - `contact.html` — contact form (submits via Formspree, redirects to `contact-thanks.html` on success)
 - `contact-thanks.html` — post-submission confirmation page (`noindex`), used as the conversion-tracking landing page for ad campaigns
-- `found.html` — QR landing page (`noindex`) for a low-cost street-art/sticker campaign (flyer/sticker assets are not in this repo, generated separately); intense glitch WebGL background reserved for this "reveal" moment
 - `privacy-policy.html` — privacy policy (contact form data handling via Formspree; no cookies/analytics)
 - footer — on every page: Facebook / Bandcamp / Apple Music / YouTube
 - `about/`, `utsuro-bune/`, `audio-visual/`, `privacy-policy/`, `ホームページ/sumishworld/`, `お問い合わせ/`, `otn_archive_26/thresholdsofpresence/` — redirect stubs (meta refresh + JS redirect) for old URLs, forwarding to the equivalent new page
