@@ -389,7 +389,7 @@ section { padding: 72px 0; }
 }
 
 .pain-item::before {
-  content: "?";
+  content: "♪";
   flex-shrink: 0;
   width: 26px;
   height: 26px;
