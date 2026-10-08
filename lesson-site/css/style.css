@@ -598,7 +598,7 @@ section { padding: 72px 0; }
   text-align: center;
 }
 .cta-band .section-eyebrow { background: rgba(255,255,255,.14); color: #fff; }
-.cta-band h2 { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: clamp(1.5rem, 4vw, 2.1rem); margin-bottom: 12px; }
+.cta-band h2 { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: clamp(1.5rem, 4vw, 2.1rem); margin-bottom: 12px; color: #fff; }
 .cta-band .lead { color: rgba(255,255,255,.75); margin: 0 auto 24px; }
 .cta-band .btn.primary { box-shadow: 0 10px 24px rgba(0,0,0,.3); }
 
