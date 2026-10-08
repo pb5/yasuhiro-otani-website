@@ -817,3 +817,5 @@ section { padding: 72px 0; }
   .legal-table dt { padding-bottom: 2px; }
   .legal-table dd { border-top: none; padding-top: 0; }
 }
+.card-grid.two { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 640px) { .card-grid.two { grid-template-columns: 1fr; } }
