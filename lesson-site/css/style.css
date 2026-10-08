@@ -787,3 +787,5 @@ section { padding: 72px 0; }
   .intensive-list li { grid-template-columns: 1fr; gap: 2px; }
 }
 .nowrap { white-space: nowrap; }
+.intensive-price { flex-wrap: wrap; margin-bottom: 6px; }
+.intensive-sub { font-size: .82rem; color: var(--muted); margin-bottom: 18px; }
