@@ -710,3 +710,80 @@ section { padding: 72px 0; }
   .lesson-form { padding: 22px; }
   .page-hero { padding-top: 110px; }
 }
+
+/* ----------------------------- intensive course ---------------------------- */
+
+.intensive-section { padding-top: 24px; }
+
+.intensive-box {
+  position: relative;
+  background: var(--card);
+  border: 2px solid var(--accent);
+  border-radius: 28px;
+  padding: 40px 36px;
+  box-shadow: 0 18px 40px rgba(217, 98, 43, .16);
+}
+
+.intensive-flag {
+  position: absolute;
+  top: -15px;
+  left: 32px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 900;
+  font-size: .8rem;
+  letter-spacing: .08em;
+  padding: 5px 16px;
+  border-radius: 999px;
+}
+
+.intensive-box .section-title { color: var(--accent3); margin-bottom: 12px; }
+
+.intensive-lead { font-size: .95rem; color: var(--muted); max-width: 640px; }
+
+.intensive-price {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 22px 0 18px;
+}
+
+.intensive-count {
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: .85rem;
+}
+
+.intensive-yen {
+  font-family: 'Zen Maru Gothic', sans-serif;
+  font-weight: 900;
+  font-size: clamp(2.2rem, 7vw, 3rem);
+  color: var(--ink);
+  line-height: 1;
+}
+
+.intensive-yen small { font-size: .45em; margin-left: 2px; }
+
+.intensive-list { list-style: none; margin-bottom: 14px; max-width: 640px; }
+
+.intensive-list li {
+  display: grid;
+  grid-template-columns: 7.5em 1fr;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--border);
+  font-size: .9rem;
+}
+
+.intensive-list b { color: var(--accent3); }
+
+.intensive-note { font-size: .82rem; color: var(--muted); margin-bottom: 20px; }
+
+@media (max-width: 640px) {
+  .intensive-box { padding: 34px 22px 28px; }
+  .intensive-list li { grid-template-columns: 1fr; gap: 2px; }
+}
+.nowrap { white-space: nowrap; }

@@ -6,7 +6,7 @@
 <title>お申し込み・ご相談 | AtoMusic(ギター/DTM作曲教室)</title>
 <meta name="description" content="AtoMusicへのお申し込み・ご相談フォーム。今の状況と目標をお知らせください。">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="css/style.css?v=20261008b">
+<link rel="stylesheet" href="css/style.css?v=20261008c">
 </head>
 <body>
 
@@ -64,6 +64,7 @@
         <label for="course">興味のあるコース</label>
         <select id="course" name="興味のあるコース">
           <option>まだ決めていない</option>
+          <option value="受験直前・短期集中コース">受験直前・短期集中コース(全6回・対面)</option>
           <option>受験対策</option>
           <option>ギター</option>
           <option>DTM作曲</option>
@@ -108,5 +109,11 @@
 </footer>
 
 <script src="js/main.js"></script>
+<script>
+if (new URLSearchParams(location.search).get('course') === 'intensive') {
+  document.getElementById('course').value = '受験直前・短期集中コース';
+  document.getElementById('style').value = '対面';
+}
+</script>
 </body>
 </html>
