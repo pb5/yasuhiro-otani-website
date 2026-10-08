@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /thanks.html
+
+Sitemap: https://lesson.yasuhiro-otani.com/sitemap.xml
