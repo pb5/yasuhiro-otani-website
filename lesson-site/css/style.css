@@ -574,7 +574,7 @@ section { padding: 72px 0; }
 /* ----------------------------- instructor --------------------------------- */
 
 .authority-grid { display:grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 32px; align-items: start; }
-@media (max-width: 720px) { .authority-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .authority-grid { grid-template-columns: 1fr; } .authority-photo { max-width: 240px; } }
 .authority-photo { border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); }
 .authority-photo img { width: 100%; height: 100%; object-fit: cover; }
 .cred-list { list-style: none; margin-top: 16px; font-size: .85rem; color: var(--muted); }
