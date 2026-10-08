@@ -819,3 +819,5 @@ section { padding: 72px 0; }
 }
 .card-grid.two { grid-template-columns: repeat(2, 1fr); }
 @media (max-width: 640px) { .card-grid.two { grid-template-columns: 1fr; } }
+.instructor-headline { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: clamp(1.25rem, 3.6vw, 1.6rem); line-height: 1.5; color: var(--ink); margin-bottom: 14px; }
+.cred-label { font-size: .78rem; font-weight: 700; color: var(--accent3); margin-top: 8px; }
