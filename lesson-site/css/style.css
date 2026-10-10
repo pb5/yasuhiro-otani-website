@@ -821,3 +821,6 @@ section { padding: 72px 0; }
 @media (max-width: 640px) { .card-grid.two { grid-template-columns: 1fr; } }
 .instructor-headline { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: clamp(1.25rem, 3.6vw, 1.6rem); line-height: 1.5; color: var(--ink); margin-bottom: 14px; }
 .cred-label { font-size: .78rem; font-weight: 700; color: var(--accent3); margin-top: 8px; }
+.method-photo{margin:6px 0 28px;max-width:720px}
+.method-photo img{width:100%;height:auto;border-radius:20px;box-shadow:var(--shadow)}
+.method-photo figcaption{font-size:.78rem;color:var(--muted);margin-top:8px}
