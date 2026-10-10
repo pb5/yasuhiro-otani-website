@@ -825,3 +825,7 @@ section { padding: 72px 0; }
 .method-photo img{width:100%;height:auto;border-radius:20px;box-shadow:var(--shadow)}
 .method-photo figcaption{font-size:.78rem;color:var(--muted);margin-top:8px}
 .section-title,.intensive-box .section-title,.rescue-hero h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
+.cred-dl{display:grid;grid-template-columns:7em 1fr;max-width:720px;margin:6px 0 4px;font-size:.88rem}
+.cred-dl dt{font-weight:700;color:var(--accent3);padding:12px 0;border-top:1px solid var(--border)}
+.cred-dl dd{color:var(--muted);padding:12px 0;border-top:1px solid var(--border);line-height:1.8}
+@media(max-width:640px){.cred-dl{grid-template-columns:1fr}.cred-dl dd{border-top:none;padding-top:0}}
