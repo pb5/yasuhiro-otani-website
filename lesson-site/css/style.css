@@ -824,3 +824,4 @@ section { padding: 72px 0; }
 .method-photo{margin:6px 0 28px;max-width:720px}
 .method-photo img{width:100%;height:auto;border-radius:20px;box-shadow:var(--shadow)}
 .method-photo figcaption{font-size:.78rem;color:var(--muted);margin-top:8px}
+.section-title,.intensive-box .section-title,.rescue-hero h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
