@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thresholds of Presence</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* layout: one black screen, a single line centered; a pre-start panel that disappears once the piece runs */
+:root { --bg:#000; --ink:#8f897f; --dim:#5d5850; --ui:#4a4741; --ui-hi:#8f897f;
+  --serif:"EB Garamond", Garamond, "Hoefler Text", "Times New Roman", serif;
+  --mono: ui-monospace, Menlo, Consolas, monospace; color-scheme: dark; }
+html, body { height:100%; }
+body { background:var(--bg); color:var(--ink); overflow:hidden; margin:0;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+  -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+#stage { position:fixed; inset:0; }
+#line { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(80vw, 1200px); text-align:center; font-family:var(--serif);
+  font-size:calc(clamp(17px, min(3.1vw, 5.2vh), 64px) * var(--scale, 1)); line-height:1.5; text-wrap:balance;
+  opacity:0; transition-property:opacity; transition-timing-function:ease; }
+#line.on { opacity:1; }
+#line.word { font-size:calc(clamp(30px, min(6vw, 10vh), 120px) * var(--scale, 1)); letter-spacing:.08em; }
+#line .w { display:inline-block; white-space:nowrap; }
+#line .c { display:inline-block; white-space:pre; }
+#fast { position:absolute; left:50%; top:50%; width:max-content; max-width:90vw; text-align:center; font-family:var(--serif);
+  color:var(--ink); line-height:1.1; font-size:calc(clamp(22px, min(5vw, 8vh), 110px) * var(--scale, 1)); visibility:hidden; pointer-events:none; }
+#meter { position:relative; width:min(280px, 80vw); height:6px; background:#141414; }
+#meterFill { position:absolute; left:0; top:0; bottom:0; width:0; background:var(--ui-hi); }
+#meterThr { position:absolute; top:-4px; bottom:-4px; width:2px; left:0; background:#a33; }
+#line .ghost { position:absolute; left:0; width:100%; pointer-events:none; color:var(--ink); }
+#line .by { display:block; margin-top:1.3em; font-size:.5em; letter-spacing:.16em; color:var(--dim); }
+#panel { position:fixed; left:50%; bottom:calc(28px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:14px; font-family:var(--mono); font-size:13px; color:var(--ui);
+  width:max-content; max-width:calc(100vw - 32px); text-align:center; }
+#panel .row { display:flex; align-items:center; gap:14px; }
+#panel button { font:inherit; color:var(--ui-hi); background:transparent; border:1px solid var(--ui); border-radius:4px;
+  min-width:44px; min-height:44px; padding:0 14px; cursor:pointer; }
+#panel button:focus-visible { outline:1px solid var(--ui-hi); outline-offset:3px; }
+#mins { font-size:22px; color:var(--ui-hi); min-width:4ch; font-variant-numeric:tabular-nums; }
+#hud { position:fixed; right:calc(14px + env(safe-area-inset-right, 0px)); bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+  color:#3a3a3a; font:12px/1.4 var(--mono); text-align:right; opacity:0; transition:opacity .4s; white-space:pre; pointer-events:none; }
+#hud.on { opacity:1; }
+body.running { cursor:none; }
+@media (prefers-reduced-motion: reduce) { #line { transition-duration:.01s !important; } }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond&display=swap">
+
+<div id="stage" aria-live="polite"><div id="line"></div><div id="fast"></div></div>
+<div id="panel">
+  <div class="row">
+    <button id="minus" aria-label="1分減らす">−</button>
+    <span id="mins">25:00</span>
+    <button id="plus" aria-label="1分増やす">＋</button>
+  </div>
+  <div class="row">
+    <button id="smaller" aria-label="文字を小さく">A−</button>
+    <span id="sizeLbl">100%</span>
+    <button id="bigger" aria-label="文字を大きく">A＋</button>
+    <button id="chaosBtn">chaos: sometimes</button>
+    <button id="tempoBtn">tempo: manual</button>
+  </div>
+  <div class="row">
+    <button id="micBtn">mic: off</button>
+    <button id="sensMinus" aria-label="反応しやすく">−</button>
+    <span id="sensLbl">+12 dB</span>
+    <button id="sensPlus" aria-label="反応しにくく">＋</button>
+  </div>
+  <div id="meter" aria-hidden="true"><div id="meterFill"></div><div id="meterThr"></div></div>
+  <button id="go">Start</button>
+  <div>tap: 緩 / 急 · swipe: next / previous · double-tap: reset · hold: break the text now</div>
+</div>
+<div id="hud"></div>
+
+<script>
+let TOTAL_MIN = 25;
+const FADE_IN = 3.0, FADE_OUT = 3.0, HOLD_BASE = 4.0, HOLD_PER_CHAR = 0.075, MIN_GAP = 4.0;
+const KJ = "Keith Jarrett";
+const OK = "Okakura Kakuzo, The Book of Tea (1906)";
+
+/* ===== text: [text, attribution, isWord] ===== */
+const ITEMS = [
+  ["When we really listen, we all listen in much the same way."],
+  ["When we don't, we each hear something different."],
+  ["When we don't listen, we are not hearing the sound.<br>We are hearing an image of the sound —<br>what we expect, what we already know."],
+  ["listen", null, true],
+  ["One cannot listen to different pieces of music at the same time.", OK],
+  ["There is no computer in the sound."],
+  ["Only a guitar and a filter, feeding back into each other."],
+  ["The sound is feeding itself."],
+  ["I won't get into the nitty-gritty of the electronics."],
+  ["I think there's no right or wrong.<br>You should do whatever works for you<br>to get to a creative end result."],
+  ["feedback", null, true],
+  ["I use the same settings every time.<br>It never comes back the same way."],
+  ["The system remembers nothing."],
+  ["Now I might play a mode,<br>but you never know if I'm in it the next second.", KJ],
+  ["There might be a note that doesn't belong in that mode at all.<br>That might change the whole harmonic structure<br>of what I'm playing.", KJ],
+  ["Infinity is the Fleeting,<br>the Fleeting is the Vanishing,<br>the Vanishing is the Reverting.", OK],
+  ["Change is the only Eternal.", OK],
+  ["again", null, true],
+  ["A very small touch can change everything."],
+  ["Sometimes nothing I do changes anything."],
+  ["I can only follow it."],
+  ["I left the harp to choose its theme,<br>and knew not truly whether the harp had been Peiwoh<br>or Peiwoh were the harp.", OK],
+  ["The piano is not very expressive compared to a horn,<br>where I could hold a note or I could change the dynamics.", KJ],
+  ["threshold", null, true],
+  ["The sound is at an edge —<br>between holding and breaking."],
+  ["That edge is where I listen."],
+  ["Musically, you can move far away<br>as long as you still hear this central thing.", KJ],
+  ["The Tao is in the Passage rather than the Path.", OK],
+  ["The Present is the moving Infinity.", OK],
+  ["presence", null, true],
+  ["It is essentially a worship of the Imperfect.", OK],
+  ["Octaves or fifths have much more opening than modes,<br>because you can use different modes within that.", KJ],
+  ["If you play just a fifth, then an octave, there's no taste.<br>You add the taste from whatever you hear.", KJ],
+  ["Modes come naturally, and harmony comes naturally to the ear.<br>I don't think of them as systems.", KJ],
+  ["One of the most forgotten arts is the art of the line.", KJ],
+  ["In leaving something unsaid<br>the beholder is given a chance to complete the idea.", OK],
+  ["True beauty could be discovered only by one<br>who mentally completed the incomplete.", OK],
+  ["unsaid", null, true],
+  ["We listen to the unspoken, we gaze upon the unseen.", OK],
+  ["lay yourself low before it<br>and await with bated breath its least utterance.", OK],
+  ["fragrant because of its silence.", OK],
+  ["Vacuum is all potent because all containing.<br>In vacuum alone motion becomes possible.", OK],
+  ["An artist can never be responsible<br>for other people's view of inside and outside —<br>only his own view.", KJ],
+  ["The masterpiece is of ourselves, as we are of the masterpiece.", OK],
+  ["We classify too much and enjoy too little.", OK],
+  ["Perfection is everywhere if we only choose to recognise it.", OK],
+  ["Let us dream of evanescence,<br>and linger in the beautiful foolishness of things.", OK],
+  ["If you're going to remain awake,<br>you can't have an image in between.", KJ],
+  ["It's like you check with the image<br>to see if you really are seeing something.", KJ],
+  ["When the image falls away,<br>what remains is just the sound and the person listening."],
+  ["But without the image, there's only you and reality.", KJ],
+  ["There's only the guitar, the filter, the feedback, and the room."],
+  ["When I cut it, it's gone.<br>Not even the silence stays."],
+  ["gone", null, true],
+  ["For me, listening is the performance."]
+];
+
+
+const plain = s => s.replace(/<br>/g, " ");
+const holdOf = it => HOLD_BASE + plain(it[0]).length * HOLD_PER_CHAR + (it[1] ? 1.5 : 0);
+let plan = [], gap = 0, END = 0;
+function buildPlan() {
+  const showSum = ITEMS.reduce((a, it) => a + FADE_IN + holdOf(it) + FADE_OUT, 0);
+  gap = Math.max(MIN_GAP, (TOTAL_MIN * 60 - showSum) / ITEMS.length);
+  let t = 0;
+  plan = ITEMS.map(it => { const start = t + gap, hold = holdOf(it); t = start + FADE_IN + hold + FADE_OUT; return { it, start, hold }; });
+  END = t;
+}
+buildPlan();
+
+const el = document.getElementById("line"), hud = document.getElementById("hud"), panel = document.getElementById("panel"), minsEl = document.getElementById("mins");
+let started = false, paused = false, clock = 0, last = null, idx = -1, hudT, wake = null;
+const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+const flash = m => { hud.textContent = m; hud.classList.add("on"); clearTimeout(hudT); hudT = setTimeout(() => hud.classList.remove("on"), 1800); };
+const status = () => `${TOTAL_MIN} min · ${ITEMS.length} lines · gap ${gap.toFixed(1)}s\n${fmt(clock)} / ${fmt(END)}`;
+const showMins = () => { minsEl.textContent = TOTAL_MIN + ":00"; };
+
+function render() {
+  let cur = -1, ph = "dark";
+  for (let i = 0; i < plan.length; i++) {
+    const p = plan[i], a = p.start, b = a + FADE_IN + p.hold, c = b + FADE_OUT;
+    if (clock >= a && clock < b) { cur = i; ph = "on"; break; }
+    if (clock >= b && clock < c) { cur = i; ph = "out"; break; }
+  }
+  if (cur !== idx && cur >= 0) {
+    const it = plan[cur].it;
+    el.style.transitionDuration = "0s"; el.classList.remove("on");
+    build(it);
+    el.classList.toggle("word", !!it[2]);
+    rollChaos(plan[cur]);
+    void el.offsetWidth;
+  }
+  if (ph === "on") { el.style.transitionDuration = FADE_IN + "s"; el.classList.add("on"); }
+  else { el.style.transitionDuration = (ph === "out" ? FADE_OUT : 0.8) + "s"; el.classList.remove("on"); }
+  idx = cur;
+  if (cur >= 0) applyChaos(clock - plan[cur].start);
+}
+
+/* ===== chaos: sometimes, without warning, the text stops being readable ===== */
+const LEVELS = [["off", 0], ["rare", 0.3], ["sometimes", 0.55], ["often", 0.85]];
+let level = 2, CHAOS_P = LEVELS[level][1];
+let chaosOn = true, chars = [], words = [], chaos = null;
+const TYPES = ["scatter", "scramble", "dissolve", "smear", "overlay", "shuffle", "mirror"];
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+function build(it) {
+  el.innerHTML = ""; el.style.filter = ""; el.style.letterSpacing = ""; el.style.transform = "";
+  chars = []; words = [];
+  it[0].split("<br>").forEach((ln, li) => {
+    if (li) el.appendChild(document.createElement("br"));
+    ln.split(" ").forEach((w, wi) => {
+      if (wi) el.appendChild(document.createTextNode(" "));
+      const ws = document.createElement("span"); ws.className = "w";
+      for (const ch of w) {
+        const c = document.createElement("span"); c.className = "c"; c.textContent = ch;
+        c._o = ch; c._r = [rnd(-1, 1), rnd(-1, 1), Math.random(), Math.random()];
+        ws.appendChild(c); chars.push(c);
+      }
+      el.appendChild(ws); words.push(ws);
+    });
+  });
+  if (it[1]) { const b = document.createElement("span"); b.className = "by"; b.textContent = it[1]; el.appendChild(b); }
+}
+function rollChaos(p) {
+  chaos = null;
+  if (!chaosOn || Math.random() > CHAOS_P) return;
+  makeChaos(FADE_IN * rnd(0.3, 1) + rnd(0, 0.5) * p.hold, p.hold);
+}
+function makeChaos(t0, hold) {
+  const type = TYPES[Math.floor(Math.random() * TYPES.length)];
+  chaos = { type, t0, dur: rnd(1.0, Math.max(1.5, hold * 0.7)), made: false, lastSwap: 0 };
+}
+function forceChaos() {
+  if (!started || idx < 0) return;
+  const lt = clock - plan[idx].start;
+  if (chaos && lt >= chaos.t0) return;
+  makeChaos(lt, plan[idx].hold); flash("chaos: " + chaos.type);
+}
+function applyChaos(lt) {
+  if (!chaos) return;
+  const p = Math.min(1, Math.max(0, (lt - chaos.t0) / chaos.dur));
+  if (p <= 0) return;
+  const e = p * p;
+  switch (chaos.type) {
+    case "scatter":
+      for (const c of chars) { const r = c._r;
+        c.style.transform = `translate(${r[0] * e * 34}vmin, ${r[1] * e * 26}vmin) rotate(${r[0] * e * 160}deg)`;
+        c.style.opacity = 1 - e * (0.4 + r[2] * 0.6); c.style.filter = `blur(${e * r[3] * 6}px)`; }
+      break;
+    case "scramble": {
+      const pool = chars.map(c => c._o);
+      for (const c of chars) c.textContent = (c._r[2] < p && Math.random() < 0.35) ? pool[Math.floor(Math.random() * pool.length)] : (c._r[2] < p ? c.textContent : c._o);
+      break; }
+    case "dissolve":
+      for (const c of chars) c.style.opacity = Math.max(0, Math.min(1, 1 - (p - c._r[2] * 0.85) * 6));
+      break;
+    case "smear":
+      el.style.filter = `blur(${e * 7}px)`; el.style.letterSpacing = `${e * 0.9}em`;
+      el.style.transform = `translate(-50%, -50%) scaleX(${1 + e * 0.5})`;
+      break;
+    case "overlay":
+      if (!chaos.made) { chaos.made = true; chaos.ghosts = [];
+        const n = 3 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < n; i++) {
+          const g = document.createElement("div"); g.className = "ghost";
+          g.innerHTML = ITEMS[Math.floor(Math.random() * ITEMS.length)][0];
+          g.style.top = `${rnd(-40, 40)}%`; g.style.transform = `translateX(${rnd(-12, 12)}%)`; g.style.opacity = 0;
+          g._a = rnd(0.35, 0.95); el.appendChild(g); chaos.ghosts.push(g);
+        } }
+      for (const g of chaos.ghosts) g.style.opacity = e * g._a;
+      break;
+    case "shuffle":
+      if (lt - chaos.lastSwap > rnd(0.25, 0.9) && words.length > 1) { chaos.lastSwap = lt;
+        const a = words[Math.floor(Math.random() * words.length)], b = words[Math.floor(Math.random() * words.length)];
+        const t = a.innerHTML; a.innerHTML = b.innerHTML; b.innerHTML = t;
+        chars = [...el.querySelectorAll(".c")]; }
+      if (p >= 1) for (const c of chars) c.style.opacity = 0.7;
+      break;
+    case "mirror":
+      el.style.transform = `translate(-50%, -50%) scaleX(${1 - 2 * Math.min(1, p * 1.6)})`;
+      el.style.filter = `blur(${Math.sin(p * Math.PI) * 3}px)`;
+      break;
+  }
+}
+
+let SCALE = 1;
+function setScale(d) { SCALE = Math.round(Math.max(0.6, Math.min(2.5, SCALE + d)) * 10) / 10;
+  document.documentElement.style.setProperty("--scale", SCALE);
+  document.getElementById("sizeLbl").textContent = Math.round(SCALE * 100) + "%"; flash("size " + Math.round(SCALE * 100) + "%"); }
+function toggleChaos() { level = (level + 1) % LEVELS.length; CHAOS_P = LEVELS[level][1]; chaosOn = CHAOS_P > 0;
+  document.getElementById("chaosBtn").textContent = "chaos: " + LEVELS[level][0]; flash("chaos " + LEVELS[level][0]); }
+/* ===== 緩急: one switch drops the text into top speed ===== */
+const fastEl = document.getElementById("fast");
+const FRAGS = (() => { const w = []; for (const it of ITEMS) { const t = plain(it[0]).replace(/[—,.;:]/g, " ").split(/\s+/).filter(Boolean);
+  w.push(...t); for (let i = 0; i + 2 < t.length; i += 3) w.push(t.slice(i, i + 2 + Math.floor(Math.random() * 2)).join(" ")); } return w; })();
+let fastMode = false, autoTempo = false, autoUntil = 0, nextFlash = 0, wallT = 0;
+function setFast(on) {
+  fastMode = on; nextFlash = 0;
+  el.style.visibility = on ? "hidden" : "";
+  if (!on) { fastEl.style.visibility = "hidden"; el.style.transitionDuration = "0.4s"; }
+}
+function toggleTempo() { if (!started) return; autoUntil = 0; setFast(!fastMode); flash(fastMode ? "急" : "緩"); }
+function fastStep(ms) {
+  if (ms < nextFlash) return;
+  const r = Math.random();
+  if (r < 0.28) { fastEl.style.visibility = "hidden"; nextFlash = ms + rnd(30, r < 0.04 ? 900 : 260) * speedK; return; }
+  let txt, dur;
+  if (r > 0.95) { const it = ITEMS[Math.floor(Math.random() * ITEMS.length)]; txt = it[0]; dur = rnd(250, 600); fastEl.style.fontSize = ""; }
+  else { txt = FRAGS[Math.floor(Math.random() * FRAGS.length)]; dur = rnd(45, 200);
+    fastEl.style.fontSize = `calc(clamp(22px, min(5vw, 8vh), 110px) * var(--scale, 1) * ${rnd(0.6, 3).toFixed(2)})`; }
+  fastEl.innerHTML = txt;
+  const mirror = Math.random() < 0.08 ? -1 : 1;
+  fastEl.style.transform = `translate(calc(-50% + ${rnd(-22, 22)}vw), calc(-50% + ${rnd(-28, 28)}vh)) scaleX(${mirror})`;
+  fastEl.style.opacity = rnd(0.55, 1); fastEl.style.visibility = "visible";
+  nextFlash = ms + dur * speedK;
+}
+/* ===== mic: the sound decides 緩 / 急 (level only, nothing is recorded or sent) ===== */
+let micOn = false, analyser = null, buf = null, floorDb = -70, SENS = 12, levelDb = -100, belowSince = 0, calib = null, speedK = 1;
+const micBtn = document.getElementById("micBtn");
+async function startMic() {
+  if (micOn) { calib = { until: performance.now() + 2500, vals: [] }; micBtn.textContent = "mic: listening to the room…"; return; }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const ac = new (window.AudioContext || window.webkitAudioContext)(); await ac.resume();
+    analyser = ac.createAnalyser(); analyser.fftSize = 1024; buf = new Float32Array(analyser.fftSize);
+    ac.createMediaStreamSource(s).connect(analyser);
+    micOn = true; calib = { until: performance.now() + 2500, vals: [] };
+    micBtn.textContent = "mic: listening to the room…";
+  } catch (e) { micBtn.textContent = "mic: not available here"; flash("mic not available here"); }
+}
+function readLevel() {
+  analyser.getFloatTimeDomainData(buf);
+  let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+  const db = 10 * Math.log10(s / buf.length + 1e-12);
+  levelDb = db > levelDb ? db : levelDb * 0.85 + db * 0.15;
+  return levelDb;
+}
+function updateMeter() {
+  const pct = d => Math.max(0, Math.min(100, (d + 80) / 80 * 100)) + "%";
+  document.getElementById("meterFill").style.width = pct(levelDb);
+  document.getElementById("meterThr").style.left = pct(floorDb + SENS);
+}
+function setSens(d) { SENS = Math.max(3, Math.min(40, SENS + d)); document.getElementById("sensLbl").textContent = "+" + SENS + " dB"; flash("threshold +" + SENS + " dB"); }
+function micStep(ts) {
+  readLevel();
+  if (calib) {
+    calib.vals.push(levelDb);
+    if (performance.now() > calib.until) {
+      const v = calib.vals.sort((a, b) => a - b); floorDb = v[Math.floor(v.length / 2)] ?? -70; calib = null;
+      micBtn.textContent = "mic: on (tap to recalibrate)";
+    }
+  }
+  if (!panel.hidden) updateMeter();
+  if (!started || paused || calib) return;
+  const thr = floorDb + SENS;
+  if (levelDb > thr) {
+    belowSince = 0; speedK = Math.max(0.25, 1 - (levelDb - thr) / 30);
+    if (!fastMode) setFast(true);
+  } else if (fastMode) {
+    if (!belowSince) belowSince = ts;
+    if (ts - belowSince > 250) { belowSince = 0; speedK = 1; setFast(false); }
+  }
+}
+function tick(ts) {
+  if (micOn) micStep(ts);
+  if (last !== null && started && !paused) {
+    const dt = (ts - last) / 1000; clock += dt; wallT += dt;
+    if (autoTempo && !micOn) {
+      if (!fastMode && Math.random() < dt / 70) { autoUntil = wallT + rnd(1.5, 12); setFast(true); }
+      else if (fastMode && autoUntil && wallT > autoUntil) { autoUntil = 0; setFast(false); }
+    }
+    render();
+    if (fastMode) fastStep(ts);
+  }
+  last = ts; requestAnimationFrame(tick);
+}
+function toggleAuto() { autoTempo = !autoTempo; document.getElementById("tempoBtn").textContent = "tempo: " + (autoTempo ? "auto" : "manual"); flash("tempo " + (autoTempo ? "auto" : "manual")); }
+requestAnimationFrame(tick);
+
+async function keepAwake() { try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {} }
+document.addEventListener("visibilitychange", () => { if (started && document.visibilityState === "visible") keepAwake(); });
+
+function start() {
+  started = true; paused = false; panel.hidden = true; document.body.classList.add("running"); keepAwake();
+  try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (e) {}
+  flash("start\n" + status());
+}
+function togglePause() { if (!started) return; paused = !paused; flash((paused ? "pause" : "play") + "\n" + status()); }
+function reset() {
+  started = false; paused = false; clock = 0; idx = -1; el.classList.remove("on"); setFast(false); autoUntil = 0;
+  panel.hidden = false; document.body.classList.remove("running"); flash("reset");
+}
+function jump(dir) {
+  let n = idx >= 0 ? idx + dir : plan.findIndex(p => p.start > clock) - (dir < 0 ? 1 : 0);
+  n = Math.min(plan.length - 1, Math.max(0, n));
+  clock = plan[n].start; idx = -2; render(); flash(status());
+}
+function setMins(d) { TOTAL_MIN = Math.max(5, Math.min(60, TOTAL_MIN + d)); buildPlan(); showMins(); }
+
+document.getElementById("go").addEventListener("click", e => { e.stopPropagation(); start(); });
+document.getElementById("minus").addEventListener("click", e => { e.stopPropagation(); setMins(-1); });
+document.getElementById("plus").addEventListener("click", e => { e.stopPropagation(); setMins(1); });
+document.getElementById("smaller").addEventListener("click", e => { e.stopPropagation(); setScale(-0.1); });
+document.getElementById("bigger").addEventListener("click", e => { e.stopPropagation(); setScale(0.1); });
+document.getElementById("chaosBtn").addEventListener("click", e => { e.stopPropagation(); toggleChaos(); });
+document.getElementById("tempoBtn").addEventListener("click", e => { e.stopPropagation(); toggleAuto(); });
+micBtn.addEventListener("click", e => { e.stopPropagation(); startMic(); });
+document.getElementById("sensMinus").addEventListener("click", e => { e.stopPropagation(); setSens(-1); });
+document.getElementById("sensPlus").addEventListener("click", e => { e.stopPropagation(); setSens(1); });
+
+/* touch: tap = pause, swipe = next/prev, double-tap = reset */
+let tx = 0, ty = 0, lastTap = 0, tapTimer = null;
+const stage = document.getElementById("stage");
+let holdTimer = null, held = false;
+stage.addEventListener("pointerdown", e => { tx = e.clientX; ty = e.clientY; held = false;
+  clearTimeout(holdTimer); holdTimer = setTimeout(() => { held = true; forceChaos(); }, 600); });
+stage.addEventListener("pointermove", e => { if (Math.abs(e.clientX - tx) > 15 || Math.abs(e.clientY - ty) > 15) clearTimeout(holdTimer); });
+stage.addEventListener("contextmenu", e => e.preventDefault());
+stage.addEventListener("pointerup", e => {
+  clearTimeout(holdTimer);
+  if (!started || held) return;
+  const dx = e.clientX - tx, dy = e.clientY - ty;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) { jump(dx < 0 ? 1 : -1); return; }
+  const now = Date.now();
+  if (now - lastTap < 350) { clearTimeout(tapTimer); lastTap = 0; reset(); return; }
+  lastTap = now; tapTimer = setTimeout(toggleTempo, 300);
+});
+
+/* keyboard (laptop over HDMI) */
+document.addEventListener("keydown", e => {
+  const k = e.key;
+  if (k === " ") { e.preventDefault(); started ? togglePause() : start(); }
+  else if (k === "[" || k === "]") { if (!started) setMins(k === "]" ? 1 : -1); }
+  else if (k === "ArrowRight") { if (started) jump(1); }
+  else if (k === "ArrowLeft") { if (started) jump(-1); }
+  else if (k.toLowerCase() === "r") reset();
+  else if (k.toLowerCase() === "h") flash(status());
+  else if (k === "-") setScale(-0.1);
+  else if (k === "=" || k === "+") setScale(0.1);
+  else if (k.toLowerCase() === "c") toggleChaos();
+  else if (k.toLowerCase() === "x") forceChaos();
+  else if (k === "Enter" || k.toLowerCase() === "q") toggleTempo();
+  else if (k.toLowerCase() === "a") toggleAuto();
+  else if (k.toLowerCase() === "m") startMic();
+  else if (k === ",") setSens(-1);
+  else if (k === ".") setSens(1);
+});
+showMins();
+</script>
+
+</html>
