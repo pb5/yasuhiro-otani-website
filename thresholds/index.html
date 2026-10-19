@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache">
 <title>Thresholds of Presence</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -44,6 +45,8 @@ body { background:var(--bg); color:var(--ink); overflow:hidden; margin:0;
   color:#5a5650; font:12px/1.4 var(--mono); text-align:right; opacity:0; transition:opacity .4s; white-space:pre; pointer-events:none; }
 #hud.on { opacity:1; }
 body.running { cursor:none; }
+body.running #panel { display:none !important; }
+#ver { font-size:11px; color:#3d3a35; }
 @media (prefers-reduced-motion: reduce) { #line { transition-duration:.01s !important; } }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond&display=swap">
@@ -71,6 +74,7 @@ body.running { cursor:none; }
   <div id="meter" aria-hidden="true"><div id="meterFill"></div><div id="meterThr"></div></div>
   <button id="go">Start</button>
   <div>tap: 緩 / 急 · swipe: next / previous · double-tap: reset · hold: break the text now</div>
+  <div id="ver">v8</div>
 </div>
 <div id="hud"></div>
 
@@ -365,14 +369,14 @@ async function keepAwake() { try { wake = await navigator.wakeLock?.request("scr
 document.addEventListener("visibilitychange", () => { if (started && document.visibilityState === "visible") keepAwake(); });
 
 function start() {
-  started = true; paused = false; panel.hidden = true; document.body.classList.add("running"); keepAwake();
+  started = true; paused = false; panel.hidden = true; panel.style.display = "none"; document.body.classList.add("running"); keepAwake();
   try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (e) {}
   flash("start\n" + status());
 }
 function togglePause() { if (!started) return; paused = !paused; flash((paused ? "pause" : "play") + "\n" + status()); }
 function reset() {
   started = false; paused = false; clock = 0; idx = -1; el.classList.remove("on"); setFast(false); autoUntil = 0;
-  panel.hidden = false; document.body.classList.remove("running"); flash("reset");
+  panel.hidden = false; panel.style.display = ""; document.body.classList.remove("running"); flash("reset");
 }
 function jump(dir) {
   let n = idx >= 0 ? idx + dir : plan.findIndex(p => p.start > clock) - (dir < 0 ? 1 : 0);
