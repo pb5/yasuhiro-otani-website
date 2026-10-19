@@ -39,7 +39,7 @@ body { background:var(--bg); color:var(--ink); overflow:hidden; margin:0;
 #panel button:focus-visible { outline:1px solid var(--ui-hi); outline-offset:3px; }
 #mins { font-size:22px; color:var(--ui-hi); min-width:4ch; font-variant-numeric:tabular-nums; }
 #hud { position:fixed; right:calc(14px + env(safe-area-inset-right, 0px)); bottom:calc(12px + env(safe-area-inset-bottom, 0px));
-  color:#3a3a3a; font:12px/1.4 var(--mono); text-align:right; opacity:0; transition:opacity .4s; white-space:pre; pointer-events:none; }
+  color:#5a5650; font:12px/1.4 var(--mono); text-align:right; opacity:0; transition:opacity .4s; white-space:pre; pointer-events:none; }
 #hud.on { opacity:1; }
 body.running { cursor:none; }
 @media (prefers-reduced-motion: reduce) { #line { transition-duration:.01s !important; } }
@@ -143,9 +143,9 @@ const holdOf = it => HOLD_BASE + plain(it[0]).length * HOLD_PER_CHAR + (it[1] ? 
 let plan = [], gap = 0, END = 0;
 function buildPlan() {
   const showSum = ITEMS.reduce((a, it) => a + FADE_IN + holdOf(it) + FADE_OUT, 0);
-  gap = Math.max(MIN_GAP, (TOTAL_MIN * 60 - showSum) / ITEMS.length);
+  gap = Math.max(MIN_GAP, (TOTAL_MIN * 60 - showSum) / (ITEMS.length - 1));
   let t = 0;
-  plan = ITEMS.map(it => { const start = t + gap, hold = holdOf(it); t = start + FADE_IN + hold + FADE_OUT; return { it, start, hold }; });
+  plan = ITEMS.map((it, i) => { const start = t + (i === 0 ? 0.3 : gap), hold = holdOf(it); t = start + FADE_IN + hold + FADE_OUT; return { it, start, hold }; });
   END = t;
 }
 buildPlan();
