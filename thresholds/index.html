@@ -14,7 +14,7 @@
 <title>Thresholds of Presence</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* layout: one black screen; a single paragraph of prose, left-aligned in a reading column; a pre-start panel that disappears once it runs */
+/* layout: one black screen; a single paragraph of prose in a reading column; the more active the sound, the longer a paragraph stays */
 :root { --bg:#000; --ink:#a39d92; --ui:#4a4741; --ui-hi:#8f897f; --hud:#5a5650;
   --serif:"EB Garamond", Garamond, "Hoefler Text", "Times New Roman", serif;
   --mono: ui-monospace, Menlo, Consolas, monospace; color-scheme: dark; }
@@ -24,8 +24,8 @@ body { background:var(--bg); color:var(--ink); overflow:hidden; margin:0;
   padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
   -webkit-user-select:none; user-select:none; touch-action:manipulation; }
 #stage { position:fixed; inset:0; }
-#para { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  width:min(84vw, 30em); font-family:var(--serif); text-align:left; text-wrap:pretty; hyphens:none;
+#para { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); margin:0;
+  width:min(84vw, 30em); font-family:var(--serif); text-align:left; text-wrap:pretty;
   font-size:calc(clamp(19px, min(3.4vw, 5.6vh), 66px) * var(--scale, 1)); line-height:1.45;
   opacity:0; transition:opacity 2s ease; }
 #para.on { opacity:1; }
@@ -37,7 +37,9 @@ body { background:var(--bg); color:var(--ink); overflow:hidden; margin:0;
   min-width:44px; min-height:44px; padding:0 14px; cursor:pointer; }
 #panel button:focus-visible { outline:1px solid var(--ui-hi); outline-offset:3px; }
 #panel span { white-space:nowrap; }
-#mins { font-size:22px; color:var(--ui-hi); min-width:4ch; font-variant-numeric:tabular-nums; }
+#meter { position:relative; width:min(280px, 80vw); height:6px; background:#141414; }
+#meterFill { position:absolute; left:0; top:0; bottom:0; width:0; background:var(--ui-hi); }
+#meterThr { position:absolute; top:-4px; bottom:-4px; width:2px; left:0; background:#a33; }
 #ver { font-size:11px; color:#3d3a35; }
 #hud { position:fixed; right:calc(14px + env(safe-area-inset-right, 0px)); bottom:calc(12px + env(safe-area-inset-bottom, 0px));
   color:var(--hud); font:12px/1.4 var(--mono); text-align:right; opacity:0; transition:opacity .4s; white-space:pre; pointer-events:none; }
@@ -51,23 +53,28 @@ body.running #panel { display:none !important; }
 <div id="stage" aria-live="polite"><p id="para"></p></div>
 <div id="panel">
   <div class="row">
-    <button id="minus" aria-label="1分減らす">−</button>
-    <span id="mins">25:00</span>
-    <button id="plus" aria-label="1分増やす">＋</button>
-  </div>
-  <div class="row">
     <button id="smaller" aria-label="文字を小さく">A−</button>
     <span id="sizeLbl">100%</span>
     <button id="bigger" aria-label="文字を大きく">A＋</button>
+    <button id="slower" aria-label="全体をゆっくり">pace −</button>
+    <span id="paceLbl">1.0×</span>
+    <button id="faster" aria-label="全体を速く">pace ＋</button>
   </div>
+  <div class="row">
+    <button id="micBtn">mic: off</button>
+    <button id="sensMinus" aria-label="反応しやすく">−</button>
+    <span id="sensLbl">+12 dB</span>
+    <button id="sensPlus" aria-label="反応しにくく">＋</button>
+  </div>
+  <div id="meter" aria-hidden="true"><div id="meterFill"></div><div id="meterThr"></div></div>
   <button id="go">Start</button>
-  <div>runs by itself · tap right: next · tap left: back · hold: pause / menu<br>keys or pedal: → next · ← back · space pause</div>
-  <div id="ver">v10</div>
+  <div>loops by itself · busier sound, slower text<br>tap right: next · tap left: back · hold: pause / menu · keys or pedal: → ← space</div>
+  <div id="ver">v11</div>
 </div>
 <div id="hud"></div>
 
 <script>
-/* ===== text: prose, in order ===== */
+/* ===== text: prose, in order, looping ===== */
 const PARAS = [
   "This is a guitar and a filter. There is no computer in the sound. Nothing is recorded, and nothing is planned.",
   "The guitar feeds the filter, and the filter feeds itself. Once it begins, the sound moves on its own. My work is to listen to where it is going.",
@@ -84,73 +91,97 @@ const PARAS = [
   "For me, listening is the performance."
 ];
 
-/* ===== timing: reading time per paragraph, the rest of the slot shared between longer holds and dark gaps ===== */
-let TOTAL_MIN = 25;
-const FADE = 2.0, READ_BASE = 5, READ_PER_WORD = 0.55, HOLD_SHARE = 0.6;
-const words = s => s.split(/\s+/).length;
-let plan = [], END = 0;
-function buildPlan() {
-  const read = PARAS.map(p => READ_BASE + words(p) * READ_PER_WORD);
-  const base = read.reduce((a, r) => a + r + 2 * FADE, 0);
-  const spare = Math.max(0, TOTAL_MIN * 60 - base);
-  const extraHold = spare * HOLD_SHARE, gap = PARAS.length > 1 ? spare * (1 - HOLD_SHARE) / (PARAS.length - 1) : 0;
-  const readSum = read.reduce((a, r) => a + r, 0);
-  let t = 0.3;
-  plan = PARAS.map((p, i) => {
-    const hold = read[i] + extraHold * read[i] / readSum;
-    const item = { p, start: t, hold };
-    t += FADE + hold + FADE + (i < PARAS.length - 1 ? gap : 0);
-    return item;
-  });
-  END = t;
-}
-buildPlan();
+/* ===== pacing =====
+   Each paragraph has a reading time. It stays until "progress" reaches 1.
+   Quiet room: progress runs at full speed. Busy sound: progress slows, up to SLOW_MAX times. */
+const FADE = 2.0, GAP = 2.5, READ_BASE = 4, READ_PER_WORD = 0.5, SLOW_MAX = 4;
+let PACE = 1;
+const readTime = p => (READ_BASE + p.split(/\s+/).length * READ_PER_WORD) / PACE;
 
-/* ===== playback ===== */
 const el = document.getElementById("para"), hud = document.getElementById("hud"), panel = document.getElementById("panel");
-let started = false, paused = false, clock = 0, last = null, idx = -1, hudT, wake = null;
-const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+let started = false, paused = false, last = null, hudT, wake = null;
+let idx = 0, loop = 1, phase = "gap", phaseT = 0, progress = 0, activity = 0;
 const flash = m => { hud.textContent = m; hud.classList.add("on"); clearTimeout(hudT); hudT = setTimeout(() => hud.classList.remove("on"), 1800); };
-const status = () => `${idx + 1} / ${PARAS.length} · ${fmt(clock)} / ${fmt(END)}` + (paused ? " · paused" : "");
+const status = () => `${idx + 1} / ${PARAS.length} · loop ${loop}` + (micOn ? ` · sound ${Math.round(activity * 100)}%` : "") + (paused ? " · paused" : "");
 
-function render() {
-  let cur = -1, on = false;
-  for (let i = 0; i < plan.length; i++) {
-    const a = plan[i].start, b = a + FADE + plan[i].hold, last = i === plan.length - 1;
-    if (clock >= a && (clock < b || last)) { cur = i; on = !(last && clock >= END); break; }
-    if (clock >= b && clock < b + FADE) { cur = i; on = false; break; }
-  }
-  if (cur !== idx && cur >= 0) { el.style.transition = "none"; el.classList.remove("on"); el.textContent = plan[cur].p; void el.offsetWidth; el.style.transition = ""; }
-  el.classList.toggle("on", on);
-  if (cur >= 0) idx = cur;
+function show(i) {
+  idx = (i + PARAS.length) % PARAS.length;
+  el.style.transition = "none"; el.classList.remove("on"); el.textContent = PARAS[idx]; void el.offsetWidth; el.style.transition = "";
+  el.classList.add("on"); phase = "in"; phaseT = 0; progress = 0;
 }
+function step(dt) {
+  phaseT += dt;
+  if (phase === "in") { if (phaseT >= FADE) { phase = "hold"; phaseT = 0; } }
+  else if (phase === "hold") {
+    const slow = 1 + (SLOW_MAX - 1) * activity;          /* busier sound = slower text */
+    progress += dt / (readTime(PARAS[idx]) * slow);
+    if (progress >= 1) { el.classList.remove("on"); phase = "out"; phaseT = 0; }
+  }
+  else if (phase === "out") { if (phaseT >= FADE) { phase = "gap"; phaseT = 0; } }
+  else if (phase === "gap") { if (phaseT >= GAP) { if (idx === PARAS.length - 1) loop++; show(idx + 1); } }
+}
+
+/* ===== mic: how busy the sound is (level above the room, plus how much it is changing). Nothing is recorded or sent. ===== */
+let micOn = false, analyser = null, buf = null, floorDb = -70, SENS = 12, levelDb = -100, prevDb = -100, change = 0, calib = null;
+const micBtn = document.getElementById("micBtn");
+async function startMic() {
+  if (micOn) { calib = { until: performance.now() + 2500, vals: [] }; micBtn.textContent = "mic: listening to the room…"; return; }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const ac = new (window.AudioContext || window.webkitAudioContext)(); await ac.resume();
+    analyser = ac.createAnalyser(); analyser.fftSize = 1024; buf = new Float32Array(analyser.fftSize);
+    ac.createMediaStreamSource(s).connect(analyser);
+    micOn = true; calib = { until: performance.now() + 2500, vals: [] }; micBtn.textContent = "mic: listening to the room…";
+  } catch (e) { micBtn.textContent = "mic: not available here"; flash("mic not available here"); }
+}
+function micStep(dt) {
+  analyser.getFloatTimeDomainData(buf);
+  let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+  const db = 10 * Math.log10(s / buf.length + 1e-12);
+  levelDb = db > levelDb ? levelDb * 0.5 + db * 0.5 : levelDb * 0.9 + db * 0.1;
+  change = change * 0.95 + Math.abs(levelDb - prevDb) * 0.05; prevDb = levelDb;
+  if (calib) {
+    calib.vals.push(levelDb);
+    if (performance.now() > calib.until) { const v = calib.vals.sort((a, b) => a - b); floorDb = v[Math.floor(v.length / 2)] ?? -70; calib = null; micBtn.textContent = "mic: on (tap to recalibrate)"; }
+    return;
+  }
+  const loud = Math.max(0, Math.min(1, (levelDb - (floorDb + SENS)) / 24));
+  const busy = Math.max(0, Math.min(1, change / 3));
+  const target = Math.max(loud, busy * (levelDb > floorDb + SENS ? 1 : 0.3));
+  activity += (target - activity) * Math.min(1, dt * 1.5);
+  if (!panel.hidden) {
+    const pct = d => Math.max(0, Math.min(100, (d + 80) / 80 * 100)) + "%";
+    document.getElementById("meterFill").style.width = pct(levelDb);
+    document.getElementById("meterThr").style.left = pct(floorDb + SENS);
+  }
+}
+
 function tick(ts) {
-  if (last !== null && started && !paused) { clock = Math.min(END, clock + (ts - last) / 1000); render(); }
+  const dt = last === null ? 0 : Math.min(0.1, (ts - last) / 1000);
+  if (micOn) micStep(dt);
+  if (started && !paused) step(dt);
   last = ts; requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
 
-function go(dir) {
-  if (!started) return;
-  const n = Math.min(plan.length - 1, Math.max(0, (idx < 0 ? 0 : idx) + dir));
-  clock = plan[n].start; idx = -2; render(); flash(status());
-}
+/* ===== controls ===== */
+function go(dir) { if (!started) return; show(idx + dir); flash(status()); }
 async function keepAwake() { try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {} }
 document.addEventListener("visibilitychange", () => { if (started && document.visibilityState === "visible") keepAwake(); });
-
 function start() {
-  if (!started) { clock = 0; idx = -1; }
-  started = true; paused = false; panel.hidden = true; panel.style.display = "none"; document.body.classList.add("running");
+  const resuming = started; started = true; paused = false;
+  panel.hidden = true; panel.style.display = "none"; document.body.classList.add("running");
   keepAwake(); try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (e) {}
-  render(); flash(status());
+  if (!resuming) { loop = 1; show(0); }
+  flash(status());
 }
 function togglePause() { if (!started) return; paused = !paused; flash(status()); }
-function showMenu() {   /* hold: pause and bring the panel back; Start resumes, R resets */
+function showMenu() {
   if (!started) return; paused = true; panel.hidden = false; panel.style.display = ""; document.body.classList.remove("running");
   document.getElementById("go").textContent = "Resume"; flash(status());
 }
 function reset() {
-  started = false; paused = false; clock = 0; idx = -1; el.classList.remove("on");
+  started = false; paused = false; idx = 0; loop = 1; el.classList.remove("on");
   panel.hidden = false; panel.style.display = ""; document.body.classList.remove("running");
   document.getElementById("go").textContent = "Start"; flash("reset");
 }
@@ -158,16 +189,15 @@ let SCALE = 1;
 function setScale(d) { SCALE = Math.round(Math.max(0.6, Math.min(2.5, SCALE + d)) * 10) / 10;
   document.documentElement.style.setProperty("--scale", SCALE);
   document.getElementById("sizeLbl").textContent = Math.round(SCALE * 100) + "%"; flash("size " + Math.round(SCALE * 100) + "%"); }
-function setMins(d) { if (started) return; TOTAL_MIN = Math.max(3, Math.min(60, TOTAL_MIN + d)); buildPlan();
-  document.getElementById("mins").textContent = TOTAL_MIN + ":00"; }
+function setPace(d) { PACE = Math.round(Math.max(0.3, Math.min(3, PACE + d)) * 10) / 10;
+  document.getElementById("paceLbl").textContent = PACE.toFixed(1) + "×"; flash("pace " + PACE.toFixed(1) + "×"); }
+function setSens(d) { SENS = Math.max(3, Math.min(40, SENS + d)); document.getElementById("sensLbl").textContent = "+" + SENS + " dB"; flash("threshold +" + SENS + " dB"); }
 
-document.getElementById("go").addEventListener("click", e => { e.stopPropagation(); start(); });
-document.getElementById("minus").addEventListener("click", e => { e.stopPropagation(); setMins(-1); });
-document.getElementById("plus").addEventListener("click", e => { e.stopPropagation(); setMins(1); });
-document.getElementById("smaller").addEventListener("click", e => { e.stopPropagation(); setScale(-0.1); });
-document.getElementById("bigger").addEventListener("click", e => { e.stopPropagation(); setScale(0.1); });
+const on = (id, fn) => document.getElementById(id).addEventListener("click", e => { e.stopPropagation(); fn(); });
+on("go", start); on("smaller", () => setScale(-0.1)); on("bigger", () => setScale(0.1));
+on("slower", () => setPace(-0.1)); on("faster", () => setPace(0.1));
+on("micBtn", startMic); on("sensMinus", () => setSens(-1)); on("sensPlus", () => setSens(1));
 
-/* touch: tap right = next, tap left = back, hold = pause + menu */
 const stage = document.getElementById("stage");
 let holdTimer = null, held = false, tx = 0, ty = 0;
 stage.addEventListener("pointerdown", e => { tx = e.clientX; ty = e.clientY; held = false;
@@ -176,15 +206,16 @@ stage.addEventListener("pointermove", e => { if (Math.abs(e.clientX - tx) > 15 |
 stage.addEventListener("contextmenu", e => e.preventDefault());
 stage.addEventListener("pointerup", e => { clearTimeout(holdTimer); if (!started || held) return; go(e.clientX > innerWidth / 2 ? 1 : -1); });
 
-/* keyboard and page-turner pedals (they send arrow / page keys) */
 document.addEventListener("keydown", e => {
   const k = e.key;
   if (["ArrowRight", "ArrowDown", "PageDown", "Enter"].includes(k)) { e.preventDefault(); started ? go(1) : start(); }
   else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(k)) { e.preventDefault(); go(-1); }
   else if (k === " ") { e.preventDefault(); started ? togglePause() : start(); }
-  else if (k === "[" || k === "]") setMins(k === "]" ? 1 : -1);
   else if (k === "-") setScale(-0.1);
   else if (k === "=" || k === "+") setScale(0.1);
+  else if (k === ",") setSens(-1);
+  else if (k === ".") setSens(1);
+  else if (k.toLowerCase() === "m") startMic();
   else if (k.toLowerCase() === "r") reset();
   else if (k.toLowerCase() === "h") flash(status());
 });
