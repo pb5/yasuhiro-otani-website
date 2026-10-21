@@ -81,49 +81,87 @@ body.running #panel { display:none !important; }
   <div id="meter" aria-hidden="true"><div id="meterFill"></div><div id="meterThr"></div></div>
   <button id="go">Start</button>
   <div>tap: 緩 / 急 · swipe: next / previous · double-tap: reset · hold: break the text now</div>
-  <div id="ver">v12</div>
+  <div id="ver">v13</div>
 </div>
 <div id="hud"></div>
 
 <script>
 let TOTAL_MIN = 25;
-const FADE_IN = 3.0, FADE_OUT = 3.0, HOLD_BASE = 4.0, HOLD_PER_CHAR = 0.075, MIN_GAP = 4.0;
+const FADE_IN = 2.0, FADE_OUT = 2.0, HOLD_BASE = 4.0, HOLD_PER_CHAR = 0.075, MIN_GAP = 4.0, SHORT_GAP = 1.5;
 
 /* ===== text: [text, attribution, isWord] ===== */
 const ITEMS = [
   ["This is a guitar and a filter."],
   ["There is no computer in the sound."],
   ["Nothing is recorded, and nothing is planned."],
+  ["There is no score.<br>There is only this room, today."],
   ["The guitar feeds the filter,<br>and the filter feeds itself."],
+  ["Feedback is a sound listening to itself."],
   ["Once it begins, the sound moves on its own."],
   ["My work is to listen to where it is going."],
   ["listen", null, true],
   ["When we really listen,<br>we all hear much the same thing."],
   ["When we don't,<br>each of us hears something different."],
   ["Not the sound, but an image of it:<br>what we expect, what we already know."],
+  ["Expecting is the opposite of listening."],
+  ["When you know what comes next,<br>you stop hearing it."],
   ["While you read this, you are listening less."],
   ["That is not a problem.<br>Notice it, and come back."],
+  ["These words are slower than the sound.<br>By the time you read them, it is somewhere else."],
   ["feedback", null, true],
   ["The same settings never give the same sound twice."],
+  ["The same knob, the same position,<br>a different sound."],
   ["The system remembers nothing."],
   ["I cannot repeat it, and I don't try."],
+  ["Every time it starts, it starts from nothing."],
   ["again", null, true],
+  ["Nothing returns."],
   ["A small touch can change everything."],
   ["Sometimes nothing I do changes anything."],
+  ["If I push, it breaks.<br>If I wait, it changes anyway."],
   ["Most of the time I am not playing."],
   ["I am waiting, and following."],
+  ["My hands are mostly for waiting."],
+  ["I am not controlling the sound.<br>I am keeping it company."],
+  ["wait", null, true],
   ["threshold", null, true],
   ["What I listen for is an edge:<br>the moment just before the sound holds,<br>or just before it breaks."],
+  ["Between holding and breaking<br>there is very little room.<br>I try to stay there."],
   ["The edge does not stay where it is.<br>It moves while I listen."],
+  ["Listen to the edges of the sound,<br>not the middle."],
+  ["edge", null, true],
+  ["A sound that holds still is still moving."],
+  ["The loudest moment is not the most important one."],
+  ["Most of what matters happens quietly."],
   ["A note can appear that belongs nowhere."],
   ["It can change everything around it.<br>I keep it."],
+  ["Sometimes the sound finds a note<br>I would never choose."],
+  ["I follow it."],
+  ["Nothing here is a mistake.<br>A mistake is only an expectation that failed."],
   ["presence", null, true],
+  ["Try not to name what you hear."],
+  ["A name is an image."],
+  ["Listen until the sound has no name."],
+  ["This is not improvisation.<br>It is a discipline of listening."],
+  ["I do not know where this is going.<br>That is the work."],
+  ["Every small change is a decision<br>about what to keep."],
+  ["The room is part of the instrument."],
+  ["room", null, true],
   ["The sound is never finished."],
   ["Something is always left open,<br>so that you can complete it."],
   ["What you hear is partly yours."],
   ["open", null, true],
   ["There is no right or wrong tool."],
   ["A computer, a guitar, a voice.<br>Use whatever lets you listen."],
+  ["Something is always disappearing."],
+  ["What disappears cannot be repeated."],
+  ["You will not hear this again."],
+  ["Neither will I."],
+  ["now", null, true],
+  ["Silence is not the end of the music."],
+  ["The sound decides how long it lasts."],
+  ["When I stop it, everything stops at once."],
+  ["What is left is not silence.<br>It is the room, and you."],
   ["When the image falls away,<br>what remains is the sound and the person listening."],
   ["When it ends, it is gone.<br>Not even the silence stays."],
   ["gone", null, true],
@@ -136,9 +174,11 @@ const holdOf = it => HOLD_BASE + plain(it[0]).length * HOLD_PER_CHAR + (it[1] ? 
 let plan = [], gap = 0, END = 0;
 function buildPlan() {
   const showSum = ITEMS.reduce((a, it) => a + FADE_IN + holdOf(it) + FADE_OUT, 0);
-  gap = Math.max(MIN_GAP, (TOTAL_MIN * 60 - showSum) / (ITEMS.length - 1));
+  const holdSum = ITEMS.reduce((a, it) => a + holdOf(it), 0);
+  gap = SHORT_GAP;
+  const spare = Math.max(0, TOTAL_MIN * 60 - showSum - gap * (ITEMS.length - 1));
   let t = 0;
-  plan = ITEMS.map((it, i) => { const start = t + (i === 0 ? 0.3 : gap), hold = holdOf(it); t = start + FADE_IN + hold + FADE_OUT; return { it, start, hold }; });
+  plan = ITEMS.map((it, i) => { const start = t + (i === 0 ? 0.3 : gap), hold = holdOf(it) + spare * holdOf(it) / holdSum; t = start + FADE_IN + hold + FADE_OUT; return { it, start, hold }; });
   END = t;
 }
 buildPlan();
