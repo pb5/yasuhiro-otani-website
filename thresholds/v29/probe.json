@@ -1,9 +1,9 @@
 {
- "updated": "2026-11-04T05:41:44Z",
+ "updated": "2026-11-04T05:45:48Z",
  "counts": {
-  "wikipedia": 212,
-  "mastodon": 1681,
-  "ircam": 884
+  "ircam": 905,
+  "mastodon": 1569,
+  "wikipedia": 257
  },
  "probe": {
   "https://www.ircam.fr/": {
@@ -38,7 +38,23 @@
    "status": 200,
    "cors": null
   },
-  "https://forum.ircam.fr/i18n/setlang/?language=en&next=/": {
+  "https://www.ircam.fr/fr/magazine/playlist-octobre2026": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/article/?page=2": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/recherche/equipes-recherche/analyse-des-pratiques-musicales": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/legal/conditions-generales-de-vente/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/magazine/music-creators-development-project-tokyo-paris": {
    "status": 200,
    "cors": null
   },
@@ -46,27 +62,11 @@
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/vous-etes/entrepriseinstitution": {
+  "https://www.ircam.fr/fr/vous-etes/scientifique": {
    "status": 200,
    "cors": null
   },
-  "https://forum.ircam.fr/i18n/setlang/?language=fr&next=/article/list/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/profile/laurent/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/article/detail/sortie-ios-dapplications-asap-et-the-snail-version-3/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/privacy-policy/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/profile/laenen/": {
+  "https://www.ircam.fr/fr/magazine/entretien-avec-hibiki-mukai-et-serge-lemouton": {
    "status": 200,
    "cors": null
   },
@@ -74,19 +74,27 @@
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/organisation-de-la-recherche": {
+  "https://www.ircam.fr/fr/vous-etes/enseignant": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/events/stage-logiciels": {
+  "https://www.ircam.fr/fr/politique-de-confidentialite": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr": {
+  "https://www.ircam.fr/fr/magazine/breve-chronologie-subjective-de-lusage-de-ia-en-composition-musicale": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/vous-etes/etudiant": {
+  "https://forum.ircam.fr/search/?topics=participatory art": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/events/ur": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/search/?topics=Gesture": {
    "status": 200,
    "cors": null
   },
@@ -94,27 +102,31 @@
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/ircam/le-batiment": {
+  "https://forum.ircam.fr/privacy-policy/": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/magazine": {
+  "https://www.ircam.fr/fr": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/vous-etes/enseignant": {
+  "https://forum.ircam.fr/i18n/setlang/?language=en&next=/article/list/": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/mentions-legales": {
+  "https://forum.ircam.fr/article/?page=5": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/magazine/scroccaro-kurtag-ligeti-janulyte-replay-concert": {
+  "https://forum.ircam.fr/contact/": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/action-culturelle/l-ircam-et-ma-classe": {
+  "https://www.ircam.fr/fr/formulaire-de-contact": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/etre-informe": {
    "status": 200,
    "cors": null
   },
@@ -122,19 +134,47 @@
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/recherche/equipes-recherche/analyse-et-synthse-des-sons": {
+  "https://www.ircam.fr/fr/magazine": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/magazine/playlist-octobre2026": {
+  "https://www.ircam.fr/recherche/equipes-recherche/representations-musicales": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/nos-partenaires": {
+  "https://forum.ircam.fr/article/detail/asap-spectral-clipping-fait-son-apparition-dans-4-producers/": {
    "status": 200,
    "cors": null
   },
-  "https://forum.ircam.fr/article/detail/the-observer-an-ai-that-listens-to-a-room-diverse-technological-applications-in-performance-by-c-lab-taiwan-sound-lab/": {
+  "https://www.ircam.fr/fr/offres-emplois": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/events/lombre": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/shop/premium": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/recherche/equipes-recherche": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/organisation-de-la-recherche": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/nous-soutenir": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/i18n/setlang/?language=fr&next=/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/mentions-legales": {
    "status": 200,
    "cors": null
   },
@@ -142,7 +182,103 @@
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/etre-informe": {
+  "https://www.ircam.fr/fr/ircam/les-equipes": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/events": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/events": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/shop/partner": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/magazine/scroccaro-kurtag-ligeti-janulyte-replay-concert": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/article/?page=4": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/article/?page=3": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/legal/contrat-de-licence-forum-ircam/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/article/detail/unfinished-motion-towards-the-construction-of-a-multimodal-interactive-system-translating-pipa-performance-gestures-via-dicy2-and-spat5-by-hsiao-yung-shen/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/magazine/1-30-avec-marco-fiorini-doctorant": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/ircam/le-batiment": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/recherche/equipes-recherche/perception-et-design-sonores": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/nos-partenaires": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/article/detail/ai-music-creative-uses-of-machine-learning-and-co-creative-agents-for-sound-transformation-and-musical-interaction-by-guillaume-piccarreta-marco-fiorini-and-philippe-esling/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/i18n/setlang/?language=fr&next=/collections/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/vous-etes/spectateurspectatrice": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/profile/laurent/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/magazine/playlist-novembre2026": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/search/?topics=DICY2": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/events/stage-logiciels": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/article/detail/ateliers-forum-paris-24-26-mars-2027-inscription/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/action-culturelle/l-ircam-et-ma-classe": {
+   "status": 200,
+   "cors": null
+  },
+  "https://www.ircam.fr/fr/events/ateliers-numeriques-jeunes-publics-nov2026": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/i18n/setlang/?language=en&next=/": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/search/?topics=Improvisation, generativity and co-creative interaction": {
    "status": 200,
    "cors": null
   },
@@ -154,75 +290,11 @@
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/formulaire-de-contact": {
+  "https://forum.ircam.fr/article/detail/the-observer-an-ai-that-listens-to-a-room-diverse-technological-applications-in-performance-by-c-lab-taiwan-sound-lab/": {
    "status": 200,
    "cors": null
   },
-  "https://www.ircam.fr/fr/vous-etes/scientifique": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/recherche/equipes-recherche/systemes-et-signaux-sonores-audio-acoustique-instruments": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/politique-de-confidentialite": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/shop/partner": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/contact/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/search/?topics=ElectronicMusic": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/offres-emplois": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/events": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/nous-soutenir": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/article/?page=4": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/vous-etes/artiste": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/legal/conditions-generales-de-vente/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/recherche/equipes-recherche/analyse-des-pratiques-musicales": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/events/lombre": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/article/detail/ai-music-creative-uses-of-machine-learning-and-co-creative-agents-for-sound-transformation-and-musical-interaction-by-guillaume-piccarreta-marco-fiorini-and-philippe-esling/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/shop/premium": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/i18n/setlang/?language=fr&next=/collections/": {
+  "https://www.ircam.fr/fr/vous-etes/etudiant": {
    "status": 200,
    "cors": null
   },
@@ -230,91 +302,19 @@
    "status": 200,
    "cors": null
   },
+  "https://www.ircam.fr/fr/recherche/equipes-recherche/systemes-et-signaux-sonores-audio-acoustique-instruments": {
+   "status": 200,
+   "cors": null
+  },
+  "https://forum.ircam.fr/article/detail/constructing-reactive-models-with-nn-and-rave/": {
+   "status": 200,
+   "cors": null
+  },
   "https://forum.ircam.fr/article/detail/andrew-huang-experimente-avec-asap-spectral-morphing/": {
    "status": 200,
    "cors": null
   },
-  "https://forum.ircam.fr/article/?page=123": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/recherche/equipes-recherche": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/magazine/playlist-novembre2026": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/vous-etes/spectateurspectatrice": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/search/?topics=Gesture": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/magazine/music-creators-development-project-tokyo-paris": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/magazine/1-30-avec-marco-fiorini-doctorant": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/article/?page=2": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/magazine/entretien-avec-hibiki-mukai-et-serge-lemouton": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/ircam/les-equipes": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/events/ur": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/search/?topics=durational": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/recherche/equipes-recherche/perception-et-design-sonores": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/search/?topics=Spat 5": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/fr/events/ateliers-numeriques-jeunes-publics-nov2026": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/article/detail/ateliers-forum-paris-24-26-mars-2027-inscription/": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/search/?topics=participatory art": {
-   "status": 200,
-   "cors": null
-  },
-  "https://www.ircam.fr/events": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/article/detail/shift-by-yodashe/": {
-   "status": 200,
-   "cors": null
-  },
   "https://www.ircam.fr/recherche/equipes-recherche/interaction-son-musique-mouvement": {
-   "status": 200,
-   "cors": null
-  },
-  "https://forum.ircam.fr/legal/contrat-de-licence-forum-ircam/": {
    "status": 200,
    "cors": null
   },
