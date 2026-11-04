@@ -112,6 +112,8 @@ body.withdraw #fast { visibility:hidden !important; }
   display:flex; flex-direction:column; align-items:center; gap:14px; font-family:var(--mono); font-size:13px; color:var(--ui);
   width:calc(100vw - 32px); max-width:640px; text-align:center; background:rgba(0,0,0,.82); border-radius:10px; padding:16px 0; box-sizing:border-box; }
 #panel span { white-space:nowrap; }
+#panel { max-height:calc(100vh - 40px); overflow-y:auto; }
+#panel .help { font-size:11px; line-height:1.6; color:var(--ui); }
 [hidden] { display:none !important; }
 #panel .row { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px 12px; }
 #panel button { white-space:nowrap; font:inherit; color:var(--ui-hi); background:transparent; border:1px solid var(--ui); border-radius:4px;
@@ -191,7 +193,7 @@ body.running #panel { display:none !important; }
   </div>
   <div id="meter" aria-hidden="true"><div id="meterFill"></div><div id="meterThr"></div></div>
   <button id="go">Start</button>
-  <div>intro: the opening lines, then waits · tap the bottom-left corner (or the QR, or Enter) to start<br>performance: fragments — log, transcription, raw spectrum, description, count, six vocabularies, chord names, notation, fingerprints, map of moments, a forgetting log, one line, plate, two scripts, five views, space; all at once near the end — each cut brings a new arrangement — split, overlaid, inverted, cropped, scaled — cut at changes in the sound; at the end the gaps grow, then nothing; it never controls anything · the last minutes go dark<br>two-finger tap (or K): end — the screen calls CQ CQ … Can you hear me? … CQ CQ, I'm listening., K · after the end, double-tap (or R): back to this menu</div>
+  <div class="help">start → bottom-left tap (or Enter)<br>end → two-finger tap (or K) · then double-tap: menu</div>
   <div id="ver">v40</div>
 </div>
 <div id="hud"></div>
