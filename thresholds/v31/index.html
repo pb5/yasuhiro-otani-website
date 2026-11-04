@@ -342,7 +342,7 @@ function drawRecur() { if (!rcan) return; const { c, x } = P.recur; x.fillStyle 
   const S = Math.min(c.width, c.height), n = Math.max(1, Math.min(RS, (A.pj || 0) + 1)); x.imageSmoothingEnabled = n > S / 3;
   x.drawImage(rcan, 0, 0, n, n, (c.width - S) / 2, (c.height - S) / 2, S, S); }
 
-const stamp = t => { const m = Math.floor(t / 60), s = t - m * 60; return String(m).padStart(2, "0") + ":" + s.toFixed(1).padStart(4, "0"); };
+const stamp = t => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60; return String(m).padStart(2, "0") + ":" + s.toFixed(1).padStart(4, "0"); };
 function logLine(t, s) { const d = document.createElement("div"); d.textContent = stamp(t) + "   " + s; logEl.appendChild(d); while (logEl.children.length > 6) logEl.firstChild.remove(); }
 function events(t, f) {
   const H = A.hist; H.push({ t, level: f.level, centroid: f.centroid, rough: f.rough }); while (H.length && t - H[0].t > 2) H.shift();
