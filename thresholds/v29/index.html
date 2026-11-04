@@ -33,6 +33,7 @@ body { background:var(--bg); color:var(--ink); overflow:hidden; margin:0;
 body.running.intro #qr.on { pointer-events:auto; cursor:pointer; }
 #qr svg { width:100%; height:auto; display:block; }
 #feed { position:fixed; inset:0; pointer-events:none; overflow:hidden; }
+#feed .fi .by { display:block; margin-top:.7em; font-size:.45em; letter-spacing:.16em; color:var(--dim); }
 #feed .fi { position:absolute; width:max-content; max-width:min(56vw, 900px); text-align:center; color:var(--ink);
   font-family:var(--serif); line-height:1.45; text-wrap:balance; text-shadow:0 0 14px #000, 0 0 4px #000; will-change:transform, opacity; }
 #chaosBtn, #tempoBtn, #reformBtn, #micBtn, #sensMinus, #sensLbl, #sensPlus, #meter { display:none !important; }
@@ -109,7 +110,7 @@ body.running #panel { display:none !important; }
   </div>
   <div id="meter" aria-hidden="true"><div id="meterFill"></div><div id="meterThr"></div></div>
   <button id="go">Start</button>
-  <div>intro: the opening lines, then waits · tap the bottom-left corner (or the QR, or Enter) to start<br>performance: sentences from IRCAM, Wikipedia, public posts and this piece, unchosen; it runs by itself and ignores everything · the last minutes go dark<br>two-finger tap (or K): end — “Were you listening?” · after the end, double-tap (or R): back to this menu</div>
+  <div>intro: the opening lines, then waits · tap the bottom-left corner (or the QR, or Enter) to start<br>performance: sentences from IRCAM, Wikipedia, public posts, Isang Yun and this piece, unchosen, each with its source; it runs by itself and ignores everything · the last minutes go dark<br>two-finger tap (or K): end — “Were you listening?” · after the end, double-tap (or R): back to this menu</div>
   <div id="ver">v29 · <span id="poolInfo">own text only</span></div>
 </div>
 <div id="hud"></div>
@@ -158,10 +159,20 @@ const IS_STAGE = !!document.getElementById("blackBtn");
 const feedLayer = document.getElementById("feed");
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const OWN = ITEMS.map(it => plain(it[0])).concat(["Thresholds of Presence: Listening as Performance"]);
+const OWN = ITEMS.map(it => ({ t: plain(it[0]), by: "Yasuhiro Otani" })).concat([{ t: "Thresholds of Presence: Listening as Performance", by: "Yasuhiro Otani" }]);
+/* Isang Yun: interview with Akira Nishimura (tr. in Music Theory Online 30.4, 2024); telephone interview with Bruce Duffie */
+const YUN = ["Motion is stillness and stillness is motion.", "This universe's tone flows without end.",
+  "My works are merely an arrangement of a tiny little part of it.", "Regardless of their ugliness or beauty, there are numerous tones.",
+  "From a complete void, some tones emerge.", "In it, a moment reflects eternity, and eternity can be captured as a moment.",
+  "No piano, no desk, only pencil and paper.", "Music gave me such fantasy and I drew it on paper over and over.",
+  "No blood flows through the music.", "Music must channel human blood and spirit.",
+  "My music doesn't have a beginning nor an end.", "Music flows in the cosmos, and I have an antenna which is able to cut out a piece of the stream.",
+  "My music is always continuous — like the clouds that are always the same but are never alike one to another."].map(t => ({ t, by: "Isang Yun" }));
+const SRC = { ircam: "ircam.fr", wikipedia: "Wikipedia", mastodon: "Mastodon", bluesky: "Bluesky" };
+OWN.push(...YUN);
 let POOL = shuffle(OWN.slice()), LIVE = [], cursor = 0, poolInfo = "own text only";
 fetch("pool.json", { cache: "no-store" }).then(r => r.json()).then(j => {
-  POOL = shuffle(j.sentences.map(x => x.t).concat(OWN)); cursor = 0;
+  POOL = shuffle(j.sentences.map(x => ({ t: x.t, by: SRC[x.s] || x.s })).concat(OWN)); cursor = 0;
   poolInfo = POOL.length + " lines · " + j.updated.slice(0, 10); const pi = document.getElementById("poolInfo"); if (pi) pi.textContent = poolInfo;
 }).catch(() => {});
 const TAGS = ["soundart", "electroacoustic", "experimentalmusic", "composer", "newmusic", "contemporarymusic", "fieldrecording", "deeplistening"];
@@ -172,7 +183,7 @@ function fetchLive(t) {                       /* public posts, read during the p
   fetch(`https://mastodon.social/api/v1/timelines/tag/${pick(TAGS)}?limit=20`).then(r => r.ok ? r.json() : []).then(list => {
     list.forEach(st => { tmp.innerHTML = st.content || "";
       (tmp.textContent.replace(/https?:\/\/\S+/g, "").replace(/(^|\s)[@#][\w.\-]+/g, " ").match(/[^.!?\n]+[.!?]*/g) || [])
-        .map(x => x.replace(/\s+/g, " ").trim()).filter(x => x.length >= 25 && x.length <= 180).forEach(x => LIVE.push(x)); });
+        .map(x => x.replace(/\s+/g, " ").trim()).filter(x => x.length >= 25 && x.length <= 180).forEach(x => LIVE.push({ t: x, by: "Mastodon" })); });
   }).catch(() => {});
 }
 const nextText = () => LIVE.length ? LIVE.shift() : POOL[cursor++ % POOL.length];
@@ -184,7 +195,9 @@ const FEED_RISE = [3, 10, 18, 30];
 function feedStage(p) { return p < 0.15 ? 0 : p < 0.42 ? 1 : p < 0.66 ? 2 : p < 0.84 ? 3 : 4; }
 function feedSpawn(st, born, txt, opt) {
   opt = opt || {};
-  const d = document.createElement("div"); d.className = "fi"; d.textContent = txt;
+  const d = document.createElement("div"); d.className = "fi";
+  if (typeof txt === "string") d.textContent = txt;
+  else { d.textContent = txt.t; if (txt.by) { const b = document.createElement("span"); b.className = "by"; b.textContent = txt.by; d.appendChild(b); } }
   const size = st === 0 ? 1 : st === 4 ? rnd(0.7, 1.4) : rnd(0.7, 1.25);
   d.style.fontSize = `calc(clamp(16px, min(2.6vw, 4.6vh), 54px) * var(--scale, 1) * ${size.toFixed(2)})`;
   const x = st === 0 ? 50 : rnd(26, 74), y0 = st === 0 ? 52 : rnd(18, 92);
@@ -200,7 +213,7 @@ function feedStep(t, T) {
     if (st < 4) { feedSpawn(st, feedNext, nextText()); feedNext += (1 / FEED_RATE[st]) * rnd(0.6, 1.4); }
     else {
       const q = (p - 0.84) / 0.16;
-      if (q < 0.97) { const w = pick(nextText().split(/\s+/).filter(x => x.length > 2)) || "";
+      if (q < 0.97) { const w = pick(nextText().t.split(/\s+/).filter(x => x.length > 2)) || "";
         feedSpawn(4, feedNext, w, { life: rnd(2, 3.5) }); }
       feedNext += (1 / Math.max(0.04, 2.2 * Math.pow(1 - q, 2.2))) * rnd(0.6, 1.4);
     }
