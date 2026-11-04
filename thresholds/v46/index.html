@@ -430,9 +430,9 @@ F.staff = { el: $("fStaff"), tag: "notation", c: $("staffC"), notes: [], lastT: 
 /* 4. fingerprints: each half second, a code for the moment */
 const fprints = []; let lastFp = -1;
 function fingerprint(t, f) { if (t - lastFp < 0.5) return; lastFp = t; if (f.level < TH.silence) { fprints.push("····-····"); return; }
-  const b = f.bands, seg = Math.floor(b.length / 32); let bits = 0n; const vals = []; for (let i = 0; i < 32; i++) { let s = 0; for (let k = 0; k < seg; k++) s += b[i * seg + k]; vals.push(s); }
-  const med = vals.slice().sort((a, c) => a - c)[16]; vals.forEach((v, i) => { if (v > med) bits |= 1n << BigInt(i); });
-  const h = bits.toString(16).toUpperCase().padStart(8, "0"); fprints.push(h.slice(0, 4) + "-" + h.slice(4, 8)); if (fprints.length > 3000) fprints.shift(); }
+  const b = f.bands, seg = Math.floor(b.length / 32); let lo16 = 0, hi16 = 0; const vals = []; for (let i = 0; i < 32; i++) { let s = 0; for (let k = 0; k < seg; k++) s += b[i * seg + k]; vals.push(s); }
+  const med = vals.slice().sort((a, c) => a - c)[16]; vals.forEach((v, i) => { if (v > med) { if (i < 16) lo16 |= 1 << i; else hi16 |= 1 << (i - 16); } });
+  const h = (hi16.toString(16).padStart(4, "0") + lo16.toString(16).padStart(4, "0")).toUpperCase(); fprints.push(h.slice(0, 4) + "-" + h.slice(4, 8)); if (fprints.length > 3000) fprints.shift(); }
 F.print = { el: $("fPrint"), tag: "fingerprints", lastN: -1, step(t, f) { if (fprints.length === this.lastN) return; this.lastN = fprints.length;
   const per = 8 * 22, start = Math.floor(Math.max(0, fprints.length - 1) / per) * per, page = fprints.slice(start);
   this.el.innerHTML = page.map((s, i) => `<span${i === page.length - 1 ? ' class="new"' : ""}>${s}</span>`).join(""); } };
@@ -590,7 +590,7 @@ let attempts = 0, lastAttempt = -99, letGo = null, unexpAvg = 0;
 function attemptStep(t, f) {
   unexpAvg = unexpAvg * 0.9 + f.unexp * 0.1;
   if (t - lastAttempt < 6) return; lastAttempt = t; attempts++;
-  TH.nPeaks = Math.min(160, 16 + attempts * 10); TH.range = Math.min(110, 40 + attempts * 5); TH.floor = Math.max(-140, -90 - attempts * 3); TH.silence = Math.max(-130, (TH.base ?? -68) - attempts * 3);
+  TH.nPeaks = Math.min(160, 16 + attempts * 10); TH.range = Math.min(110, 40 + attempts * 5); TH.floor = Math.max(-140, -90 - attempts * 3); TH.silence = Math.max(-130, (TH.base != null ? TH.base : -68) - attempts * 3);
   logLine(t, `attempt ${attempts} · ${TH.nPeaks} partials · silence below ${String(TH.silence).replace("-", "−")} dBFS · unexplained ${(unexpAvg * 100).toFixed(1)}%`);
   if (logEl.lastChild) logEl.lastChild.className = "att";
 }
@@ -707,8 +707,8 @@ async function capture() {
   return capBusy;
 }
 function startAnalysis() {
-  if (A) { A.ac.resume?.(); if (!capStream) capture().catch(() => { A.noInput = true; }); return; }
-  let ac; try { ac = new (window.AudioContext || window.webkitAudioContext)(); ac.resume?.(); } catch (e) { return; }
+  if (A) { if (A.ac.resume) A.ac.resume(); if (!capStream) capture().catch(() => { A.noInput = true; }); return; }
+  let ac; try { ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.resume) ac.resume(); } catch (e) { return; }
   A = { ac, an: null, sr: ac.sampleRate, hist: [], ev: {}, lastDesc: 0, rows: [], frames: [], lastFrame: -1, rot: 0 };
   const an = ac.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.5;
   A.an = an; A.fd = new Float32Array(an.frequencyBinCount).fill(-140); A.td = new Float32Array(an.fftSize); A.prev = new Float32Array(an.frequencyBinCount).fill(-140);
@@ -1195,7 +1195,7 @@ function micStep(ts) {
   if (calib) {
     calib.vals.push(levelDb);
     if (performance.now() > calib.until) {
-      const v = calib.vals.sort((a, b) => a - b); floorDb = v[Math.floor(v.length / 2)] ?? -70; calib = null;
+      const v = calib.vals.sort((a, b) => a - b); floorDb = v.length ? v[Math.floor(v.length / 2)] : -70; calib = null;
       micBtn.textContent = "mic: on (tap to recalibrate)";
     }
   }
@@ -1238,14 +1238,14 @@ function tick(ts) {
 function toggleAuto() { autoTempo = !autoTempo; document.getElementById("tempoBtn").textContent = "tempo: " + (autoTempo ? "auto" : "manual"); flash("tempo " + (autoTempo ? "auto" : "manual")); }
 requestAnimationFrame(tick);
 
-async function keepAwake() { try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {} }
+async function keepAwake() { try { wake = await (navigator.wakeLock ? navigator.wakeLock.request("screen") : null); } catch (e) {} }
 document.addEventListener("visibilitychange", () => { if (started && document.visibilityState === "visible") keepAwake(); });
 
 function start() {
   if (!started) { phase = "intro"; aboveSince = 0; }
   startAnalysis();
   started = true; paused = false; panel.hidden = true; panel.style.display = "none"; document.body.classList.add("running"); keepAwake();
-  try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (e) {}
+  try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
   flash("start\n" + status());
 }
 function togglePause() { if (!started) return; paused = !paused; flash((paused ? "pause" : "play") + "\n" + status()); }

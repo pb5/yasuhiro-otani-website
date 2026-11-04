@@ -122,17 +122,17 @@ let t0 = 0, wake = null, lastSum = 0;
 async function go() {
   document.getElementById("go").disabled = true;
   try {
-    const ac = new (window.AudioContext || window.webkitAudioContext)(); await ac.resume?.();
+    const ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.resume) await ac.resume();
     const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
     const an = ac.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.5; ac.createMediaStreamSource(s).connect(an);
     A = { ac, an, sr: ac.sampleRate, fd: new Float32Array(an.frequencyBinCount).fill(-140), td: new Float32Array(an.fftSize), prev: new Float32Array(an.frequencyBinCount).fill(-140), hist: [], ev: {} };
   } catch (e) { document.querySelector("#start p").textContent = "This phone cannot use its microphone here."; return; }
-  try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {}
+  try { wake = await (navigator.wakeLock ? navigator.wakeLock.request("screen") : null); } catch (e) {}
   document.getElementById("start").style.display = "none"; logEl.style.display = "flex"; foot.style.display = "block"; sc.style.display = "block"; sizeScript();
   t0 = performance.now(); requestAnimationFrame(loop);
 }
 document.getElementById("go").addEventListener("click", go);
-document.addEventListener("visibilitychange", async () => { if (document.visibilityState === "visible" && A) { try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {} A.ac.resume?.(); } });
+document.addEventListener("visibilitychange", async () => { if (document.visibilityState === "visible" && A) { try { wake = await (navigator.wakeLock ? navigator.wakeLock.request("screen") : null); } catch (e) {} if (A.ac.resume) A.ac.resume(); } });
 /* the room: the quiet end of what this phone has heard (the 10th percentile of the last 30 s), so it works even if the music is already playing */
 /* the unknown script: every two seconds what this phone heard is written as one glyph, stroke by stroke */
 const sc = document.getElementById("script"), sx = sc.getContext("2d"), DPR = Math.min(2, devicePixelRatio || 1);
