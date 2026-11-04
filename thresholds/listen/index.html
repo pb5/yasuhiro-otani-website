@@ -10,7 +10,7 @@
 :root { color-scheme:dark; --ink:#8f897f; --dim:#5d5850; --mono:ui-monospace, Menlo, Consolas, monospace; }
 html, body { margin:0; height:100%; background:#000; color:var(--ink); }
 body { font-family:var(--mono); -webkit-user-select:none; user-select:none; overflow:hidden; }
-#start { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3vh; padding:0 8vw; text-align:center; }
+#start { position:fixed; top:0; right:0; bottom:0; left:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3vh; padding:0 8vw; text-align:center; }
 #start p { font-family:"EB Garamond", Garamond, serif; color:#cfc6b8; font-size:22px; line-height:1.45; margin:0; }
 #start button { font:inherit; font-size:15px; color:#cfc6b8; background:transparent; border:1px solid #5d5850; border-radius:6px; padding:14px 28px; }
 #start small { color:var(--dim); font-size:11px; line-height:1.6; }
@@ -119,12 +119,16 @@ const GLSL_MAGMA = `vec3 magma(float t){ t=clamp(t,0.0,1.0);
  return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6))))); }`;
 const R0 = 0.32;
 let t0 = 0, wake = null, lastSum = 0;
+/* older Safari (before 14.1): no float time-domain data, and a smaller largest FFT */
+function oldSafariAnalyser(an) { try { an.fftSize = 8192; } catch (e) { try { an.fftSize = 2048; } catch (e2) {} }
+  if (!an.getFloatTimeDomainData) { const b = new Uint8Array(an.fftSize); an.getFloatTimeDomainData = arr => { an.getByteTimeDomainData(b); for (let i = 0; i < arr.length && i < b.length; i++) arr[i] = (b[i] - 128) / 128; }; }
+  return an; }
 async function go() {
   document.getElementById("go").disabled = true;
   try {
     const ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.resume) await ac.resume();
     const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-    const an = ac.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.5; ac.createMediaStreamSource(s).connect(an);
+    const an = ac.createAnalyser(); oldSafariAnalyser(an); an.smoothingTimeConstant = 0.5; ac.createMediaStreamSource(s).connect(an);
     A = { ac, an, sr: ac.sampleRate, fd: new Float32Array(an.frequencyBinCount).fill(-140), td: new Float32Array(an.fftSize), prev: new Float32Array(an.frequencyBinCount).fill(-140), hist: [], ev: {} };
   } catch (e) { document.querySelector("#start p").textContent = "This phone cannot use its microphone here."; return; }
   try { wake = await (navigator.wakeLock ? navigator.wakeLock.request("screen") : null); } catch (e) {}

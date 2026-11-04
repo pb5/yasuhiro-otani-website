@@ -706,11 +706,15 @@ async function capture() {
   })();
   return capBusy;
 }
+/* older Safari (before 14.1): no float time-domain data, and a smaller largest FFT */
+function oldSafariAnalyser(an) { try { an.fftSize = 8192; } catch (e) { try { an.fftSize = 2048; } catch (e2) {} }
+  if (!an.getFloatTimeDomainData) { const b = new Uint8Array(an.fftSize); an.getFloatTimeDomainData = arr => { an.getByteTimeDomainData(b); for (let i = 0; i < arr.length && i < b.length; i++) arr[i] = (b[i] - 128) / 128; }; }
+  return an; }
 function startAnalysis() {
   if (A) { if (A.ac.resume) A.ac.resume(); if (!capStream) capture().catch(() => { A.noInput = true; }); return; }
   let ac; try { ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.resume) ac.resume(); } catch (e) { return; }
   A = { ac, an: null, sr: ac.sampleRate, hist: [], ev: {}, lastDesc: 0, rows: [], frames: [], lastFrame: -1, rot: 0 };
-  const an = ac.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.5;
+  const an = ac.createAnalyser(); oldSafariAnalyser(an); an.smoothingTimeConstant = 0.5;
   A.an = an; A.fd = new Float32Array(an.frequencyBinCount).fill(-140); A.td = new Float32Array(an.fftSize); A.prev = new Float32Array(an.frequencyBinCount).fill(-140);
   if (capStream && capStream.getAudioTracks().length) { A.src = ac.createMediaStreamSource(new MediaStream(capStream.getAudioTracks())); A.src.connect(an); }
   else capture().catch(() => { A.noInput = true; });
