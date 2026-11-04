@@ -14,9 +14,10 @@ body { font-family:var(--mono); -webkit-user-select:none; user-select:none; over
 #start p { font-family:"EB Garamond", Garamond, serif; color:#cfc6b8; font-size:22px; line-height:1.45; margin:0; }
 #start button { font:inherit; font-size:15px; color:#cfc6b8; background:transparent; border:1px solid #5d5850; border-radius:6px; padding:14px 28px; }
 #start small { color:var(--dim); font-size:11px; line-height:1.6; }
-#log { position:fixed; left:max(16px, env(safe-area-inset-left)); right:max(16px, env(safe-area-inset-right)); top:6vh; bottom:9vh; display:none; flex-direction:column; justify-content:flex-end; overflow:hidden; font-size:12px; line-height:1.7; color:var(--dim); }
+#log { position:fixed; left:max(16px, env(safe-area-inset-left)); right:max(16px, env(safe-area-inset-right)); top:5vh; bottom:55vh; display:none; flex-direction:column; justify-content:flex-end; overflow:hidden; font-size:12px; line-height:1.7; color:var(--dim); }
 #log div { padding-left:6.2em; text-indent:-6.2em; }
 #log div:last-child { color:#e6ded0; }
+#script { position:fixed; left:0; right:0; top:47vh; bottom:6vh; width:100%; height:47vh; display:none; }
 #foot { position:fixed; left:16px; right:16px; bottom:max(14px, env(safe-area-inset-bottom)); display:none; font-size:10px; color:#4a4640; }
 </style>
 </head>
@@ -27,6 +28,7 @@ body { font-family:var(--mono); -webkit-user-select:none; user-select:none; over
   <small>The microphone is used only on this phone. Nothing is recorded or sent.</small>
 </div>
 <div id="log"></div>
+<canvas id="script"></canvas>
 <div id="foot"></div>
 <script>
 /* Thresholds of Presence — the audience's phone listens for itself: the same analysis as the stage, with its own microphone,
@@ -126,12 +128,30 @@ async function go() {
     A = { ac, an, sr: ac.sampleRate, fd: new Float32Array(an.frequencyBinCount).fill(-140), td: new Float32Array(an.fftSize), prev: new Float32Array(an.frequencyBinCount).fill(-140), hist: [], ev: {} };
   } catch (e) { document.querySelector("#start p").textContent = "This phone cannot use its microphone here."; return; }
   try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {}
-  document.getElementById("start").style.display = "none"; logEl.style.display = "flex"; foot.style.display = "block";
+  document.getElementById("start").style.display = "none"; logEl.style.display = "flex"; foot.style.display = "block"; sc.style.display = "block"; sizeScript();
   t0 = performance.now(); requestAnimationFrame(loop);
 }
 document.getElementById("go").addEventListener("click", go);
 document.addEventListener("visibilitychange", async () => { if (document.visibilityState === "visible" && A) { try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {} A.ac.resume?.(); } });
 /* the room: the quiet end of what this phone has heard (the 10th percentile of the last 30 s), so it works even if the music is already playing */
+/* the unknown script: every two seconds what this phone heard is written as one glyph, stroke by stroke */
+const sc = document.getElementById("script"), sx = sc.getContext("2d"), DPR = Math.min(2, devicePixelRatio || 1);
+const glyphs = []; let lastG = -99, done = 0, base = 0, prog = 0;
+function sizeScript() { sc.width = Math.round(sc.clientWidth * DPR); sc.height = Math.round(sc.clientHeight * DPR); sx.fillStyle = "#000"; sx.fillRect(0, 0, sc.width, sc.height); base = done; prog = 0; }
+addEventListener("resize", () => { if (sc.style.display === "block") sizeScript(); });
+function writeStep(t, f) {
+  if (t - lastG >= 2 && f.level > TH.silence) { lastG = t; glyphs.push(Float32Array.from(f.bands)); }
+  if (done >= glyphs.length) return;
+  const W = sc.width, Hh = sc.height, cols = Math.max(5, Math.floor(W / (46 * DPR))), cell = W * 0.9 / cols, rows = Math.max(1, Math.floor(Hh * 0.92 / (cell * 1.2))), per = cols * rows;
+  if (done - base >= per) { sx.fillStyle = "#000"; sx.fillRect(0, 0, W, Hh); base = done; }
+  prog += 0.014 * (1 + (glyphs.length - 1 - done));
+  const k = done - base, g = glyphs[done], cx = W * 0.05 + (k % cols + 0.5) * cell, cy = Hh * 0.04 + (Math.floor(k / cols) + 0.5) * cell * 1.2;
+  sx.strokeStyle = "#e4dccd"; sx.lineWidth = 1.4 * DPR; sx.lineCap = "round"; sx.lineJoin = "round"; sx.beginPath();
+  const N = 48, upto = Math.max(2, Math.floor(N * Math.min(1, prog)));
+  for (let i = 0; i <= upto; i++) { const a = i / N * Math.PI * 2, v = g[Math.floor(i / N * (g.length - 1) * 0.8)], r = cell * (0.06 + 0.36 * v * v);
+    const px = cx + Math.cos(a - Math.PI / 2) * r * 0.8, py = cy + Math.sin(a - Math.PI / 2) * r; i ? sx.lineTo(px, py) : sx.moveTo(px, py); } sx.stroke();
+  if (prog >= 1) { done++; prog = 0; }
+}
 const room = []; let roomSaid = false;
 function roomFloor() { const v = room.map(x => x.l).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length * 0.1)] : -74; }
 function loop(now) {
@@ -140,6 +160,7 @@ function loop(now) {
   TH.silence = Math.min(-45, Math.round(roomFloor() + 6));
   if (!roomSaid && t > 8) { roomSaid = true; logLine(t, `this phone: room ${roomFloor().toFixed(1)} dBFS · silence below ${String(TH.silence).replace("-", "−")} dBFS`); }
   if (t > 1) events(t, f);
+  writeStep(t, f);
   if (t - lastSum > 30) { lastSum = t; logLine(t, `${f.peaks.length} partials · unexplained ${(f.unexp * 100).toFixed(1)}%`); }
   foot.textContent = `${f.level.toFixed(1).replace("-", "−")} dBFS   ${f.pitch ? hz(f.pitch) + " " + note(f.pitch) : ""}`;
   requestAnimationFrame(loop);
