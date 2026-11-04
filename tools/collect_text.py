@@ -19,8 +19,8 @@ def get(url, **kw):
         return None
 
 def clean(s):
-    s = re.sub(r"https?://\S+", "", s)
-    s = re.sub(r"(?<!\w)[@#][\w.\-]+", "", s)
+    s = re.sub(r"https?://\s?\S+", "", s)
+    s = re.sub(r"(?<!\w)[@#]\s?[\w.\-]+", "", s)
     s = re.sub(r"\s+", " ", s).strip(" -–—|·•")
     return s
 
@@ -66,6 +66,7 @@ topics = ["electroacoustic music", "acousmatic music", "sound art", "spectral mu
           "computer music", "noise music", "experimental music", "contemporary classical music", "listening", "improvisation",
           "audio feedback", "drone music", "algorithmic composition", "music and artificial intelligence", "silence"]
 for q in topics:
+    time.sleep(1.5)
     r = get("https://en.wikipedia.org/w/api.php", params={"action": "query", "generator": "search", "gsrsearch": q, "gsrlimit": 5,
              "prop": "extracts", "explaintext": 1, "exintro": 1, "format": "json", "origin": "*"})
     if not r: continue
