@@ -447,9 +447,9 @@ F.map = { el: $("fMap"), tag: "map of moments", c: $("mapC"), axes: null, lastAx
     let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9;
     Fr.forEach(v => { let a = 0, b = 0; for (let k = 0; k < 40; k++) { a += (v[k] - mean[k]) * pc[0][k]; b += (v[k] - mean[k]) * pc[1][k]; } P2.push([a, b]); mnx = Math.min(mnx, a); mxx = Math.max(mxx, a); mny = Math.min(mny, b); mxy = Math.max(mxy, b); });
     const sx = a => W * 0.06 + (a - mnx) / (mxx - mnx || 1) * W * 0.88, sy = b => Hh * 0.08 + (b - mny) / (mxy - mny || 1) * Hh * 0.84, n = P2.length;
-    x.lineWidth = DPR * 0.8; for (let i = 1; i < n; i++) { x.strokeStyle = cm(0.2 + 0.75 * i / n, 0.25); x.beginPath(); x.moveTo(sx(P2[i - 1][0]), sy(P2[i - 1][1])); x.lineTo(sx(P2[i][0]), sy(P2[i][1])); x.stroke(); }
-    for (let i = 0; i < n; i++) { x.fillStyle = cm(0.25 + 0.75 * i / n, 0.85); x.beginPath(); x.arc(sx(P2[i][0]), sy(P2[i][1]), (i === n - 1 ? 7 : 2.2) * DPR, 0, 7); x.fill(); }
-    if (n) { x.fillStyle = "#8f897f"; x.font = `${Math.round(11 * DPR)}px ui-monospace, Menlo, monospace`; x.fillText("now " + stamp(t).slice(0, 5), sx(P2[n - 1][0]) + 10 * DPR, sy(P2[n - 1][1]) - 8 * DPR); } } };
+    x.lineWidth = DPR * 1.8; for (let i = 1; i < n; i++) { x.strokeStyle = cm(0.2 + 0.75 * i / n, 0.45); x.beginPath(); x.moveTo(sx(P2[i - 1][0]), sy(P2[i - 1][1])); x.lineTo(sx(P2[i][0]), sy(P2[i][1])); x.stroke(); }
+    for (let i = 0; i < n; i++) { x.fillStyle = cm(0.25 + 0.75 * i / n, 0.85); x.beginPath(); x.arc(sx(P2[i][0]), sy(P2[i][1]), (i === n - 1 ? 16 : 5.5) * DPR, 0, 7); x.fill(); }
+    if (n) { x.fillStyle = "#8f897f"; x.font = `${Math.round(22 * DPR)}px ui-monospace, Menlo, monospace`; x.fillText("now " + stamp(t).slice(0, 5), sx(P2[n - 1][0]) + 10 * DPR, sy(P2[n - 1][1]) - 8 * DPR); } } };
 /* 6. a log that forgets: letters fall out as the lines get older */
 const fgLines = []; const _logLine = logLine;
 logLine = function (t, s) { _logLine(t, s); fgLines.push({ t, s: stamp(t) + "   " + s }); if (fgLines.length > 60) fgLines.shift(); };
@@ -506,13 +506,13 @@ F.edge = { el: $("fEdge"), tag: "contours · Sobel", c: $("edgeC"), live: camLiv
 /* flow: the direction and speed of movement, as a field of short lines (block matching) */
 F.flow = { el: $("fFlow"), tag: "optical flow · block matching", c: $("flowC"), live: camLive, enter() { fitCanvas(this.c); },
   step(t) { if (!vCur || !vPrev) return; const c = this.c, x = c.getContext("2d"), W = c.width, Hh = c.height; x.fillStyle = "#000"; x.fillRect(0, 0, W, Hh);
-    const g = vGray, p = vGrayPrev, B = 6, R = 4; x.strokeStyle = "#e6ded0"; x.lineWidth = 1.2 * DPR; x.beginPath();
+    const g = vGray, p = vGrayPrev, B = 8, R = 4; x.strokeStyle = "#e6ded0"; x.lineWidth = 3 * DPR; x.lineCap = "round"; x.beginPath();
     for (let by = R + B; by < VH - R - B; by += B * 2) for (let bx = R + B; bx < VW - R - B; bx += B * 2) {
       let best = 1e9, bdx = 0, bdy = 0, base = 0;
       for (let dy = -R; dy <= R; dy += 2) for (let dx = -R; dx <= R; dx += 2) { let s = 0; for (let yy = -B; yy < B; yy += 2) for (let xx = -B; xx < B; xx += 2) s += Math.abs(g[(by + yy) * VW + bx + xx] - p[(by + yy + dy) * VW + bx + xx + dx]);
         if (dx === 0 && dy === 0) base = s; if (s < best) { best = s; bdx = dx; bdy = dy; } }
-      const sx = bx / VW * W, sy = by / VH * Hh; if (base - best < 0.15) { x.moveTo(sx, sy); x.lineTo(sx + DPR, sy); continue; }
-      x.moveTo(sx, sy); x.lineTo(sx - bdx * W / VW * 2.5, sy - bdy * Hh / VH * 2.5); }
+      const sx = bx / VW * W, sy = by / VH * Hh; if (base - best < 0.15) { x.moveTo(sx - 2 * DPR, sy); x.lineTo(sx + 2 * DPR, sy); continue; }
+      x.moveTo(sx, sy); x.lineTo(sx - bdx * W / VW * 4, sy - bdy * Hh / VH * 4); }
     x.stroke(); } };
 /* division: the image split into regions of similar tone and colour, with their borders */
 F.cells = { el: $("fCells"), tag: "division · k-means, 7 regions", c: $("cellsC"), live: camLive, enter() { fitCanvas(this.c); }, cen: null, img: null, lab: null, lastT: -1,
