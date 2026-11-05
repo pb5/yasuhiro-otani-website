@@ -524,7 +524,7 @@ F.cells = { el: $("fCells"), tag: "division · k-means, 7 regions", c: $("cellsC
       sum.forEach((s, k) => { if (s[3]) this.cen[k] = [s[0] / s[3], s[1] / s[3], s[2] / s[3]]; }); }
     const o = this.img.data, L = this.lab;
     for (let y = 0; y < VH; y++) for (let x = 0; x < VW; x++) { const i = y * VW + x, b = (x < VW - 1 && L[i] !== L[i + 1]) || (y < VH - 1 && L[i] !== L[i + VW]), c = this.cen[L[i]], g = (c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11) * 0.25, j = i * 4;
-      o[j] = o[j + 1] = o[j + 2] = b ? 235 : g; o[j + 3] = 255; }
+      o[j] = o[j + 1] = o[j + 2] = b ? 235 : 0; o[j + 3] = 255; }   /* borders only: the regions stay clear so the performance shows through */
     blitSmall(this.c, this.img); } };
 /* time displacement: each band of the image is a different moment — now at the top, six seconds ago at the bottom */
 F.delay = { el: $("fDelay"), tag: "time displacement · 0 – 6 s", c: $("delayC"), live: camLive, enter() { fitCanvas(this.c); },
