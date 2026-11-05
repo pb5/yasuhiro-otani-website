@@ -379,7 +379,7 @@ async function cycleCam() {
     camStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
       facingMode: { ideal: CAMS[camMode] === "back" ? "environment" : "user" }, width: { ideal: 1280 }, height: { ideal: 720 } } });
     cam.srcObject = camStream; await cam.play().catch(() => {});
-    cam.classList.toggle("mirror", CAMS[camMode] === "front"); cam.classList.add("on");
+    cam.classList.remove("mirror"); cam.classList.add("on");   /* never mirrored: writing held up to the camera reads the right way round */
     camBtn.textContent = "camera: " + CAMS[camMode];
   } catch (e) { camMode = 0; camBtn.textContent = "camera: not available here"; flash("camera not available here"); }
 }
