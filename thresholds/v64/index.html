@@ -732,7 +732,7 @@ function killScreen() {
   el.style.transitionDuration = "0.3s"; el.classList.remove("on");
   clearTimeout(killTimer);
   killTimer = setTimeout(() => {
-    build(["Thank you for listening."]); el.classList.remove("word");
+    applyLook(null); build(["Thank you for listening."]); el.classList.remove("word");
     el.style.transitionDuration = "0s"; void el.offsetWidth;
     el.style.transitionDuration = "3s"; el.classList.add("on");
   }, 3000);
