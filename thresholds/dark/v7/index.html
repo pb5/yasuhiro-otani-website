@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Thresholds of Presence — the dark drawn in black (study v6)</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font:12px/1.4 Georgia,serif;color:#999}
+canvas{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%)}
+#ui{position:fixed;left:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;transition:opacity .4s}
+#ui.hidden{opacity:0;pointer-events:none}
+button,label.b{background:#111;color:#bbb;border:1px solid #333;border-radius:4px;padding:5px 9px;font:inherit;cursor:pointer}
+button.on{border-color:#aaa;color:#fff}
+#fl{position:fixed;left:50%;top:14px;transform:translateX(-50%);opacity:0;transition:opacity .5s}
+#tg{position:fixed;right:10px;top:10px}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="fl"></div>
+<button id="tg">≡</button>
+<div id="ui">
+  <label class="b">画像を選ぶ<input id="file" type="file" accept="image/*" hidden></label>
+  <button id="cam">カメラ</button>
+  <button id="mic">Mic</button><button id="sim">擬似音</button>
+  <button id="vx" class="on">渦</button><button id="exl" style="display:none">露出固定</button><span id="exw" style="display:none">露出<input id="exs" type="range" min="0" max="1000" value="300"></span><button id="clear">白紙に戻す</button><span>黒の深さ</span><input id="deep" type="range" min="70" max="99" value="95">
+</div>
+<script>
+/* The dark drawn in black.
+   Nothing is filtered. The picture is only consulted, never shown: its dark is where the black lines are allowed to settle.
+   Each line is drawn along the shadow, not across it, and stays. The light parts are never touched; they remain the paper.
+   The longer it runs, the darker the dark becomes. The room's sound sets how many lines are drawn.
+   The image is read on this machine only; it is never sent anywhere. */
+const c = document.getElementById("c"), x = c.getContext("2d", { alpha: false });
+const PAPER = "#cfcdc8";
+let W = 0, H = 0, lum = null, gx = null, gy = null, srcW = 0, srcH = 0, video = null;
+const off = document.createElement("canvas"), ox = off.getContext("2d", { willReadFrequently: true });
+function fit(iw, ih) {
+  const k = Math.min(innerWidth / iw, innerHeight / ih), d = Math.min(2, devicePixelRatio || 1);
+  W = Math.round(iw * k * d); H = Math.round(ih * k * d);
+  c.width = W; c.height = H; c.style.width = W / d + "px"; c.style.height = H / d + "px";
+  x.fillStyle = PAPER; x.fillRect(0, 0, W, H); if (cov) cov.fill(0);
+}
+function blur(a, w, h, r) {                         // a box blur, run twice
+  let o = new Float32Array(a.length), t = new Float32Array(a.length);
+  for (let pass = 0; pass < 2; pass++) { const src = pass ? o : a;
+    for (let y = 0; y < h; y++) { let s = 0; for (let x0 = -r; x0 <= r; x0++) s += src[y * w + Math.min(w - 1, Math.max(0, x0))];
+      for (let X = 0; X < w; X++) { t[y * w + X] = s / (2 * r + 1); s += src[y * w + Math.min(w - 1, X + r + 1)] - src[y * w + Math.max(0, X - r)]; } }
+    for (let X = 0; X < w; X++) { let s = 0; for (let y0 = -r; y0 <= r; y0++) s += t[Math.min(h - 1, Math.max(0, y0)) * w + X];
+      for (let y = 0; y < h; y++) { o[y * w + X] = s / (2 * r + 1); s += t[Math.min(h - 1, y + r + 1) * w + X] - t[Math.max(0, y - r) * w + X]; } } }
+  return o; }
+let cov = null, tgt = null, DEEP = .95;
+const mc = document.createElement("canvas"), mx = mc.getContext("2d", { willReadFrequently: true });
+function measure() {                              // how dark the paper really is now, place by place
+  if (!cov) return; mc.width = srcW; mc.height = srcH; mx.drawImage(c, 0, 0, srcW, srcH);
+  const d = mx.getImageData(0, 0, srcW, srcH).data, P = 205;
+  for (let i = 0; i < cov.length; i++) { const l = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 3; const dk = Math.min(.995, Math.max(0, 1 - l / P)); cov[i] = -Math.log(1 - dk); } }
+function readSource(el, iw, ih) {                 // the picture is reduced to how dark each place should become, and the direction its shadows run
+  const nw = Math.round(Math.min(480, iw)), nh = Math.round(nw * ih / iw);
+  if (nw !== srcW || nh !== srcH) { srcW = nw; srcH = nh; cov = new Float32Array(nw * nh); }
+  off.width = srcW; off.height = srcH; ox.drawImage(el, 0, 0, srcW, srcH);
+  const d = ox.getImageData(0, 0, srcW, srcH).data, n = srcW * srcH, raw = new Float32Array(n);
+  for (let i = 0; i < n; i++) raw[i] = (d[i * 4] * .3 + d[i * 4 + 1] * .59 + d[i * 4 + 2] * .11) / 255;
+  lum = blur(raw, srcW, srcH, 1);                  // the smallest glints are not kept: they made the picture look like a filter
+  const sm = blur(raw, srcW, srcH, 5);             // the shadows' direction is read from a softer picture, so even the deepest dark has a grain to follow
+  gx = new Float32Array(n); gy = new Float32Array(n); tgt = new Float32Array(n);
+  for (let y = 1; y < srcH - 1; y++) for (let X = 1; X < srcW - 1; X++) { const i = y * srcW + X;
+    gx[i] = sm[i + 1] - sm[i - 1] + (lum[i + 1] - lum[i - 1]) * .5; gy[i] = sm[i + srcW] - sm[i - srcW] + (lum[i + srcW] - lum[i - srcW]) * .5; }
+  /* how dark each place may become. the black is never one black: the darkest stays a little open,
+     and the levels just above it are spread apart, so that the dark itself has steps you can read */
+  let lo = 1, hi = 0; for (let i = 0; i < n; i += 7) { lo = Math.min(lo, lum[i]); hi = Math.max(hi, lum[i]); }
+  for (let i = 0; i < n; i++) { const l = Math.max(0, Math.min(1, (lum[i] - lo) / Math.max(.05, hi - lo)));
+    const dk = 1 - l; const want = dk < .12 ? 0 : DEEP * Math.pow((dk - .12) / .88, .9) * (.9 + .1 * Math.sin(l * 40));
+    tgt[i] = -Math.log(1 - Math.min(.995, want)); }
+}
+function sample(a, u, v) { const X = Math.min(srcW - 1, Math.max(0, u * srcW | 0)), Y = Math.min(srcH - 1, Math.max(0, v * srcH | 0)); return a[Y * srcW + X]; }
+function strokes(k) {
+  if (!lum) return;
+  x.strokeStyle = "#000"; x.lineCap = "round";
+  for (let s = 0; s < k; s++) {
+    let u = Math.random(), v = Math.random();
+    const ci = (v * srcH | 0) * srcW + (u * srcW | 0);
+    if (cov[ci] >= tgt[ci]) continue;                       // this place is already as dark as it should be
+    const dark = 1 - sample(lum, u, v);
+    const len = 6 + Math.random() * 30 * (W / 1400), step = 1.5 / srcW;
+    const a = .05 + .08 * dark, da = -Math.log(1 - a) * .45;
+    x.globalAlpha = a; x.lineWidth = (.35 + Math.random() * .7) * (W / 1800 + .5);
+    x.beginPath(); x.moveTo(u * W, v * H);
+    for (let t = 0; t < len; t++) {                           // follow the shadow along its own contour
+      const p = sample(gx, u, v), q = sample(gy, u, v), m = Math.hypot(p, q) + 1e-6;
+      let dx = -q / m, dy = p / m;
+      dx += (Math.random() - .5) * .35; dy += (Math.random() - .5) * .35;
+      u += dx * step * 2; v += dy * step * 2 * srcW / srcH;
+      if (u < 0 || u > 1 || v < 0 || v > 1) break;
+      const j = (v * srcH | 0) * srcW + (u * srcW | 0);
+      if (cov[j] >= tgt[j]) break;                            // the line stops where the dark is already full, or where the light begins
+      cov[j] += da; x.lineTo(u * W, v * H);
+    }
+    x.stroke();
+  }
+  x.globalAlpha = 1;
+}
+function lift() {                                 // where the dark is deeper than the picture now asks, the paper is laid back over it
+  if (!cov) return; x.fillStyle = PAPER;
+  for (let s = 0; s < 400; s++) { const X = Math.random() * srcW | 0, Y = Math.random() * srcH | 0, i = Y * srcW + X;
+    if (cov[i] > tgt[i] + .25) { x.globalAlpha = .06; const cw = W / srcW, ch = H / srcH; x.fillRect((X - 1.5) * cw, (Y - 1.5) * ch, cw * 4, ch * 4); } }
+  x.globalAlpha = 1; }
+/* the vortex, painted in white into the black: the lines of the count spiral in toward a centre that drifts,
+   and they only take where the dark is already deep — white paint on black, never on the paper */
+let VX = true, vc = [.5, .5], vph = 0;
+function vortex(k, dt) {
+  if (!VX || !cov) return;
+  vph += dt * .03; vc = [.5 + .18 * Math.sin(vph * 1.3), .5 + .14 * Math.sin(vph * .9 + 1)];
+  x.strokeStyle = "#f4f2ec"; x.lineCap = "round";
+  const asp = W / H;
+  for (let s = 0; s < k; s++) {
+    let u = Math.random(), v = Math.random();
+    const ci = (v * srcH | 0) * srcW + (u * srcW | 0);
+    if (cov[ci] < 2.2) continue;
+    x.globalAlpha = .06 + Math.random() * .14; x.lineWidth = (.25 + Math.random() * .5) * (W / 1800 + .5);
+    x.beginPath(); x.moveTo(u * W, v * H);
+    const len = 20 + Math.random() * 90;
+    for (let t = 0; t < len; t++) {
+      const ex = (u - vc[0]) * asp, ey = v - vc[1], r = Math.hypot(ex, ey) + 1e-4;
+      let dx = -ey / r - .32 * ex / r, dy = ex / r - .32 * ey / r;     // turning, and falling in
+      dx += (Math.random() - .5) * .25; dy += (Math.random() - .5) * .25;
+      u += dx * .0022 / asp; v += dy * .0022;
+      if (u < 0 || u > 1 || v < 0 || v > 1 || r < .01) break;
+      const j = (v * srcH | 0) * srcW + (u * srcW | 0);
+      if (cov[j] < 1.8) break;                                     // the white stops where the paper begins
+      x.lineTo(u * W, v * H);
+    }
+    x.stroke();
+  }
+  x.globalAlpha = 1;
+}
+function fade(dt) {                                         // the paper slowly comes back, so the dark is always being redrawn, never finished
+  const k = 1 - Math.exp(-dt * .05);
+  x.globalAlpha = k; x.fillStyle = PAPER; x.fillRect(0, 0, W, H); x.globalAlpha = 1;
+}
+/* the room */
+const snd = { an: null, buf: null, floor: -70, lv: 0, sim: false, cal: 0, calv: [], sn: 0 };
+async function mic() { try { const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const a = new (window.AudioContext || window.webkitAudioContext)(); snd.an = a.createAnalyser(); snd.an.fftSize = 2048; snd.buf = new Float32Array(2048);
+  a.createMediaStreamSource(st).connect(snd.an); snd.cal = 2.5; snd.calv = []; flash("listening to the quiet…"); document.getElementById("mic").classList.add("on"); }
+  catch (e) { flash("no microphone here — 擬似音"); } }
+function sndStep(dt) {
+  if (snd.an) { snd.an.getFloatTimeDomainData(snd.buf); let q = 0; for (const v of snd.buf) q += v * v; const db = 20 * Math.log10(Math.sqrt(q / snd.buf.length) + 1e-9);
+    if (snd.cal > 0) { snd.calv.push(db); snd.cal -= dt; if (snd.cal <= 0) { const s = snd.calv.sort((a, b) => a - b); snd.floor = Math.max(-90, s[Math.floor(s.length * .6)]); } return; }
+    const v = Math.max(0, Math.min(1, (db - snd.floor - 8) / 24)); snd.lv += (v - snd.lv) * (v > snd.lv ? .3 : .06); }
+  else if (snd.sim) { snd.sn += (Math.random() - .5) * dt * 1.4; snd.sn *= .996; snd.lv += (Math.max(0, Math.min(1, .4 + snd.sn)) - snd.lv) * .1; }
+}
+let last = performance.now(), camT = 0, mT = 0;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; sndStep(dt);
+  if (video && video.readyState >= 2) { camT += dt; if (camT > .5) { camT = 0; readSource(video, video.videoWidth, video.videoHeight); } }
+  fade(dt); lift(); mT += dt; if (mT > .2) { mT = 0; measure(); }
+  const live = snd.an || snd.sim;
+  strokes(Math.round(live ? 300 + 3000 * snd.lv : 1500));
+  vortex(Math.round(live ? 4 + 60 * snd.lv : 20), dt);     // silence: the drawing nearly stops. sound: it presses on
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function flash(t) { const f = document.getElementById("fl"); f.textContent = t; f.style.opacity = 1; clearTimeout(flash.t); flash.t = setTimeout(() => f.style.opacity = 0, 2000); }
+document.getElementById("file").onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image();
+  im.onload = () => { stopCam(); fit(im.width, im.height); readSource(im, im.width, im.height); URL.revokeObjectURL(im.src); }; im.src = URL.createObjectURL(f); };
+function stopCam() { if (video) { video.srcObject.getTracks().forEach(t => t.stop()); video = null; document.getElementById("cam").classList.remove("on"); } }
+document.getElementById("cam").onclick = async () => { if (video) { stopCam(); return; }
+  try { const st = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } }); video = document.createElement("video"); video.srcObject = st; video.muted = true; video.playsInline = true; await video.play();
+    fit(video.videoWidth, video.videoHeight); readSource(video, video.videoWidth, video.videoHeight); document.getElementById("cam").classList.add("on"); expoSetup(st.getVideoTracks()[0]); }
+  catch (e) { flash("no camera here"); } };
+document.getElementById("mic").onclick = mic;
+/* exposure: the camera's automatic exposure lifts the dark to grey before we ever see it. where the camera allows it, the exposure is fixed by hand */
+let vtrack = null, expoKind = null, expoLocked = false;
+function expoSetup(t) {
+  vtrack = t; expoKind = null; const cap = t.getCapabilities ? t.getCapabilities() : {};
+  const b = document.getElementById("exl"), w = document.getElementById("exw");
+  if (cap.exposureMode && cap.exposureMode.includes("manual") && cap.exposureTime) expoKind = "time";
+  else if (cap.exposureCompensation) expoKind = "comp";
+  b.style.display = expoKind ? "" : "none"; w.style.display = "none";
+  if (!expoKind) flash("this camera does not let the page fix its exposure");
+}
+function expoApply() {
+  if (!vtrack || !expoKind) return; const cap = vtrack.getCapabilities(), k = document.getElementById("exs").value / 1000;
+  const c = expoKind === "time"
+    ? { exposureMode: "manual", exposureTime: cap.exposureTime.min + (cap.exposureTime.max - cap.exposureTime.min) * k * k }
+    : { exposureCompensation: cap.exposureCompensation.min + (cap.exposureCompensation.max - cap.exposureCompensation.min) * k };
+  vtrack.applyConstraints({ advanced: [c] }).catch(e => flash("exposure: " + e.message));
+}
+document.getElementById("exl").onclick = e => { expoLocked = !expoLocked; e.target.classList.toggle("on", expoLocked);
+  document.getElementById("exw").style.display = expoLocked ? "" : "none";
+  if (expoLocked) expoApply(); else if (vtrack && expoKind === "time") vtrack.applyConstraints({ advanced: [{ exposureMode: "continuous" }] }).catch(() => {}); };
+document.getElementById("exs").oninput = expoApply;
+document.getElementById("vx").onclick = e => { VX = !VX; e.target.classList.toggle("on", VX); };
+document.getElementById("deep").oninput = e => { DEEP = e.target.value / 100; flash("deepest black " + e.target.value + "%"); };
+document.getElementById("sim").onclick = e => { snd.sim = !snd.sim; e.target.classList.toggle("on", snd.sim); };
+document.getElementById("clear").onclick = () => { x.fillStyle = PAPER; x.fillRect(0, 0, W, H); if (cov) cov.fill(0); };
+document.getElementById("tg").onclick = () => document.getElementById("ui").classList.toggle("hidden");
+addEventListener("keydown", e => { if (e.key === "h") document.getElementById("ui").classList.toggle("hidden"); });
+fit(4, 3); flash("画像を選ぶ、またはカメラ");
+</script></body></html>
