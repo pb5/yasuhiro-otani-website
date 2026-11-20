@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thresholds of Presence — Act I (with microphone)</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#888;
+  font-family:"EB Garamond",Garamond,Georgia,"Times New Roman",serif;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+#ui{position:fixed;left:0;right:0;bottom:0;background:rgba(6,6,6,.88);border-top:1px solid #1c1c1c;
+  padding:8px 10px;font:12px -apple-system,"Hiragino Sans",sans-serif;display:flex;flex-wrap:wrap;gap:6px;align-items:center;z-index:3}
+#ui.hidden{display:none}
+#ui .lab{color:#555;font-size:11px;margin:0 2px 0 6px}
+button,select{background:#141414;color:#bbb;border:1px solid #2a2a2a;border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit}
+button.on{background:#2c2c2c;color:#fff;border-color:#555}
+.pin{position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border:2px solid #fff;border-radius:50%;background:rgba(255,255,255,.15);z-index:6;touch-action:none;display:none}
+.pin.on{display:block}
+#flash{position:fixed;left:50%;top:12px;transform:translateX(-50%);font:12px -apple-system,sans-serif;color:#aaa;background:rgba(10,10,10,.85);
+  border:1px solid #2a2a2a;border-radius:6px;padding:5px 10px;z-index:8;opacity:0;transition:opacity .4s;pointer-events:none}
+#tog{position:fixed;right:8px;top:8px;z-index:4;background:rgba(15,15,15,.6)}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="ov" style="display:none"></canvas>
+<div id="pins"></div>
+<canvas id="iv" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;display:none;z-index:2"></canvas>
+<div id="flash"></div>
+<button id="tog">≡</button>
+<div id="ui">
+  <span class="lab">場面</span>
+  <button data-s="0">暗</button><button data-s="1">人</button><button data-s="2">星</button><button data-s="3">家畜</button>
+  <button data-s="4">魚</button><button data-s="5">虫</button><button id="endB">終</button>
+  <span class="lab">速度</span><select id="spd"><option value="1" selected>x1</option><option value="4">x4</option><option value="12">x12</option></select>
+  <span class="lab">長さ</span><select id="len"><option value="12">12分</option><option value="16">16分</option><option value="22" selected>22分</option><option value="30">30分</option></select><button id="autoRun" class="on">自動</button><span class="lab">一場面</span><select id="sceneLen"><option value="0" selected>長さから</option><option value="45">45秒</option><option value="90">90秒</option><option value="150">150秒</option><option value="240">240秒</option></select>
+  <span class="lab">線の上限</span><select id="cap"><option value="10000">1万/s</option><option value="25000" selected>2.5万/s</option><option value="45000">4.5万/s</option></select>
+  <span class="lab">カメラ</span><button id="camB" class="on">動く</button>
+  <span class="lab">質</span><button id="anaB" class="on">アナログ</button><button id="toneB">白黒</button><button id="mosB">モザイク</button><button id="invB">反転</button><button id="recB">記録</button><button id="roomB">部屋</button><button id="skyB">天球</button><button id="specB">分光</button><button id="calcB">計算</button>
+  <span class="lab">設置</span><button id="floorB">床</button><button id="pinB">台形</button><button id="pinR">台形リセット</button><button id="instB">設置イメージ</button>
+  <span class="lab">原稿</span><select id="matS"><option value="0">なし</option><option value="1">光沢図版</option><option value="2">探査機モザイク</option><option value="3">天球図の見開き</option><option value="4">手稿と光</option><option value="5">長時間露光</option><option value="6">擬似カラー</option><option value="7">点描</option><option value="8">エアブラシ</option><option value="9">立体コラージュ</option></select>
+  <span class="lab">書き出し</span><select id="outR"><option value="">画面</option><option value="1920x1080">1080p</option><option value="2560x1440" selected>1440p</option></select><button id="recOut">● 書き出し</button>
+  <span class="lab">マイク</span><button id="micB">Mic</button><button id="calB">静けさを測る</button>
+  <button id="thrM">−</button><span id="thrV" class="lab" style="color:#999">+8 dB</span><button id="thrP">＋</button>
+  <span id="meter" class="lab" style="font-family:monospace;color:#777">········</span>
+  <button id="simB">擬似音</button><button id="oneB" class="on">一本の線</button><button id="dimB" class="on">減光</button><button id="autoB">自動終了</button>
+  <button id="cntB" class="on">数</button><button id="rst">最初から</button>
+</div>
+<script>
+/* ===== Thresholds of Presence — v68 "the count, near and far" =====
+   Every line is one life ending, spiralling down a funnel into the dark. Nothing comes back out.
+   Rates are yearly estimates spread over the seconds. Stages add up: people → stars → land animals → fish → insects.
+   The camera follows the numbers: close enough to see one line pass when the lives are few (micro);
+   pulled back until the whole thing is a small bright eye when they are too many (macro); turning, zooming, low and high.
+   At the end the camera falls into the dark. */
+
+const YEAR = 365.25 * 86400;
+const CATS = [
+  { k:"people", lo: 63.6e6 / YEAR, hi: 63.6e6 / YEAR, rate: 63.6e6 / YEAR,  unit:"1 line = 1 human death", note:"about 2 per second" },
+  { k:"stars", lo: 10, hi: 1250, rate: 130,            unit:"1 line = 1 star exploding somewhere in the universe", note:"~130 per second (estimates range 10–1,250)" },
+  { k:"land animals", lo: 87.9e9 / YEAR, hi: 87.9e9 / YEAR, rate: 87.9e9 / YEAR, unit:"1 line = 1 land animal slaughtered for meat", note:"~2,800 per second" },
+  { k:"fish", lo: (1.1e12 + 124e9) / YEAR, hi: (2.2e12 + 124e9) / YEAR, rate: (1.65e12 + 124e9) / YEAR, unit:"1 line = 1 fish, caught from the wild or farmed", note:"~35,000–70,000 per second" },
+  { k:"insects", lo: 1e14 / YEAR, hi: 1e16 / YEAR, rate: 1e15 / YEAR,    unit:"insects killed by pesticides", note:"~3 million–300 million per second. This can no longer be drawn." }
+];
+/* the timeline: a total length (default 22 min) shared out by weight. In automatic running, the sound sets the pace (see tempo) */
+const WEIGHTS = [0.4, 3, 4, 5, 5.6, 4];      // dark, people, stars, land animals, fish, insects (minutes at 22)
+let TOTAL_MIN = 22, STAGES = [];
+function buildStages() { const k = TOTAL_MIN / 22 * 60; STAGES = WEIGHTS.map((w, i) => ({ d: i < WEIGHTS.length - 1 ? w * k : Infinity, n: i })); }
+buildStages();
+/* camera per stage: distance from the throat, height angle (deg), field of view (deg), turning speed (rad/s) */
+const CAM = [
+  { dist: 0.55, tilt: 72, fov: 70, spin: 0.02 },   // dark: very close
+  { dist: 0.95, tilt: 24, fov: 72, spin: 0.03 },   // people: low and near — one line passes by
+  { dist: 2.6,  tilt: 58, fov: 50, spin: 0.04 },   // stars: pull back, the spiral appears
+  { dist: 1.1,  tilt: 28, fov: 65, spin: 0.06 },   // land animals: dive in, a tunnel
+  { dist: 4.2,  tilt: 70, fov: 45, spin: 0.08 },   // fish: high above, the whole field
+  { dist: 9.0,  tilt: 80, fov: 38, spin: 0.10 }    // insects: far — the eye of it, white all round
+];
+const RAMP = 10, LIFE = 5.0, HOLE = 0.16, DEPTH = 0.9;
+const funnelZ = r => -DEPTH * Math.exp(-r / 0.32);
+
+// ---------- GL ----------
+const gc = document.getElementById("gl"), gl = gc.getContext("webgl", { antialias: true, alpha: false });
+const ov = document.getElementById("ov"), ox = ov.getContext("2d");
+let W, H, DPR, ASP;
+let OUT = null;          // null = the window; otherwise [width, height] in pixels for export (16:9)
+function resize() {
+  if (OUT) {               // render at a fixed size, shown fitted in the window
+    DPR = 2; W = OUT[0] / 2; H = OUT[1] / 2; ASP = W / H;
+    const k = Math.min(innerWidth / W, innerHeight / H), cw = W * k, ch = H * k;
+    gc.style.width = cw + "px"; gc.style.height = ch + "px"; gc.style.left = (innerWidth - cw) / 2 + "px"; gc.style.top = (innerHeight - ch) / 2 + "px";
+  } else {
+    DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; ASP = W / H;
+    gc.style.width = gc.style.height = gc.style.left = gc.style.top = "";
+  }
+  for (const c of [gc, ov]) { c.width = W * DPR; c.height = H * DPR; }
+  gl.viewport(0, 0, gc.width, gc.height); ox.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (window.__fbReady) { makeFB(); placePins(); }
+}
+addEventListener("resize", resize); resize();
+
+const VS = `
+precision highp float;
+attribute vec4 a;      // theta0, r0, birth, tail(0/1)
+attribute float b;     // lifetime factor + 10 x layer
+uniform mat4 uM;
+uniform mat4 uL[5];      // one transform per voice (people, stars, land animals, fish, insects)
+uniform float uG[5], uS[5];   // per voice: brightness, accumulated turn
+uniform float uT, uLife, uHole, uDepth, uAlpha;
+varying float v;
+void main(){
+  int li = int(floor(b / 10.0 + 0.001)); float lf = b - float(li) * 10.0;
+  float L = uLife * lf;
+  float age = uT - a.z - a.w * 0.1 * L;
+  float u = age / L;
+  if (age < 0.0 || u >= 1.0) { gl_Position = vec4(3.0, 3.0, 2.0, 1.0); v = 0.0; return; }
+  /* v69: no hole — the lines run all the way in and the funnel closes to a point */
+  float r = max(0.004, a.y * (1.0 - u * u));
+  float g = 1.0, sp = 0.0; mat4 Lm = mat4(1.0);
+  for (int k = 0; k < 5; k++) if (k == li) { Lm = uL[k]; g = uG[k]; sp = uS[k]; }
+  float th = a.x + 2.4 * log(a.y / max(r, 0.03)) + sp;
+  vec3 P = vec3(cos(th) * r, sin(th) * r, -uDepth * exp(-r / 0.32));
+  gl_Position = uM * (Lm * vec4(P, 1.0));          // the GPU clips lines at the near plane
+  float near = 1.0 - r / a.y;
+  v = g * uAlpha * smoothstep(0.0, 0.08, u) * (1.0 - smoothstep(0.96, 1.0, u)) * (0.35 + 0.9 * near) * (1.0 - a.w * 0.85);
+}`;
+const FS = `precision mediump float; varying float v; void main(){ gl_FragColor = vec4(vec3(v), 1.0); }`;
+function sh(t, s) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o);
+  if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; }
+const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog); gl.useProgram(prog);
+const U = {}; for (const n of ["uM","uT","uLife","uHole","uDepth","uAlpha","uL","uG","uS"]) U[n] = gl.getUniformLocation(prog, n);
+const N = 320000, data = new Float32Array(N * 2 * 5);
+let head = 0, dirtyLo = Infinity, dirtyHi = -1;
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+function clearData() { for (let i = 0; i < N * 2; i++) data[i * 5 + 2] = -1e6; gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW); head = 0; }
+clearData();
+{ const la = gl.getAttribLocation(prog, "a"), lb = gl.getAttribLocation(prog, "b");
+  gl.enableVertexAttribArray(la); gl.vertexAttribPointer(la, 4, gl.FLOAT, false, 20, 0);
+  gl.enableVertexAttribArray(lb); gl.vertexAttribPointer(lb, 1, gl.FLOAT, false, 20, 16); }
+gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.clearColor(0, 0, 0, 1);
+
+/* ===== v70: analogue quality =====
+   The image is made the way the sound is: by feedback. Each frame is laid back over the last one,
+   drawn slightly inward and turned, and pushed by a slow turbulent flow (like cloud bands), then faded.
+   New lines are added on top. What you see is the residue of everything that has flowed in — smeared, folded, never sharp.
+   On the way to the screen: a little softness, halation round the bright parts, grain, vignette, a tone like printed ink. */
+const QUAD = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+const qbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, qbuf); gl.bufferData(gl.ARRAY_BUFFER, QUAD, gl.STATIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+const QVS = `attribute vec2 p; varying vec2 uv; void main(){ uv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
+const FBFS = `precision highp float; varying vec2 uv; uniform sampler2D tex; uniform float uT, uAsp, uZoom, uRot, uFlow, uDecay;
+  float psi(vec2 p){ return sin(p.x*3.1+uT*.11)*cos(p.y*2.7-uT*.07) + .5*sin(p.x*6.3-p.y*5.1+uT*.19) + .25*cos(p.x*11.7+p.y*9.3-uT*.23); }
+  void main(){
+    vec2 c = uv - .5; c.x *= uAsp;
+    float e = .004; vec2 q = c * 3.0;
+    vec2 curl = vec2(psi(q+vec2(0.,e))-psi(q-vec2(0.,e)), -(psi(q+vec2(e,0.))-psi(q-vec2(e,0.)))) / (2.*e);
+    float r = length(c); float a = uRot * (0.6 + 0.8 / (1.0 + 6.0 * r));       // turns faster near the middle
+    vec2 s = mat2(cos(a), -sin(a), sin(a), cos(a)) * c * uZoom + curl * uFlow;
+    s.x /= uAsp; s += .5;
+    vec3 col = min(texture2D(tex, s).rgb, vec3(3.0)) * uDecay;
+    gl_FragColor = vec4(col, 1.);
+  }`;
+const DFS = `precision highp float; varying vec2 vuv; vec2 uv; uniform sampler2D tex, uOv; uniform mat3 uH; uniform vec2 uPx, uRes; uniform float uT, uAna, uTone, uAsp, uMos, uInv, uSpec;
+  uniform float uInst, uTan, uS; uniform vec3 uCP, uCF, uCR, uCU;
+  uniform float uMat; uniform mat3 uHP; uniform float uCurl, uGx, uLv, uBandA, uBandO, uTerm;  // uTerm: stipple seed
+  float hf(vec2 q){ float v = dot(texture2D(tex, q).rgb, vec3(.333)); return v / (1. + v); }
+  vec3 comp(vec3 c){ vec4 o = texture2D(uOv, uv); return c * (1. - o.a) + o.rgb; }
+  float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+  float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
+    return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+  float look(vec2 q){                                   // the developed image: softness, halation, film shoulder
+    vec3 b = texture2D(tex, q).rgb * .4;
+    b += (texture2D(tex, q+vec2(uPx.x,0.)).rgb + texture2D(tex, q-vec2(uPx.x,0.)).rgb + texture2D(tex, q+vec2(0.,uPx.y)).rgb + texture2D(tex, q-vec2(0.,uPx.y)).rgb) * .15;
+    vec3 halo = vec3(0.);
+    for (int i = 0; i < 8; i++) { float an = float(i) * .785398; halo += max(texture2D(tex, q + vec2(cos(an), sin(an)) * uPx * 9.).rgb - .45, 0.); }
+    float l = dot(b + halo * .09, vec3(.333)); l = l / (1. + l * .35); return pow(l, .92);
+  }
+  void main(){
+    if (uInst > .5) {
+      /* installation visualization: the picture laid on the floor of a dark room, seen from a standing visitor's eye */
+      vec2 sc = (vuv - .5) * 2. * uTan; sc.x *= uAsp;
+      vec3 d = normalize(uCF + sc.x * uCR + sc.y * uCU);
+      float glow = 0.;
+      for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) glow += dot(texture2D(tex, vec2(.2 + float(i) * .3, .2 + float(j) * .3)).rgb, vec3(.333));
+      glow = glow / 9.; glow = glow / (1. + glow * .4);
+      if (d.y >= -1e-4) {                                   // walls and ceiling: dark, a little light thrown up from the floor
+        float h = clamp(d.y * 3., 0., 1.);
+        gl_FragColor = vec4(vec3(.012 + glow * .06 * (1. - h)), 1.); return; }
+      float t = -uCP.y / d.y; vec3 p = uCP + t * d;
+      uv = vec2(p.x / uS + .5, p.z / uS + .5);
+      if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) {   // the floor outside the picture: only spill
+        vec2 o = max(abs(p.xz) - uS * .5, 0.); float dd = length(o);
+        gl_FragColor = vec4(vec3(.014 + glow * .22 * exp(-dd * 2.2)), 1.); return; }
+    } else if (uMat > .5 && uMat < 1.5) {
+      /* glossy plate: the picture is a printed page lying on a dark table, photographed at a slant; it curls; light glances off it */
+      vec3 hq = uHP * vec3(vuv, 1.); vec2 pg = hq.xy / hq.z;
+      if (pg.x < 0. || pg.x > 1. || pg.y < 0. || pg.y > 1. || hq.z <= 0.) {
+        float n = h(floor(vuv * uRes / 3.)) * .5 + h(floor(vuv * uRes / 9.)) * .5;
+        gl_FragColor = vec4(vec3(.035, .03, .028) + n * .02, 1.); return; }
+      float bend = (pg.x - .5); pg.y += uCurl * bend * bend * .35;      // the page curls toward the binding
+      uv = clamp(pg, 0., 1.);
+    } else {
+    vec3 hq = uH * vec3(vuv, 1.); uv = hq.xy / hq.z;          // corner pin: where on the floor each point of the picture lands
+    if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1. || hq.z <= 0.) { gl_FragColor = vec4(0., 0., 0., 1.); return; }
+    }
+    if (uAna < .5) { gl_FragColor = vec4(comp(texture2D(tex, uv).rgb), 1.); return; }
+    vec2 q = uv; float gain = 1.; float paper = 0.; float seam = 0.;
+    if (uMos > .5) {                                    // a mosaic of frames, as a spacecraft sends them back
+      vec2 c = uv - .5; c.x *= uAsp; float an = .6; mat2 R = mat2(cos(an), -sin(an), sin(an), cos(an));
+      vec2 r = R * c * 6.0; vec2 id = floor(r); vec2 f = fract(r);
+      float k = h(id);
+      gain = .78 + .44 * k;
+      vec2 jit = (vec2(h(id+3.1), h(id+7.7)) - .5) * .012;
+      q = uv + jit;
+      seam = (1. - smoothstep(0., .025, f.x)) + (1. - smoothstep(0., .025, f.y));
+      float edge = length(c * vec2(.85, 1.)) + (k - .5) * .35;   // ragged, stepped outline
+      paper = step(.5, edge);
+    }
+    float l = look(q) * gain;
+    l *= 1. - seam * .25;
+    vec2 cc = uv - .5; cc.x *= uAsp; l *= 1. - .55 * smoothstep(.35, 1.05, length(cc));
+    l += (h(uv * 731. + fract(uT * 7.3)) - .5) * .07;
+    l = clamp(l, 0., 1.);
+    int m0 = int(uTone + .5);
+    if (m0 >= 2) {                                      // printed tones meter the page, like a printer setting exposure
+      float mean = 0.;
+      for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) mean += dot(texture2D(tex, vec2(.125 + float(i) * .25, .125 + float(j) * .25)).rgb, vec3(.333));
+      mean /= 16.; mean = mean / (1. + mean * .35);
+      l = clamp(l * .42 / max(.03, mean), 0., 1.); }
+    if (uInv > .5) l = 1. - l;
+    vec3 col = vec3(l);
+    int m = int(uTone + .5);
+    if (m == 1) { vec3 ink = vec3(.05,.035,.03), mid = vec3(.78,.36,.12), hi = vec3(.98,.92,.80);
+      col = l < .5 ? mix(ink, mid, l * 2.) : mix(mid, hi, (l - .5) * 2.); }
+    else if (m == 2) {                                  // blueprint / cyanotype
+      col = mix(vec3(.04,.12,.32), vec3(.80,.88,.96), smoothstep(.0, .95, l));
+      col = mix(col, vec3(.62,.78,.60), paper); }
+    else if (m == 3) {                                  // black ink on pink paper, halftone screen
+      vec2 p = uv * uRes; float an = .785398; vec2 g = mat2(cos(an), -sin(an), sin(an), cos(an)) * p / 4.5;
+      vec2 f = fract(g) - .5; float ink = 1. - l; float rad = sqrt(ink) * .62;
+      float dot_ = 1. - smoothstep(rad - .08, rad + .08, length(f));
+      col = mix(vec3(.93,.72,.72), vec3(.13,.08,.09), dot_);
+      col = mix(col, vec3(.93,.72,.72), paper); }
+    else if (m == 4) {                                  // orange stock, one black plate, posterised and blotchy
+      float n = vn(uv * uRes / 7.) * .6 + vn(uv * uRes / 2.5) * .4;
+      float ink = step(.62 + (n - .5) * .5, 1. - l);
+      col = mix(vec3(.96,.56,.18), vec3(.08,.05,.04), ink);
+      col = mix(col, vec3(.96,.56,.18), paper); }
+    else if (m == 5) {                                  // manuscript: pen and ink on pink paper; light is drawn as ink
+      float n = vn(uv * uRes / 3.) * .6 + vn(uv * uRes / 11.) * .4;
+      float ink = smoothstep(.02, .22, (uInv > .5 ? 1. - l : l) + (n - .5) * .12);
+      vec3 pap = vec3(.86,.62,.72) * (.94 + .06 * vn(uv * uRes / 40.));
+      col = mix(pap, vec3(.10,.06,.07), ink);
+      col = mix(col, vec3(.86,.62,.72), paper); }
+    else if (m == 6) {                                  // engraving: the light cut as hatching into a plate, printed on khaki paper
+      vec2 p = uv * uRes; float d = uInv > .5 ? 1. - l : clamp(l * 1.7, 0., 1.);   // the light is what gets cut
+      float h1 = .5 + .5 * sin(dot(p, vec2(.62, .78)) * 1.25);
+      float h2 = .5 + .5 * sin(dot(p, vec2(-.78, .62)) * 1.25);
+      float ink = step(h1, d * 1.15) * step(.2, d);
+      ink = max(ink, step(h2, (d - .55) * 2.2));       // cross-hatch only in the deepest parts
+      ink = max(ink, step(.9, d));
+      col = mix(vec3(.84,.79,.62), vec3(.07,.06,.05), ink);
+      col = mix(col, vec3(.84,.79,.62), paper); }
+    else if (m == 7) {                                  // a planet seen from close: the whole flow wrapped onto a lit sphere, airbrushed
+      vec2 c = uv - .5; c.x *= uAsp; vec2 o = vec2(0., -.78); float R = 1.28;
+      vec2 pp = (c - o) / R; float r = length(pp);
+      if (r > 1.) col = vec3(.035) + (h(uv * 913. + uT) - .5) * .03;
+      else { float z = sqrt(1. - r * r); vec3 n = vec3(pp, z); float dif = max(dot(n, normalize(vec3(.25, .9, .45))), 0.);
+        float t = clamp(l * 1.25 + dif * .5 - .22, 0., 1.);
+        vec3 w = t < .5 ? mix(vec3(.10,.05,.06), vec3(.86,.33,.10), t * 2.) : mix(vec3(.86,.33,.10), vec3(1.,.93,.55), (t - .5) * 2.);
+        w = mix(w, vec3(.80,.85,.95), smoothstep(.86, 1., r) * dif * .7);     // a thin haze at the limb
+        w += (h(uv * 611. + fract(uT * 3.1)) - .5) * .09;                      // airbrush grain
+        col = w; } }
+    else col = mix(col, vec3(.86), paper);
+    if (uMat > .5 && uMat < 1.5) {                      // the gloss: a soft sheen that slides across the page, and a darker fold near the binding
+      float gx = exp(-pow((uv.x - uGx) / .07, 2.)) * (.35 + .25 * uv.y);
+      col = col + vec3(gx) * .55; col *= .82 + .18 * smoothstep(0., .12, uv.x) * smoothstep(1., .9, uv.x); }
+    if (uMat > 2.5 && uMat < 3.5) {                     // the spread: a fold down the middle, and a little shadow either side
+      float gd = abs(uv.x - .5); col *= .72 + .28 * smoothstep(0., .035, gd); col = mix(col, col * .55, 1. - smoothstep(0., .004, gd)); }
+    if (uMat > 3.5 && uMat < 4.5) {                                // the record stays still on its paper; the drawing shows only where the light falls on it
+      vec2 c = uv - .5; c.x *= uAsp; float an = uBandA;
+      float d = dot(c, vec2(cos(an), sin(an))) - uBandO;
+      float w = .05 + .3 * uLv, band = 1. - smoothstep(w * .35, w, abs(d));
+      float k = clamp((d + w) / (2. * w), 0., 1.);
+      vec3 sp = clamp(vec3(abs(k * 6. - 3.) - 1., 2. - abs(k * 6. - 2.), 2. - abs(k * 6. - 4.)), 0., 1.); sp = mix(sp, vec3(1.), .3);
+      vec3 paperC = vec3(.86, .80, .70) * (.94 + .06 * vn(uv * uRes / 40.));
+      float ll = min(1., l * 2.6); vec3 lit = paperC * (.55 + sp * .75) * (1. - ll * .85) + sp * ll * .3;
+      col = mix(paperC, lit, band); }
+    if (uMat > 5.5 && uMat < 6.5) {                     // false colour: three plates, one per filter, laid over one another as printed
+      vec3 b3 = texture2D(tex, q).rgb * .4;
+      b3 += (texture2D(tex, q+vec2(uPx.x,0.)).rgb + texture2D(tex, q-vec2(uPx.x,0.)).rgb + texture2D(tex, q+vec2(0.,uPx.y)).rgb + texture2D(tex, q-vec2(0.,uPx.y)).rgb) * .15;
+      vec3 hl = vec3(0.); for (int i = 0; i < 6; i++) { float an = float(i) * 1.0472; hl += max(texture2D(tex, q + vec2(cos(an), sin(an)) * uPx * 7.).rgb - .3, 0.); }
+      b3 = b3 * 1.6 + hl * .12; b3 = b3 / (1. + b3 * .5);
+      vec2 cc2 = uv - .5; cc2.x *= uAsp; b3 *= 1. - .5 * smoothstep(.35, 1.05, length(cc2));
+      vec3 fc = b3.r * vec3(.95, .22, .12) + b3.g * vec3(.25, .90, .42) + b3.b * vec3(.22, .42, 1.0);
+      fc += vec3(.9) * pow(min(b3.r, min(b3.g, b3.b)), 1.5) * .6;          // where all three plates agree, white stars
+      fc += (h(uv * 731. + fract(uT * 7.3)) - .5) * .05 + vec3(.03, .02, .03);
+      col = clamp(fc, 0., 1.); }
+    if (uMat > 6.5 && uMat < 7.5) {                     // stipple: brightness set down as dots, their size and their number
+      float lt = l; vec3 st = vec3(.035, .028, .03);
+      for (int k = 0; k < 2; k++) { float cs = k == 0 ? 3.2 : 9.; vec2 p = uv * uRes / cs; vec2 id = floor(p), f = fract(p);
+        float sd2 = uTerm + float(k) * 17.;
+        vec2 ctr = vec2(h(id + sd2), h(id + sd2 + 4.3)) * .6 + .2;
+        float keep = k == 0 ? step(h(id + sd2 + 9.1), pow(lt, 1.7) * 1.1 + .006) : step(.9, h(id + sd2 + 2.2)) * step(.35, lt);
+        float rad = k == 0 ? .14 + .30 * sqrt(lt) : .28 + .2 * h(id + sd2 + 6.6);
+        float dt2 = 1. - smoothstep(rad - .12, rad + .05, length(f - ctr));
+        vec3 ink = mix(vec3(.95, .82, .45), vec3(1., .97, .90), k == 0 ? lt : 1.);
+        st = mix(st, ink, dt2 * keep); }
+      col = st; }
+    if (uMat > 7.5) {                                   // airbrush: soft spray through a moving stencil, then the highlights scratched in
+      float sp = 0.; for (int i = 0; i < 10; i++) { float an = float(i) * .628 + uT * .01;
+        sp += dot(texture2D(tex, uv + vec2(cos(an), sin(an)) * uPx * 16.).rgb, vec3(.333)) * .6
+            + dot(texture2D(tex, uv + vec2(cos(an + .3), sin(an + .3)) * uPx * 45.).rgb, vec3(.333)) * .4; }
+      sp = sp / 10.; sp = sp * .9 / (1. + sp * .9);
+      sp *= .82 + .36 * h(floor(uv * uRes / 1.5) + fract(uT * 3.));                 // the grain of the spray
+      vec2 c = uv - .5; c.x *= uAsp;
+      vec2 o = vec2(.55 * sin(uT * .021), -.95 + .25 * sin(uT * .017)); float R = 1.05 + .2 * sin(uT * .013);
+      float limb = step(length(c - o), R);                                           // a cut card: a planet's limb
+      float torn = step(.48, vn(uv * 2.2 + vec2(uT * .015, -uT * .011)));            // a torn paper mask
+      float mask = max(limb, torn * .55);
+      float lit = texture2D(tex, q).r; float sharp = max(dot(texture2D(tex, q).rgb, vec3(.333)) - sp * .8, 0.);
+      vec3 bg = vec3(.07, .06, .13), mid = vec3(.30, .32, .72), hi = vec3(1., .74, .60);
+      vec3 ab = sp < .5 ? mix(bg, mid, sp * 2.) : mix(mid, hi, (sp - .5) * 2.);
+      ab = mix(bg * (1. + sp * .6), ab, mask);
+      ab += vec3(1., .95, .88) * smoothstep(.25, .8, sharp) * .7 * (.4 + .6 * mask);        // white pencil
+      ab = mix(ab, vec3(.75, .80, .95), (1. - smoothstep(.0, .004, abs(length(c - o) - R))) * .35);   // the card's edge leaves a faint rim
+      col = ab; }
+    if (uMat > 8.5) {                                   // the collage is already a picture of paper; only the print's grain and fall-off
+      vec3 c9 = texture2D(tex, q).rgb; vec2 cv = uv - .5; cv.x *= uAsp;
+      c9 *= 1. - .4 * smoothstep(.4, 1.1, length(cv)); c9 += (h(uv * 731. + fract(uT * 7.3)) - .5) * .045; col = clamp(c9, 0., 1.); }
+    if (uSpec > .5) {                                   // a prism's spectrum lying across the page
+      vec2 c = uv - .5; c.x *= uAsp; float an = .7 + .15 * sin(uT * .05);
+      float d = dot(c, vec2(cos(an), sin(an))) - .05 * sin(uT * .07);
+      float w = .2 + .05 * sin(uT * .03), band = (1. - smoothstep(w * .25, w, abs(d))) * .85;
+      float k = clamp((d + w) / (2. * w), 0., 1.);
+      vec3 sp = clamp(vec3(abs(k * 6. - 3.) - 1., 2. - abs(k * 6. - 2.), 2. - abs(k * 6. - 4.)), 0., 1.);
+      sp = mix(sp, vec3(1.), .35);
+      col = mix(col, col * (.5 + sp * .95) + sp * .07, band); }
+    if (m == 0 || m == 1) col = mix(col, m == 1 ? vec3(.93,.88,.78) : vec3(.86), paper);
+    gl_FragColor = vec4(comp(col), 1.);
+  }`;
+/* time mosaic: the picture arrives as a spacecraft sends it — tile by tile, each tile drawn in scan lines,
+   each tile seen from its own slightly different place. Tiles not being sent keep what they last received,
+   so the screen is always a patchwork of different moments. */
+const MOSFS = `precision highp float; varying vec2 uv; uniform sampler2D uCur, uPrev; uniform float uPh, uW, uAsp, uSeed;
+  float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)) + uSeed) * 43758.5453); }
+  void main(){
+    vec2 c = uv - .5; c.x *= uAsp; float an = .6; mat2 R = mat2(cos(an), -sin(an), sin(an), cos(an));
+    vec2 r = R * c * 6.0; vec2 id = floor(r); vec2 f = fract(r);
+    float t0 = h(id); float ph = fract(uPh - t0); vec3 old = texture2D(uPrev, uv).rgb;
+    if (ph > uW) { gl_FragColor = vec4(old, 1.); return; }
+    float prog = ph / uW;                                // how far down this tile the scan has come
+    if (f.y > prog) { gl_FragColor = vec4(old, 1.); return; }
+    float a2 = (h(id + 1.7) - .5) * .5, z = .8 + h(id + 3.3) * .5; vec2 o = (vec2(h(id + 5.1), h(id + 7.9)) - .5) * .25;
+    vec2 q = mat2(cos(a2), -sin(a2), sin(a2), cos(a2)) * c * z + o; q.x /= uAsp; q += .5;
+    vec3 cur = texture2D(uCur, q).rgb;
+    gl_FragColor = vec4(cur, 1.);
+  }`;
+function mkProg(v, f) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, v)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, f)); gl.linkProgram(p); return p; }
+const DVS = `attribute vec2 p; varying vec2 vuv; void main(){ vuv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
+/* long exposure: while the shutter is open the frames add up on the plate; closed, the plate keeps its picture and slowly fades */
+const EXPFS = `precision highp float; varying vec2 uv; uniform sampler2D uCur, uPrev; uniform float uOpen, uHold;
+  void main(){ vec3 p = texture2D(uPrev, uv).rgb * uHold; vec3 c = texture2D(uCur, uv).rgb;
+    gl_FragColor = vec4(min(p + c * uOpen, vec3(3.)), 1.); }`;
+const fbP = mkProg(QVS, FBFS), dP = mkProg(DVS, DFS), msP = mkProg(QVS, MOSFS), exP = mkProg(QVS, EXPFS);
+/* the collage: hand-cut pieces of paper, each carrying the picture of one moment, set at different depths in the room of the funnel */
+const PVS = `attribute vec3 pv; uniform mat4 uM, uP; uniform vec4 uCrop; uniform vec2 uOff; varying vec2 vt; varying float ve;
+  void main(){ vec4 c = uM * (uP * vec4(pv.xy, 0., 1.)); c.xy += uOff * c.w; gl_Position = c; vt = uCrop.xy + (pv.xy * .5 + .5) * uCrop.zw; ve = pv.z; }`;
+const PFS = `precision mediump float; varying vec2 vt; varying float ve; uniform sampler2D uSnap; uniform float uMode; uniform vec3 uPaper;
+  void main(){
+    if (uMode > 1.5) { gl_FragColor = vec4(.93, .90, .84, .75 * step(.5, ve)); return; }       // the pen; where it lifted, nothing
+    if (uMode > .5) { gl_FragColor = vec4(0., 0., 0., .5); return; }                           // the shadow under a piece
+    vec3 c = texture2D(uSnap, vt).rgb * 1.7; c = c / (1. + c * .3);
+    c = mix(c, uPaper, smoothstep(.935, .965, ve));                                              // the cut leaves a rim of bare paper
+    gl_FragColor = vec4(c, 1.); }`;
+const CPFS = `precision mediump float; varying vec2 uv; uniform sampler2D t; uniform float uK;
+  void main(){ vec3 c = texture2D(t, uv).rgb * 1.4; gl_FragColor = vec4(c / (1. + c * .6) * uK, 1.); }`;
+const pP = mkProg(PVS, PFS), cpP = mkProg(QVS, CPFS);
+const PU = {}; for (const n of ["uM","uP","uCrop","uOff","uSnap","uMode","uPaper"]) PU[n] = gl.getUniformLocation(pP, n);
+const CPU = { t: gl.getUniformLocation(cpP, "t"), uK: gl.getUniformLocation(cpP, "uK") };
+const XU = {}; for (const n of ["uCur","uPrev","uOpen","uHold"]) XU[n] = gl.getUniformLocation(exP, n);
+const MU = {}; for (const n of ["uCur","uPrev","uPh","uW","uAsp","uSeed"]) MU[n] = gl.getUniformLocation(msP, n);
+const FU = {}, DU = {};
+for (const n of ["tex","uT","uAsp","uZoom","uRot","uFlow","uDecay"]) FU[n] = gl.getUniformLocation(fbP, n);
+for (const n of ["tex","uOv","uH","uPx","uRes","uT","uAna","uTone","uAsp","uMos","uInv","uSpec","uInst","uTan","uS","uCP","uCF","uCR","uCU","uMat","uHP","uCurl","uGx","uLv","uBandA","uBandO","uTerm"]) DU[n] = gl.getUniformLocation(dP, n);
+let fbs = [], ping = 0, FBW = 0, FBH = 0, analog = true, tone = 0, FBTYPE, mosaic = false, invert = false, record = false;
+const TONES = ["白黒", "琥珀", "青焼き", "桃色網点", "橙版", "手稿", "銅版", "惑星"];
+let room = false, sky = false, spec = false, calc = false, tally = [];
+function makeFB() {
+  FBW = Math.round(gc.width * .75); FBH = Math.round(gc.height * .75);
+  for (const f of fbs) { gl.deleteTexture(f.t); gl.deleteFramebuffer(f.f); }
+  /* light that fades slowly needs more than 8 bits, or it rounds away to black: half-float if the GPU has it */
+  if (FBTYPE === undefined) { const hf = gl.getExtension("OES_texture_half_float"); gl.getExtension("OES_texture_half_float_linear");
+    gl.getExtension("EXT_color_buffer_half_float"); const fl = gl.getExtension("OES_texture_float"); gl.getExtension("OES_texture_float_linear");
+    FBTYPE = hf ? hf.HALF_FLOAT_OES : fl ? gl.FLOAT : gl.UNSIGNED_BYTE; }
+  fbs = [0, 1].map(() => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, FBW, FBH, 0, gl.RGBA, FBTYPE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE && FBTYPE !== gl.UNSIGNED_BYTE) {
+      FBTYPE = gl.UNSIGNED_BYTE; gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, FBW, FBH, 0, gl.RGBA, FBTYPE, null); }
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); return { t, f }; });
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  makeMos();
+}
+let mos = [], mping = 0;
+function makeMos() {
+  for (const f of mos) { gl.deleteTexture(f.t); gl.deleteFramebuffer(f.f); }
+  mos = [0, 1].map(() => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, FBW, FBH, 0, gl.RGBA, FBTYPE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); return { t, f }; });
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+makeFB(); window.__fbReady = true;
+function quad(p) { gl.useProgram(p); gl.bindBuffer(gl.ARRAY_BUFFER, qbuf); const l = gl.getAttribLocation(p, "p");
+  gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.disableVertexAttribArray(l); }
+function linesSetup() { gl.useProgram(prog); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  const la = gl.getAttribLocation(prog, "a"), lb = gl.getAttribLocation(prog, "b");
+  gl.enableVertexAttribArray(la); gl.vertexAttribPointer(la, 4, gl.FLOAT, false, 20, 0);
+  gl.enableVertexAttribArray(lb); gl.vertexAttribPointer(lb, 1, gl.FLOAT, false, 20, 16); }
+function spawn(n, t, layer = 0) {
+  for (let i = 0; i < n; i++) {
+    const th = Math.random() * 6.2832, r0 = 1.25 + Math.random() * 0.9, lf = 0.7 + Math.random() * 0.6 + layer * 10, bt = t - Math.random() * 0.016, o = head * 10;
+    data[o] = th; data[o+1] = r0; data[o+2] = bt; data[o+3] = 0; data[o+4] = lf;
+    data[o+5] = th; data[o+6] = r0; data[o+7] = bt; data[o+8] = 1; data[o+9] = lf;
+    if (head < dirtyLo) dirtyLo = head; if (head > dirtyHi) dirtyHi = head;
+    if (++head >= N) { flush(); head = 0; }
+  }
+}
+function flush() { if (dirtyHi < 0) return; gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferSubData(gl.ARRAY_BUFFER, dirtyLo * 40, data.subarray(dirtyLo * 10, (dirtyHi + 1) * 10)); dirtyLo = Infinity; dirtyHi = -1; }
+
+// ---------- matrices (column-major) ----------
+function persp(fovDeg, asp, n, f) { const t = 1 / Math.tan(fovDeg * Math.PI / 360);
+  return [t / asp,0,0,0, 0,t,0,0, 0,0,(f + n) / (n - f),-1, 0,0,2 * f * n / (n - f),0]; }
+function mul(A, B) { const C = new Array(16).fill(0);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) C[c * 4 + r] += A[k * 4 + r] * B[c * 4 + k]; return C; }
+function lookAt(e, t, up) {
+  let z = [e[0]-t[0], e[1]-t[1], e[2]-t[2]]; let l = Math.hypot(...z); z = z.map(x => x / l);
+  let x = [up[1]*z[2]-up[2]*z[1], up[2]*z[0]-up[0]*z[2], up[0]*z[1]-up[1]*z[0]]; l = Math.hypot(...x) || 1; x = x.map(q => q / l);
+  const y = [z[1]*x[2]-z[2]*x[1], z[2]*x[0]-z[0]*x[2], z[0]*x[1]-z[1]*x[0]];
+  return [x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+    -(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]), -(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]), -(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]), 1]; }
+function rotZ(a) { const c = Math.cos(a), s = Math.sin(a); return [c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1]; }
+let M = null;
+let PJ = null;   // when set: { m, x0, w } — project into one page of a spread
+function project(p) { const Mx = PJ ? PJ.m : M; const x = Mx[0]*p[0]+Mx[4]*p[1]+Mx[8]*p[2]+Mx[12], y = Mx[1]*p[0]+Mx[5]*p[1]+Mx[9]*p[2]+Mx[13], w = Mx[3]*p[0]+Mx[7]*p[1]+Mx[11]*p[2]+Mx[15];
+  if (PJ) { if (w <= 0.02) return null; return [PJ.x0 + (x / w * .5 + .5) * PJ.w, (.5 - y / w * .5) * H]; }
+  if (w <= 0.02) return null; return [(x / w * .5 + .5) * W, (.5 - y / w * .5) * H]; }
+
+// ---------- camera ----------
+let zph = 0, tempoLv = 0;
+const cam = { dist: CAM[0].dist, tilt: CAM[0].tilt, fov: CAM[0].fov, spin: CAM[0].spin, az: 0, roll: 0 };
+let camAuto = true, fall = 0;
+function camStep(dt, rdt, t) {
+  const g = CAM[stage]; const k = 1 - Math.exp(-dt / 9);          // slow, heavy moves
+  let tg = g;
+  if (stage === 5) { const s = stageT, c = .5 - .5 * Math.cos(s * 6.2832 / 90);       // a 90 s journey out and back in
+    tg = { dist: 0.5 + 9.5 * c, tilt: 50 + 35 * Math.sin(s * 6.2832 / 130), fov: 55 + 20 * Math.sin(s * 6.2832 / 55), spin: 0.05 + 0.12 * c }; }
+  if (camAuto) for (const p of ["dist","tilt","fov","spin"]) cam[p] += (tg[p] - cam[p]) * (stage === 5 ? Math.min(1, k * 3) : k);
+  cam.az += cam.spin * rdt * (autoRun ? 0.6 + 2.2 * tempoLv : 1);
+  cam.roll = floor ? 0 : 0.35 * Math.sin(t * 0.05) + 0.15 * Math.sin(t * 0.13);       // turning
+  zph += rdt * 0.07 * (autoRun ? 0.6 + 2.5 * tempoLv : 1);
+  const fov = cam.fov + (7 + (autoRun ? 9 * tempoLv : 0)) * Math.sin(zph);                             // zoom breathing
+  const throat = [0, 0, funnelZ(HOLE)];
+  let dist = cam.dist;
+  if (ending) { fall = Math.min(1, fall + rdt / 14); dist = cam.dist * (1 - fall) + 0.02 * fall; }   // falling into the dark
+  const tilt = floor ? 88.5 : cam.tilt, ct = ending ? tilt + (89 - tilt) * fall : tilt, tr = ct * Math.PI / 180;
+  const tgt = [0, 0, throat[2] * 0.35];
+  const eye = [tgt[0] + dist * Math.cos(tr) * Math.cos(cam.az), tgt[1] + dist * Math.cos(tr) * Math.sin(cam.az), tgt[2] + dist * Math.sin(tr)];
+  const V = mul(rotZ(cam.roll), lookAt(eye, tgt, [0, 0, 1]));
+  M = mul(persp(fov, ASP, 0.01, 60), V);
+  /* two systems on one spread: the left page seen from inside, close (the room at the centre),
+     the right page from far off on the other side (the dark at the centre). */
+  const mk = (azo, dk, tl) => { const tr2 = tl * Math.PI / 180, d2 = dist * dk, a2 = cam.az + azo;
+    const e2 = [tgt[0] + d2 * Math.cos(tr2) * Math.cos(a2), tgt[1] + d2 * Math.cos(tr2) * Math.sin(a2), tgt[2] + d2 * Math.sin(tr2)];
+    return mul(persp(fov, ASP / 2, 0.01, 60), mul(rotZ(cam.roll), lookAt(e2, tgt, [0, 0, 1]))); };
+  ML = mk(0, 0.55, Math.max(15, ct - 25)); MR = mk(Math.PI, 2.2, Math.min(86, ct + 20));
+}
+let ML = null, MR = null;
+
+// ---------- state ----------
+let T = 0, stage = 0, stageT = 0, speed = 1, CAP = 25000, acc = 0, ending = false, autoRun = true, tempo = 1;
+let showCount = true, counts = CATS.map(() => 0), arrived = CATS.map(() => 0), labelA = 0, labelTxt = ["", ""], totalRate = 0;
+function setStage(s) {
+  stage = s; stageT = 0; ending = false; fall = 0;
+  for (let i = 0; i < CATS.length; i++) if (i >= STAGES[s].n) arrived[i] = 0; else if (i < STAGES[s].n - 1) arrived[i] = 1;
+  const c = CATS[STAGES[s].n - 1]; labelTxt = c ? [c.unit, c.note] : ["", ""]; labelA = c ? 1 : 0;
+}
+function restart() { T = 0; counts = CATS.map(() => 0); arrived = CATS.map(() => 0); acc = 0; clearData(); if (typeof snd !== "undefined") { snd.total = 0; snd.quiet = 0; } setStage(0); }
+const linesPer = () => Math.max(1, totalRate / CAP);
+const fmtN = n => Math.floor(n).toLocaleString("en-US");
+
+// ---------- overlay: the dark at the centre, the white, the words ----------
+function drawOverlay(veil) {
+  ox.clearRect(0, 0, W, H);
+  if (ending && fall > 0.85) { ox.fillStyle = `rgba(0,0,0,${Math.min(1, (fall - .85) / .12)})`; ox.fillRect(0, 0, W, H); if (fall > .97) return; }
+  /* v69: nothing is drawn at the centre. The lines fade as they arrive, and are gone. */
+  if (showOne) { if (mat === 3 && ML) { PJ = { m: ML, x0: 0, w: W / 2 }; drawOneLine(); PJ = { m: MR, x0: W / 2, w: W / 2 }; drawOneLine(); PJ = null; } else drawOneLine(); }
+  if (mat === 3) { ox.save(); ox.font = `${Math.max(11, Math.min(W, H) * .02)}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "center";
+    ox.fillStyle = [3, 4, 5, 6].includes(tone) ? "rgba(30,20,18,.75)" : "rgba(220,214,200,.6)";
+    ox.fillText("LOW ESTIMATE", W * .25, H - 24); ox.fillText("HIGH ESTIMATE", W * .75, H - 24); ox.restore(); }
+  if (record && stage > 0) drawRecord();
+  if (room) drawRoom();
+  if (sky) drawSky();
+  if (calc) drawCalc();
+  if (floor) { floorWords(veil); return; }
+  const ink = veil > .5 ? "20,20,20" : "150,146,138";
+  if (labelA > .01 && !ending) {
+    ox.font = `${Math.max(13, Math.min(W, H) * .022)}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "left";
+    const y0 = H - (document.getElementById("ui").classList.contains("hidden") ? 28 : 78);
+    ox.fillStyle = `rgba(${ink},${labelA})`; ox.fillText(labelTxt[0], 22, y0 - 22);
+    ox.fillStyle = `rgba(${ink},${labelA * .7})`; ox.fillText(labelTxt[1], 22, y0);
+    const per = linesPer(); if (per >= 2) ox.fillText("each line now carries about " + fmtN(per) + " lives", 22, y0 + 20);
+  }
+  if (showCount && stage > 0) {
+    ox.font = `${Math.max(11, Math.min(W, H) * .017)}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "right";
+    let y = 30; ox.fillStyle = `rgba(${ink},.55)`; ox.fillText("since this began", W - 22, y); y += 20;
+    for (let i = 0; i < CATS.length; i++) { if (arrived[i] <= 0 && counts[i] < 1) continue;
+      ox.fillStyle = `rgba(${ink},.8)`; ox.fillText(CATS[i].k + "  " + fmtN(counts[i]), W - 22, y); y += 19; }
+  }
+}
+
+/* the count, recorded like a landing site: the low estimate and the high one, never the same point */
+function drawRecord() {
+  const i = Math.max(0, STAGES[stage].n - 1), c = CATS[i], el = Math.max(T - 0, 0);
+  const lo = counts[i] * c.lo / c.rate, hi = counts[i] * c.hi / c.rate;
+  const cx = W / 2, cy = H * .47, s = Math.min(W, H);
+  ox.save(); ox.lineWidth = Math.max(2, s * .004);
+  ox.strokeStyle = "rgba(10,10,10,.9)"; ox.beginPath(); ox.ellipse(cx, cy, s * .30, s * .13, -.45, 0, 6.283); ox.stroke();
+  ox.beginPath(); ox.ellipse(cx + s * .02, cy + s * .01, s * .13, s * .06, -.45, 0, 6.283); ox.stroke();
+  ox.strokeStyle = "rgba(245,240,215,.95)"; ox.beginPath(); ox.moveTo(cx - s * .28, cy); ox.lineTo(cx + s * .28, cy); ox.moveTo(cx, cy - s * .2); ox.lineTo(cx, cy + s * .2); ox.stroke();
+  ox.strokeStyle = "rgba(190,60,50,.9)"; const dx = s * .03, dy = s * .025;
+  ox.beginPath(); ox.moveTo(cx - s * .26 + dx, cy + dy); ox.lineTo(cx + s * .26 + dx, cy + dy); ox.moveTo(cx + dx, cy - s * .2 + dy); ox.lineTo(cx + dx, cy + s * .2 + dy); ox.stroke();
+  const box = (t, x, y) => { ox.font = `bold ${Math.max(12, s * .024)}px "Helvetica Neue", Arial, sans-serif`; const w = ox.measureText(t).width + 10, hh = Math.max(16, s * .032);
+    ox.fillStyle = "rgba(250,248,240,.95)"; ox.fillRect(x - w / 2, y - hh / 2, w, hh); ox.fillStyle = "#111"; ox.textAlign = "center"; ox.textBaseline = "middle"; ox.fillText(t, x, y); };
+  box(c.k.toUpperCase(), cx, cy - s * .25);
+  box("LOW  " + fmtN(lo), cx + s * .2, cy - s * .045);
+  box("HIGH  " + fmtN(hi), cx + s * .2 + dx, cy + s * .045 + dy);
+  box("PREDICT", cx - s * .22, cy - s * .11); box("ACTUAL — UNKNOWN", cx - s * .17, cy + s * .14);
+  ox.restore(); ox.textBaseline = "alphabetic";
+}
+
+/* ---- hand-drawn things: lines that wobble like a pen, and "boil" a little (redrawn every half second) ---- */
+let seed = 1; const srnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const penInk = () => ([3, 4, 5, 6].includes(tone) || mat === 4) ? "rgba(26,14,16,.88)" : tone === 2 ? "rgba(225,235,248,.85)" : "rgba(235,228,210,.8)";
+function wob(x1, y1, x2, y2, j) {
+  const n = Math.max(2, Math.floor(Math.hypot(x2 - x1, y2 - y1) / 18)); ox.moveTo(x1 + (srnd() - .5) * j, y1 + (srnd() - .5) * j);
+  for (let i = 1; i <= n; i++) { const t = i / n; ox.lineTo(x1 + (x2 - x1) * t + (srnd() - .5) * j, y1 + (y2 - y1) * t + (srnd() - .5) * j); }
+}
+/* the room itself, drawn as a sketch: back wall, the corners running out to us, a window — the place where this happens */
+function drawRoom() {
+  seed = 1 + Math.floor(T * 2) % 7;
+  const bw = W * .5, bh = H * .42, bx = (W - bw) / 2, by = H * .24;
+  ox.save(); ox.strokeStyle = penInk(); ox.lineWidth = Math.max(1.5, Math.min(W, H) * .003); ox.lineCap = "round"; ox.beginPath();
+  wob(bx, by, bx + bw, by, 3); wob(bx + bw, by, bx + bw, by + bh, 3); wob(bx + bw, by + bh, bx, by + bh, 3); wob(bx, by + bh, bx, by, 3);
+  wob(bx, by, 0, 0, 4); wob(bx + bw, by, W, 0, 4); wob(bx, by + bh, 0, H, 4); wob(bx + bw, by + bh, W, H, 4);
+  const wx = bx + bw + (W - bx - bw) * .35, wy = by + bh * .15;      // a window on the right wall
+  wob(wx, wy, wx + W * .09, wy - H * .03, 3); wob(wx + W * .09, wy - H * .03, wx + W * .09, wy + bh * .55, 3);
+  wob(wx + W * .09, wy + bh * .55, wx, wy + bh * .6, 3); wob(wx, wy + bh * .6, wx, wy, 3);
+  ox.stroke();
+  ox.font = `italic ${Math.max(12, Math.min(W, H) * .022)}px "EB Garamond", Garamond, Georgia, serif`; ox.fillStyle = penInk(); ox.textAlign = "left";
+  ox.fillText("the room — where it is heard", bx + 8, by - 10);
+  ox.restore();
+}
+/* a celestial chart: the kinds of death as orbits round a centre that is not drawn, with their names and counts written along the rings */
+function arcText(t, cx, cy, r, a0, sz) {
+  ox.save(); ox.font = `${sz}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "center"; ox.textBaseline = "middle";
+  let a = a0; for (const ch of t) { const w = ox.measureText(ch).width + sz * .18; a += w / 2 / r;
+    ox.save(); ox.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ox.rotate(a + Math.PI / 2); ox.fillText(ch, 0, 0); ox.restore(); a += w / 2 / r; }
+  ox.restore();
+}
+function drawSky() {
+  const cx = W / 2, cy = H * .5, R = Math.min(W, H) * .46, ink = penInk(), sz = Math.max(10, R * .045);
+  ox.save(); ox.strokeStyle = ink; ox.fillStyle = ink; ox.lineWidth = 1.2;
+  // radial bands, faint, alternating — like rays from a sun that is not there
+  ox.globalAlpha = .045;
+  for (let i = 0; i < 24; i += 2) { ox.beginPath(); ox.moveTo(cx, cy); ox.arc(cx, cy, R, i / 24 * 6.283 + T * .01, (i + 1) / 24 * 6.283 + T * .01); ox.closePath(); ox.fill(); }
+  ox.globalAlpha = 1;
+  ox.beginPath(); ox.arc(cx, cy, R, 0, 6.283); ox.stroke(); ox.beginPath(); ox.arc(cx, cy, R * 1.035, 0, 6.283); ox.stroke();
+  const shown = CATS.filter((c, i) => arrived[i] > 0 || counts[i] >= 1);
+  CATS.forEach((c, i) => {
+    const r = R * (.32 + i * .14);
+    ox.globalAlpha = (arrived[i] > 0 || counts[i] >= 1) ? .9 : .25;
+    ox.beginPath(); ox.arc(cx, cy, r, 0, 6.283); ox.stroke();
+    arcText((c.k + "  ·  " + fmtN(counts[i])).toUpperCase(), cx, cy, r + sz * .9, -Math.PI / 2 - .25 - i * .35, sz);
+  });
+  ox.globalAlpha = .9;
+  arcText("SYSTEMA  MORTIS  ·  SINCE THIS BEGAN", cx, cy, R * 1.075, -Math.PI / 2 - .7, sz * 1.15);
+  // two tilted rings, as in an armillary sphere
+  ox.globalAlpha = .5; ox.beginPath(); ox.ellipse(cx, cy, R * .98, R * .3, .4, 0, 6.283); ox.stroke();
+  ox.beginPath(); ox.ellipse(cx, cy, R * .98, R * .22, -.9 + T * .005, 0, 6.283); ox.stroke();
+  ox.restore();
+}
+
+/* the tally, kept by hand: columns of figures in a sloping script, one line added every few seconds, the way a page of calculations fills up */
+let tallyT = 0;
+function drawCalc() {
+  if (T - tallyT > 4 && stage > 0) { tallyT = T; tally.push(counts.slice()); if (tally.length > 40) tally.shift(); }
+  const sz = Math.max(13, Math.min(W, H) * .026), lh = sz * 1.15;
+  ox.save(); ox.fillStyle = penInk(); ox.font = `italic ${sz}px "Snell Roundhand", "Apple Chancery", "EB Garamond", Garamond, cursive`;
+  ox.translate(W * .08, H * .12); ox.rotate(-.32); ox.globalAlpha = .75; ox.textAlign = "right";
+  CATS.forEach((c, i) => {
+    const x = (i + 1) * Math.min(W, H) * .2; let y = 0;
+    ox.fillText(c.k, x, y); y += lh * 1.3;
+    for (const row of tally) { if (row[i] < 1) continue; ox.fillText(fmtN(row[i]), x, y); y += lh; }
+    if (tally.length && tally[tally.length - 1][i] >= 1) { ox.fillRect(x - sz * 5, y - lh * .55, sz * 5, 1.2); }
+  });
+  ox.restore();
+}
+
+/* ===== v74: on the floor =====
+   The projector hangs above and points down; the picture lies on the floor in front of the player.
+   Floor mode: the camera looks straight down into the funnel (like looking into a washing machine from above);
+   nearer and farther, zoom, and turning stay, but nothing tilts sideways. The words are written round the edge,
+   facing inward, so people standing on three sides can read them. The corner pin fits the picture to the floor. */
+let floor = false, Hinv = [1,0,0, 0,1,0, 0,0,1], pinOn = false;
+let corners = [[0,0],[1,0],[1,1],[0,1]];        // where picture corners land, in screen units (0..1, y up): bottom-left, bottom-right, top-right, top-left
+try { const c = JSON.parse(localStorage.getItem("top-corners")); if (c && c.length === 4) corners = c; } catch (e) {}
+function sq2quad(q) {
+  const [[x0,y0],[x1,y1],[x2,y2],[x3,y3]] = q;
+  const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+  let g = 0, h = 0;
+  if (Math.abs(dx3) > 1e-9 || Math.abs(dy3) > 1e-9) { const det = dx1 * dy2 - dx2 * dy1; g = (dx3 * dy2 - dx2 * dy3) / det; h = (dx1 * dy3 - dx3 * dy1) / det; }
+  return [x1 - x0 + g * x1, x3 - x0 + h * x3, x0, y1 - y0 + g * y1, y3 - y0 + h * y3, y0, g, h, 1];   // row-major
+}
+function inv3(m) {
+  const [a,b,c,d,e,f,g,h,i] = m, A = e*i - f*h, B = -(d*i - f*g), C = d*h - e*g, det = a*A + b*B + c*C;
+  const r = [A, -(b*i - c*h), b*f - c*e, B, a*i - c*g, -(a*f - c*d), C, -(a*h - b*g), a*e - b*d].map(v => v / det);
+  return [r[0], r[3], r[6], r[1], r[4], r[7], r[2], r[5], r[8]];     // to column-major for GL
+}
+function updatePin() { Hinv = inv3(sq2quad(corners)); try { localStorage.setItem("top-corners", JSON.stringify(corners)); } catch (e) {} placePins(); }
+const pinEls = corners.map((c, i) => { const d = document.createElement("div"); d.className = "pin"; document.getElementById("pins").appendChild(d);
+  d.addEventListener("pointerdown", e => { d.setPointerCapture(e.pointerId); d.dataset.drag = 1; e.stopPropagation(); });
+  d.addEventListener("pointermove", e => { if (!d.dataset.drag) return; corners[i] = [Math.min(1.2, Math.max(-.2, e.clientX / W)), Math.min(1.2, Math.max(-.2, 1 - e.clientY / H))]; updatePin(); });
+  d.addEventListener("pointerup", () => { delete d.dataset.drag; });
+  return d; });
+function placePins() { pinEls.forEach((d, i) => { d.style.left = corners[i][0] * W + "px"; d.style.top = (1 - corners[i][1]) * H + "px"; d.classList.toggle("on", pinOn); }); }
+updatePin();
+// the overlay (words, charts) is drawn on its own canvas and laid into the picture, so it is warped and fitted with it
+const ovTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, ovTex);
+for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+function uploadOverlay() {
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, ovTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ov);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.activeTexture(gl.TEXTURE0);
+}
+/* words round the edge, facing in: a copy for each side people stand on (bottom, left, right; the player is at the top) */
+function arcIn(t, cx, cy, r, aMid, sz) {
+  ox.save(); ox.font = `${sz}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "center"; ox.textBaseline = "middle";
+  const ws = [...t].map(ch => ox.measureText(ch).width + sz * .12), span = ws.reduce((a, b) => a + b, 0) / r;
+  let a = aMid + span / 2;
+  for (let k = 0; k < ws.length; k++) { a -= ws[k] / 2 / r; ox.save(); ox.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ox.rotate(a - Math.PI / 2); ox.fillText([...t][k], 0, 0); ox.restore(); a -= ws[k] / 2 / r; }
+  ox.restore();
+}
+function floorWords(veil) {
+  const ink = veil > .5 ? "20,20,20" : "160,156,146", cx = W / 2, cy = H / 2, R = Math.min(W, H) * .47, sz = Math.max(12, Math.min(W, H) * .022);
+  const sides = [Math.PI / 2, 0, Math.PI];
+  if (labelA > .01 && !ending) {
+    ox.fillStyle = `rgba(${ink},${labelA})`;
+    for (const a of sides) { arcIn(labelTxt[0], cx, cy, R, a, sz); ox.fillStyle = `rgba(${ink},${labelA * .7})`; arcIn(labelTxt[1], cx, cy, R - sz * 1.4, a, sz * .85); ox.fillStyle = `rgba(${ink},${labelA})`; }
+  }
+  if (showCount && stage > 0) {
+    const t = CATS.filter((c, i) => arrived[i] > 0 || counts[i] >= 1).map(c => c.k + " " + fmtN(counts[CATS.indexOf(c)])).join("   ·   ");
+    ox.fillStyle = `rgba(${ink},.75)`;
+    for (const a of sides) arcIn(t, cx, cy, R - sz * 3.2, a, sz * .8);
+  }
+}
+
+/* ===== microphone (added to Act I) =====
+   One USB microphone listens to the room (not wired to the instrument). On start it measures the quiet for 2.5 s;
+   anything above it by the threshold counts as sound. The threshold is adjustable by hand.
+   - the one line: lives only while there is sound; its light and width follow the sound (switchable)
+   - dimming: while there is sound, the counted lines step back a little (switchable)
+   - auto end: after 20 s of sound in all, 6 s of continuous quiet ends the piece (off by default) */
+const snd = { mic: false, an: null, buf: null, db: -90, floor: -70, sens: 8, lv: 0, on: false, total: 0, quiet: 0, cal: 0, calv: [], sim: false, sn: 0, sdead: 0, auto: false };
+let actx = null, showOne = true, dimOn = true;
+function flash(t) { const f = document.getElementById("flash"); f.textContent = t; f.style.opacity = 1; clearTimeout(flash.t); flash.t = setTimeout(() => f.style.opacity = 0, 1800); }
+function showThr() { document.getElementById("thrV").textContent = "+" + snd.sens + " dB"; }
+async function startMic() {
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 }, sampleRate: { ideal: 48000 } } });
+    snd.stream = st;
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") await actx.resume();
+    snd.an = actx.createAnalyser(); snd.an.fftSize = 2048; snd.buf = new Float32Array(snd.an.fftSize);
+    actx.createMediaStreamSource(st).connect(snd.an); snd.mic = true; snd.sim = false; calibrate();
+    document.getElementById("micB").classList.add("on"); document.getElementById("simB").classList.remove("on");
+  } catch (e) { flash("no microphone here — use 擬似音 (S) to look"); }
+}
+function calibrate() { snd.cal = 2.5; snd.calv = []; flash("listening to the quiet… 2.5 s"); }
+/* ===== automatic running: pace and texture follow the sound =====
+   tempo: how fast the timeline moves. Quiet holds it back (to 0.3x); a strong, dense sound drives it on (to about 2.5x).
+   texture: at a sharp entry of sound (after a silence, or a sudden jump), the whole look changes at once — a cut, not a fade.
+   The busier the sound, the sooner the next change may come (from every 25 s when sparse, down to every 3 s). */
+/* each look is a colour AND a way of moving: how hard the trace is drawn in to the centre (z), which way and how fast it turns (r),
+   how much it is stirred (f), how long it lingers (d). A cut changes all of it at once, and throws the camera somewhere else. */
+/* looks, now grouped by the manuscript they are made on. Each sets the material (how the picture is made),
+   the colour, and how the trace moves and lingers. */
+const LOOKS = [
+  { mat: 0, tone: 0, mo: { z: 0.0006, r: 0.0030, f: .0009, d: 0.925 } },                 // plain light on black
+  { mat: 0, tone: 0, mo: { z: 0.0015, r: -0.0080, f: .0003, d: 0.945 } },
+  { mat: 1, tone: 1, mo: { z: 0.0004, r: 0.0060, f: .0022, d: 0.92 } },                   // glossy plate, amber ink
+  { mat: 1, tone: 0, mo: { z: 0.0008, r: -0.0050, f: .0014, d: 0.93 } },                  // glossy plate, black and white
+  { mat: 2, tone: 2, mo: { z: 0.0, r: 0.0, f: .0006, d: 0.94 } },           // spacecraft mosaic, blueprint
+  { mat: 2, tone: 3, mo: { z: 0.0, r: 0.0, f: .0004, d: 0.93 } },           // spacecraft mosaic, pink halftone
+  { mat: 2, tone: 4, mo: { z: 0.0, r: 0.0, f: .0010, d: 0.95 } },           // spacecraft mosaic, orange plate
+  { mat: 3, tone: 6, mo: { z: 0.0, r: 0.0, f: .0004, d: 0.93 } },                         // the spread of two systems, engraved
+  { mat: 3, tone: 1, mo: { z: 0.0, r: 0.0, f: .0006, d: 0.94 } },
+  { mat: 4, tone: 0, calc: true, mo: { z: 0.0006, r: 0.0040, f: .0010, d: 0.94 } },                   // the record, and the light falling on it
+  { mat: 5, tone: 0, mo: { z: 0.0, r: 0.0, f: .0004, d: 0.90 } },                         // long exposure: the sound opens the shutter
+  { mat: 5, tone: 1, mo: { z: 0.0008, r: 0.0030, f: .0006, d: 0.90 } },
+  { mat: 6, tone: 0, mo: { z: 0.0004, r: 0.0040, f: .0010, d: 0.93 } },                   // false colour: one plate per voice, exposed apart
+  { mat: 6, tone: 0, mo: { z: 0.0012, r: -0.0060, f: .0004, d: 0.94 } },
+  { mat: 7, tone: 0, mo: { z: 0.0004, r: 0.0020, f: .0008, d: 0.95 } },                   // stipple: the light set down as dots
+  { mat: 8, tone: 0, mo: { z: 0.0006, r: 0.0050, f: .0018, d: 0.95 } },                   // airbrush through a moving stencil, scratched highlights
+  { mat: 8, tone: 0, mo: { z: 0.0016, r: -0.0030, f: .0008, d: 0.94 } },
+  { mat: 9, tone: 0, mo: { z: 0.0006, r: 0.0030, f: .0010, d: 0.93 } },                   // collage: torn pieces of different moments, floating at different depths
+  { mat: 9, tone: 0, mo: { z: 0.0012, r: -0.0040, f: .0006, d: 0.94 } },
+];
+let MO = { ...LOOKS[0].mo };
+let lookIdx = 0, lastCut = -99, busy = 0, prevOn = false, quietRun = 0, prevLv = 0;
+/* what each manuscript sets: its colour, and the motion of the feedback that suits it */
+function setMat(m) { mat = m; const sel = document.getElementById("matS"); if (sel) sel.value = String(m);
+  if (m === 2) mosFill = true;
+  if (m === 2 || m === 5) { mosSeed = Math.random() * 10; for (const f of mos) { gl.bindFramebuffer(gl.FRAMEBUFFER, f.f); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
+  if (m === 9) colReset();
+  if (m === 4) bandDir = Math.random() < .5 ? -1 : 1; }
+function applyLook(L) { setMat(L.mat || 0); tone = L.tone; mosaic = !!L.mosaic; room = !!L.room; spec = !!L.spec; sky = !!L.sky; calc = !!L.calc; record = !!L.record; invert = !!L.invert;
+  MO = { ...(L.mo || LOOKS[0].mo) }; syncLookUI(); }
+function syncLookUI() {
+  const tb = document.getElementById("toneB"); if (tb) { tb.textContent = TONES[tone]; tb.classList.toggle("on", !!tone); }
+  for (const [id, v] of [["mosB", mosaic], ["invB", invert], ["roomB", room], ["skyB", sky], ["specB", spec], ["calcB", calc], ["recB", record]]) { const b = document.getElementById(id); if (b) b.classList.toggle("on", v); }
+}
+function camThrow() {                     // the camera is thrown to another place; it then eases back toward the stage's own path
+  cam.az += (Math.random() < .5 ? -1 : 1) * (0.8 + Math.random() * 2.2);
+  cam.dist *= 0.45 + Math.random() * 1.6;
+  cam.tilt = Math.max(12, Math.min(86, cam.tilt + (Math.random() - .5) * 50));
+  cam.fov = Math.max(30, Math.min(85, cam.fov + (Math.random() - .5) * 30));
+}
+/* automatic running, in scenes. one manuscript holds the floor long enough to say what it has to say;
+   inside it, the sound keeps turning it over: the camera is thrown, the feedback changes its drift, accents particular to that manuscript.
+   the scene changes only after its minimum, and then at a breath — the first sound after a silence — or when its maximum runs out. */
+const SCENES = [
+  { mat: 0, tones: [0],    mo: [{ z: .0006, r: .0030, f: .0009, d: .925 }, { z: .0015, r: -.0080, f: .0003, d: .945 }, { z: -.0008, r: .0050, f: .0015, d: .93 }] },
+  { mat: 1, tones: [0, 1], mo: [{ z: .0004, r: .0060, f: .0022, d: .92 }, { z: .0008, r: -.0050, f: .0014, d: .93 }] },
+  { mat: 2, tones: [2, 3], mo: [{ z: 0, r: 0, f: .0006, d: .94 }, { z: 0, r: 0, f: .0012, d: .93 }] },
+  { mat: 3, tones: [6],    mo: [{ z: 0, r: 0, f: .0004, d: .93 }, { z: 0, r: 0, f: .0009, d: .94 }] },
+  { mat: 4, tones: [0], calc: true, mo: [{ z: .0006, r: .0040, f: .0010, d: .94 }, { z: .0010, r: -.0030, f: .0006, d: .94 }] },
+  { mat: 5, tones: [0],    mo: [{ z: 0, r: 0, f: .0004, d: .90 }, { z: .0008, r: .0030, f: .0006, d: .90 }, { z: -.0006, r: -.0040, f: .0004, d: .91 }] },
+  { mat: 6, tones: [0],    mo: [{ z: .0004, r: .0040, f: .0010, d: .93 }, { z: .0012, r: -.0060, f: .0004, d: .94 }] },
+  { mat: 7, tones: [0],    mo: [{ z: .0004, r: .0020, f: .0008, d: .95 }, { z: .0010, r: -.0040, f: .0004, d: .94 }] },
+  { mat: 8, tones: [0],    mo: [{ z: .0006, r: .0050, f: .0018, d: .95 }, { z: .0016, r: -.0030, f: .0008, d: .94 }] },
+  { mat: 9, tones: [0],    mo: [{ z: .0006, r: .0030, f: .0010, d: .93 }, { z: .0012, r: -.0040, f: .0006, d: .94 }] },
+];
+let sceneIdx = -1, sceneT = 0, sceneMin = 60, sceneMax = 120, deck = [], phraseT = 0, toneSwapped = false, moIdx = 0;
+function sceneLen() { const v = +document.getElementById("sceneLen").value;
+  const base = v || Math.max(50, Math.min(200, TOTAL_MIN * 60 / SCENES.length));
+  sceneMin = base * .75; sceneMax = base * 1.35; }
+function nextScene() {
+  if (!deck.length) { deck = SCENES.map((_, i) => i).sort(() => Math.random() - .5); if (deck[0] === sceneIdx) deck.push(deck.shift()); }
+  sceneIdx = deck.shift(); const S = SCENES[sceneIdx]; moIdx = 0; toneSwapped = false;
+  applyLook({ mat: S.mat, tone: S.tones[0], calc: !!S.calc, mo: S.mo[0] }); camThrow();
+  sceneT = 0; phraseT = 0; sceneLen(); lastCut = T; }
+function phrase(big) {                      // a turn inside the scene
+  const S = SCENES[sceneIdx];
+  camThrow();
+  if (S.mo.length > 1 && (big || Math.random() < .5)) { moIdx = (moIdx + 1 + Math.floor(Math.random() * (S.mo.length - 1))) % S.mo.length; MO = { ...S.mo[moIdx] }; }
+  else MO = { ...MO, r: -MO.r, z: MO.z * (Math.random() < .5 ? -1 : 1.6) };   // the drift turns back on itself, or the zoom swells
+  if (S.tones.length > 1 && !toneSwapped && sceneT > sceneMin * .45) { toneSwapped = true; tone = S.tones[1]; syncLookUI(); }   // once, past the middle, the same plate in its second ink
+  if (mat === 9 && pieces.length) paste(fbs[ping].t, big ? 4 : 2);                    // a handful of new pieces
+  if (mat === 2) mosPh += .5;                                                           // a burst of tiles
+  if (mat === 4) bandDir = -bandDir;                                                    // the light turns back across the page
+  phraseT = 0; }
+function autoStep(rdt) {
+  const live = snd.mic || snd.sim;
+  tempoLv += ((live ? snd.lv : 0.35) - tempoLv) * Math.min(1, rdt * 0.6);
+  tempo = live ? 0.3 + 2.2 * tempoLv : 1;
+  busy += ((snd.on ? 1 : 0) - busy) * Math.min(1, rdt * 0.15);
+  const breath = snd.on && !prevOn && quietRun > 1.2;            // the first sound after a silence
+  const onset = snd.on && (!prevOn && quietRun > 0.5 || snd.lv - prevLv > 0.15);
+  if (snd.on) quietRun = 0; else quietRun += rdt;
+  prevOn = snd.on; prevLv = snd.lv;
+  if (!autoRun || !live || ending) return;
+  if (sceneIdx < 0) { nextScene(); return; }
+  sceneT += rdt; phraseT += rdt;
+  if ((sceneT > sceneMin && breath) || sceneT > sceneMax) { nextScene(); return; }
+  const gap = 10 - 6 * busy;                                     // turns inside a scene: about every 4–10 s, on a sound
+  if ((onset && phraseT > gap) || phraseT > 16) phrase(breath);
+}
+function sndStep(rdt) {
+  if (snd.mic && snd.an) {
+    snd.an.getFloatTimeDomainData(snd.buf); let q = 0; for (const x of snd.buf) q += x * x;
+    snd.db = 20 * Math.log10(Math.sqrt(q / snd.buf.length) + 1e-9);
+    if (snd.cal > 0) { snd.calv.push(snd.db); snd.cal -= rdt;
+      if (snd.cal <= 0) { const v = snd.calv.slice().sort((a, b) => a - b); snd.floor = Math.max(-90, v[Math.floor(v.length * .6)] ?? -70); flash("quiet = " + snd.floor.toFixed(1) + " dB"); }
+      snd.on = false; snd.lv *= .9; return; }
+    const thr = snd.floor + snd.sens;
+    snd.on = snd.db > thr;
+    const v = Math.max(0, Math.min(1, (snd.db - thr) / 24));
+    snd.lv += (v - snd.lv) * (v > snd.lv ? .3 : .08);
+  } else if (snd.sim) {
+    if (snd.sdead > 0) { snd.sdead -= rdt; snd.on = false; snd.lv *= .9; }
+    else { snd.sn += (Math.random() - .5) * rdt * 1.2; snd.sn *= .995; const v = Math.max(0, Math.min(1, .45 + snd.sn));
+      snd.lv += (v - snd.lv) * .2; snd.on = true; if (Math.random() < rdt * .03) snd.sdead = 3 + Math.random() * 5; }
+  } else { snd.on = false; snd.lv *= .9; }
+  if (snd.mic || snd.sim) {
+    if (snd.on) { snd.total += rdt; snd.quiet = 0; } else snd.quiet += rdt;
+    if (snd.auto && !ending && snd.total >= 20 && snd.quiet >= 6) endIt();
+  }
+  const m = document.getElementById("meter"); if (m) { const n = Math.round(snd.lv * 8); m.textContent = "■".repeat(n) + "·".repeat(8 - n); }
+}
+/* the one line: born at the edge when a sound begins, reaching in; when the sound stops it drains into the centre */
+const one = { th: 0, r0: 0, r1: 0, lv: 0, alive: false };
+function oneStep(rdt) {
+  const on = snd.on && !ending;
+  if (on && !one.alive) { one.alive = true; one.th = Math.random() * 6.2832; one.r0 = 2.0; one.r1 = 2.0; }
+  if (on) { one.r1 = Math.max(0.05, one.r1 - rdt * 0.9); one.r0 = 2.0; }
+  else if (one.alive) { one.r0 = Math.max(0, one.r0 - rdt * 0.8); if (one.r0 <= one.r1 + 0.01) one.alive = false; }
+  one.lv += ((on ? snd.lv : 0) - one.lv) * (on ? .25 : .08);
+}
+function drawOneLine() {
+  if (!one.alive && one.lv < .01) return;
+  const pts = [], rA = Math.max(one.r1, 0.01), rB = Math.max(one.r0, rA);
+  for (let i = 0; i <= 160; i++) {
+    const r = rB - (rB - rA) * (i / 160); if (r <= 0) break;
+    const th = one.th + 2.4 * Math.log(2.0 / Math.max(r, 0.03)) + T * 0.12;
+    const p = project([Math.cos(th) * r, Math.sin(th) * r, funnelZ(r)]); if (p) pts.push(p);
+  }
+  if (pts.length < 2) return;
+  const s = Math.min(W, H) / 800, w = (1.2 + 7 * one.lv) * s, a = Math.min(1, .25 + .9 * one.lv);
+  const light = ([3, 4, 5, 6].includes(tone) && !invert) || mat === 4;           // on paper tones the line is ink
+  ox.save(); ox.lineCap = "round"; ox.lineJoin = "round";
+  ox.shadowColor = light ? `rgba(20,12,12,${a * .5})` : `rgba(255,255,255,${a * .8})`; ox.shadowBlur = 6 + 22 * one.lv;
+  ox.strokeStyle = light ? `rgba(20,12,12,${a})` : `rgba(255,252,244,${a})`; ox.lineWidth = w;
+  ox.beginPath(); pts.forEach((p, i) => i ? ox.lineTo(p[0], p[1]) : ox.moveTo(p[0], p[1])); ox.stroke(); ox.restore();
+}
+
+/* ===== installation visualization (not a record) =====
+   A view of how the piece would look in a room: the picture on a 3 m floor, a projector above, the player at a table at the far edge,
+   seen from a visitor standing at the near edge. Marked "installation visualization" on screen. */
+let inst = false;
+const IV = { S: 3.0, P: [0, 1.65, -3.3], tgt: [0, 0, .25], tan: Math.tan(26 * Math.PI / 180), f: [0,0,1], r: [1,0,0], u: [0,1,0] };
+const v3 = { sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]], dot: (a, b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  cross: (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]], norm: a => { const l = Math.hypot(...a); return a.map(x => x / l); } };
+(function ivSetup() { IV.f = v3.norm(v3.sub(IV.tgt, IV.P)); IV.r = v3.norm(v3.cross([0, 1, 0], IV.f)); IV.u = v3.cross(IV.f, IV.r);
+  // keep x to the right on screen
+  if (v3.dot(IV.r, [1, 0, 0]) < 0) IV.r = IV.r.map(x => -x); IV.u = v3.norm(v3.cross(IV.f, IV.r)); if (IV.u[1] < 0) IV.u = IV.u.map(x => -x); })();
+const ivc = document.getElementById("iv"), ivx = ivc.getContext("2d");
+function ivProj(q) { const v = v3.sub(q, IV.P), z = v3.dot(v, IV.f); if (z <= .05) return null;
+  const x = v3.dot(v, IV.r) / z / IV.tan / ASP, y = v3.dot(v, IV.u) / z / IV.tan; return [(x * .5 + .5) * W, (.5 - y * .5) * H]; }
+function ivDraw() {
+  ivc.width = W * DPR; ivc.height = H * DPR; ivx.setTransform(DPR, 0, 0, DPR, 0, 0); ivx.clearRect(0, 0, W, H);
+  const S = IV.S, zt = S / 2 + .55;
+  const poly = (pts, fill, stroke) => { const p = pts.map(ivProj); if (p.some(x => !x)) return; ivx.beginPath(); p.forEach((q, i) => i ? ivx.lineTo(q[0], q[1]) : ivx.moveTo(q[0], q[1])); ivx.closePath();
+    if (fill) { ivx.fillStyle = fill; ivx.fill(); } if (stroke) { ivx.strokeStyle = stroke; ivx.lineWidth = 1; ivx.stroke(); } };
+  // projector above the middle of the floor, and the edges of its light
+  const pj = [0, 3.1, 0]; const c = [[-S/2, 0, -S/2], [S/2, 0, -S/2], [S/2, 0, S/2], [-S/2, 0, S/2]];
+  const pp = ivProj(pj); ivx.strokeStyle = "rgba(255,255,255,.07)";
+  if (pp) for (const k of c) { const q = ivProj(k); if (q) { ivx.beginPath(); ivx.moveTo(pp[0], pp[1]); ivx.lineTo(q[0], q[1]); ivx.stroke(); } }
+  poly([[-.18, 3.18, -.12], [.18, 3.18, -.12], [.18, 3.18, .12], [-.18, 3.18, .12]], "rgba(0,0,0,.95)", "rgba(255,255,255,.18)");
+  poly([[-.18, 3.02, -.12], [.18, 3.02, -.12], [.18, 3.18, -.12], [-.18, 3.18, -.12]], "rgba(0,0,0,.95)", "rgba(255,255,255,.18)");
+  // the player behind a table at the far edge
+  const rim = "rgba(255,255,255,.22)", body = "rgba(3,3,3,.96)";
+  const hp = ivProj([0, 1.28, zt + .45]), sh = ivProj([0, 1.05, zt + .45]), hip = ivProj([0, .5, zt + .45]);
+  if (hp && sh && hip) { const k = Math.abs(hp[1] - hip[1]);
+    ivx.fillStyle = body; ivx.strokeStyle = rim; ivx.lineWidth = 1;
+    ivx.beginPath(); ivx.moveTo(sh[0] - k * .32, sh[1]); ivx.lineTo(sh[0] + k * .32, sh[1]); ivx.lineTo(hip[0] + k * .26, hip[1]); ivx.lineTo(hip[0] - k * .26, hip[1]); ivx.closePath(); ivx.fill(); ivx.stroke();
+    ivx.beginPath(); ivx.arc(hp[0], hp[1], k * .15, 0, 6.283); ivx.fill(); ivx.stroke();
+    // a guitar across the body
+    ivx.beginPath(); ivx.ellipse(sh[0] - k * .05, sh[1] + k * .42, k * .26, k * .17, -.35, 0, 6.283); ivx.fill(); ivx.stroke();
+    ivx.beginPath(); ivx.moveTo(sh[0] + k * .1, sh[1] + k * .3); ivx.lineTo(sh[0] + k * .75, sh[1] - k * .05); ivx.lineWidth = k * .05; ivx.stroke(); ivx.lineWidth = 1; }
+  const tw = .75, td = .3, th = .75, tz = zt;
+  poly([[-tw, th, tz - td], [tw, th, tz - td], [tw, th, tz + td], [-tw, th, tz + td]], body, rim);          // table top
+  poly([[-tw, 0, tz - td], [tw, 0, tz - td], [tw, th, tz - td], [-tw, th, tz - td]], body, rim);           // front
+  poly([[-.5, th, tz - .1], [-.12, th, tz - .1], [-.12, th + .1, tz - .1], [-.5, th + .1, tz - .1]], "rgba(10,10,10,.95)", rim);   // the boxes on the table
+  poly([[.1, th, tz - .1], [.48, th, tz - .1], [.48, th + .1, tz - .1], [.1, th + .1, tz - .1]], "rgba(10,10,10,.95)", rim);
+  ivx.font = `italic ${Math.max(11, Math.min(W, H) * .018)}px "EB Garamond", Garamond, Georgia, serif`; ivx.fillStyle = "rgba(200,196,186,.6)"; ivx.textAlign = "left";
+  ivx.fillText("installation visualization — not a documentation", 18, H - 18);
+}
+function setInst(on) { inst = on; ivc.style.display = on ? "block" : "none"; if (on) { ivDraw(); if (!floor) document.getElementById("floorB").click(); } }   // the visualization shows the floor version
+
+/* ===== export: the browser records the picture and the microphone it is listening to, in one file =====
+   Picture and sound come from the same moment, so they cannot drift apart. On Chrome the file is written straight to disk as it records. */
+let rec = null;
+function pickMime() {
+  for (const m of ["video/mp4;codecs=avc1.640033,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"])
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; };
+async function startRec() {
+  const v = document.getElementById("outR").value; OUT = v ? v.split("x").map(Number) : null; resize();
+  const mime = pickMime(); if (!mime) { flash("this browser cannot record"); OUT = null; resize(); return; }
+  const ext = mime.includes("mp4") ? "mp4" : "webm", name = `thresholds-act1-${stamp()}.${ext}`;
+  let writer = null;
+  if (window.showSaveFilePicker) {            // write to disk while recording (Chrome): long takes do not fill memory
+    try { const h = await showSaveFilePicker({ suggestedName: name, types: [{ description: "video", accept: { [mime.split(";")[0]]: ["." + ext] } }] }); writer = await h.createWritable(); }
+    catch (e) { flash("not started"); OUT = null; resize(); return; }
+  }
+  const vs = gc.captureStream(60), tracks = [...vs.getVideoTracks()];
+  if (snd.stream) tracks.push(...snd.stream.getAudioTracks()); else flash("no microphone: picture only");
+  const px = (OUT ? OUT[0] * OUT[1] : gc.width * gc.height);
+  const mr = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: px > 3e6 ? 45e6 : 28e6, audioBitsPerSecond: 320000 });
+  const chunks = []; let q = Promise.resolve();
+  mr.ondataavailable = e => { if (!e.data.size) return; if (writer) q = q.then(() => writer.write(e.data)); else chunks.push(e.data); };
+  mr.onstop = async () => {
+    if (writer) { await q; await writer.close(); flash("saved: " + name); }
+    else { const url = URL.createObjectURL(new Blob(chunks, { type: mime })); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); flash("saved: " + name); }
+    OUT = null; resize();
+  };
+  mr.start(1000); rec = { mr, t0: performance.now() };
+  const b = document.getElementById("recOut"); b.classList.add("on");
+  rec.iv = setInterval(() => { const s = Math.floor((performance.now() - rec.t0) / 1000); b.textContent = `■ 停止 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }, 500);
+}
+function stopRec() { if (!rec) return; clearInterval(rec.iv); rec.mr.stop(); rec = null; const b = document.getElementById("recOut"); b.classList.remove("on"); b.textContent = "● 書き出し"; }
+
+/* ===== polyphony =====
+   Each kind of death is a voice: its own funnel with its own position in space, its own tilted axis, size and turning,
+   all drifting on different slow cycles. Each voice listens to its own band of the sound:
+   people ← low-mid, stars ← high, land animals ← low, fish ← mid, insects ← very high.
+   So a change in the timbre of the feedback moves some voices and leaves others still. */
+const BANDS = [[250, 800], [2500, 8000], [40, 250], [800, 2500], [8000, 16000]];
+const V = CATS.map((c, i) => ({ acc: 0, draw: 0, per: 1, band: 0, bmax: 1e-6, ph: Math.random() * 100, turn: 0, gain: 1, mat: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+  w: [0.031 + i * 0.013, 0.023 + i * 0.017, 0.019 + i * 0.011, 0.027 + i * 0.007], dir: i % 2 ? -1 : 1 }));
+let fbuf2 = null;
+function bandsStep(rdt) {
+  if (snd.mic && snd.an) {
+    if (!fbuf2) fbuf2 = new Float32Array(snd.an.frequencyBinCount);
+    snd.an.getFloatFrequencyData(fbuf2); const hz = (actx ? actx.sampleRate : 48000) / snd.an.fftSize;
+    BANDS.forEach((bd, i) => { let e = 0, n = 0; for (let k = Math.floor(bd[0] / hz); k <= Math.min(fbuf2.length - 1, Math.ceil(bd[1] / hz)); k++) { e += Math.pow(10, fbuf2[k] / 10); n++; }
+      e = n ? e / n : 0; V[i].bmax = Math.max(V[i].bmax * (1 - rdt * .05), e); const x = snd.on ? Math.min(1, Math.sqrt(e / V[i].bmax)) : 0;
+      V[i].band += (x - V[i].band) * Math.min(1, rdt * 4); });
+  } else if (snd.sim) {
+    V.forEach((v, i) => { const x = snd.on ? Math.max(0, Math.min(1, .5 + .5 * Math.sin(T * (0.3 + i * 0.21) + v.ph) * Math.sin(T * (0.11 + i * 0.07)))) * snd.lv * 1.6 : 0;
+      v.band += (x - v.band) * Math.min(1, rdt * 3); });
+  } else V.forEach(v => { v.band += (0.3 - v.band) * Math.min(1, rdt); });
+}
+const mT = (x, y, z) => [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1];
+const mS = k => [k,0,0,0, 0,k,0,0, 0,0,k,0, 0,0,0,1];
+const mRX = a => { const c = Math.cos(a), s = Math.sin(a); return [1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]; };
+const mRY = a => { const c = Math.cos(a), s = Math.sin(a); return [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]; };
+function voicesStep(rdt) {
+  bandsStep(rdt);
+  const n = CATS.filter((c, i) => arrived[i] > 0).length;
+  V.forEach((v, i) => {
+    const drive = 0.45 + 1.6 * v.band;                 // this voice's own tempo
+    v.ph += rdt * drive;
+    const p = v.ph, spread = n > 1 ? 1 : 0.25;          // alone, a voice stays near the centre; with others they part
+    const x = spread * 0.85 * Math.sin(p * v.w[0] * 6.28 + i), y = spread * 0.7 * Math.sin(p * v.w[1] * 6.28 + i * 2.1), z = spread * 0.45 * Math.sin(p * v.w[2] * 6.28 + i * 0.7);
+    const ax = 0.9 * Math.sin(p * v.w[3] * 6.28 + i * 1.3), ay = 0.8 * Math.sin(p * v.w[1] * 4.0 + i);
+    const sc = (0.75 + 0.25 * Math.sin(p * v.w[2] * 5 + i)) * (0.85 + 0.5 * v.band);
+    v.mat = mul(mT(x, y, z), mul(mRX(ax), mul(mRY(ay), mS(sc))));
+    v.turn += rdt * v.dir * (0.15 + 1.4 * v.band);
+    const dens = Math.min(1, 0.9 / Math.pow(Math.max(v.draw, 1) / 20, 0.35)) * Math.min(1.8, Math.pow(v.per, 0.09));
+    v.gain = dens * (0.55 + 0.9 * v.band);
+  });
+}
+
+// ---------- loop ----------
+let mosFill = false, shut = 0, stipPh = 0, last = performance.now(), dimK = 1, mosPh = 0, mosSeed = 0, lvS = 0, bandA = .7, bandO = 0, bandDir = 1, mat = 0;
+/* the glossy plate: a page lying slightly turned on the table, photographed from above at a slant */
+function pageH() {
+  const t = T * .04, k = .07, sx = .5, sy = .5;
+  const q = [[.10 + k * Math.sin(t), .08 + k * .6 * Math.cos(t * 1.3)], [.92 + k * .5 * Math.sin(t * .8), .12 + k * Math.sin(t * 1.1)],
+             [.86 + k * Math.cos(t * .7), .95 - k * .4 * Math.sin(t)], [.06 + k * .7 * Math.cos(t * 1.2), .90 + k * .5 * Math.sin(t * .9)]];
+  return inv3(sq2quad(q));
+}
+const SNW = 384, NSLOT = 10, MAXP = 26;
+let snaps = null, snapN = 0, pieces = [], pasteAcc = 0, prevLv9 = 0;
+function makeSnaps() { snaps = [];
+  const SNH = Math.round(SNW / ASP);
+  for (let i = 0; i < NSLOT; i++) { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, SNW, SNH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    snaps.push({ t, f, h: SNH }); }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
+function snapTake(src) {                 // a print of this moment, kept for the pieces cut from it
+  if (!snaps) makeSnaps(); const sl = snaps[snapN % NSLOT]; snapN++;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sl.f); gl.viewport(0, 0, SNW, sl.h); gl.disable(gl.BLEND); gl.useProgram(cpP);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(CPU.t, 0); gl.uniform1f(CPU.uK, 1); quad(cpP);
+  gl.enable(gl.BLEND); return snapN - 1; }
+const DEPTHS = [-.15, .55, -.85, .15, .9];   // by voice: people, stars, land animals, fish, insects — low sounds far back, high ones near
+function cutPiece(snap) {               // a piece cut by hand: a rough quadrilateral, its edge wandering
+  const rim = [], pen = [], K = 18;
+  const w = .7 + Math.random() * .3, hh = .7 + Math.random() * .3, sk = (Math.random() - .5) * .3;
+  for (let k = 0; k < K; k++) { const t = k / K * 4, side = Math.floor(t), f = t - side;
+    let x, y; if (side === 0) { x = -1 + 2 * f; y = -1; } else if (side === 1) { x = 1; y = -1 + 2 * f; } else if (side === 2) { x = 1 - 2 * f; y = 1; } else { x = -1; y = 1 - 2 * f; }
+    x = x * w + y * sk + (Math.random() - .5) * .09; y = y * hh + (Math.random() - .5) * .09; rim.push([x, y]); }
+  const fan = [0, 0, 0]; for (let k = 0; k <= K; k++) { const r = rim[k % K]; fan.push(r[0], r[1], 1); }
+  let on = 1; for (let k = 0; k <= K + 2; k++) { const r = rim[k % K]; if (Math.random() < .12) on = 1 - on; else if (!on && Math.random() < .5) on = 1;
+    pen.push(r[0] * 1.03 + (Math.random() - .5) * .04, r[1] * 1.03 + (Math.random() - .5) * .04, on); }
+  const mk = a => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(a), gl.STATIC_DRAW); return b; };
+  let vi = 0, best = -1; V.forEach((v, i) => { if (arrived[i] > 0 && v.band / (v.bmax || 1) > best) { best = v.band / (v.bmax || 1); vi = i; } });
+  if (!(snd.mic || snd.sim)) vi = Math.floor(Math.random() * 5);
+  const z = DEPTHS[vi] * .7 + (Math.random() - .5) * .25, a = Math.random() * 6.283, rr = .15 + Math.random() * 1.0;
+  const sz = .12 + Math.random() * .22, cw = .28 + Math.random() * .3;
+  return { fb: mk(fan), pb: mk(pen), n: K + 2, np: K + 3, snap, x: Math.cos(a) * rr, y: Math.sin(a) * rr, z: z - .6, sz,
+    rz: Math.random() * 6.283, rx: (Math.random() - .5) * .7, wz: (Math.random() - .5) * 2.4, wx: (Math.random() - .5) * 1.6,
+    vz: .35 + Math.random() * .5, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, P: null,
+    crop: [.5 - cw / 2 + (Math.random() - .5) * .35, .5 - cw * ASP * .4 + (Math.random() - .5) * .35, cw, cw * ASP * .8], paper: [.80 + Math.random() * .1, .76 + Math.random() * .08, .66 + Math.random() * .08] }; }
+function dropPiece(p) { gl.deleteBuffer(p.fb); gl.deleteBuffer(p.pb); }
+function paste(src, k) { const sn = snapTake(src);
+  for (let i = 0; i < k; i++) { pieces.push(cutPiece(sn)); while (pieces.length > MAXP) dropPiece(pieces.shift()); }
+  pieces = pieces.filter(p => { if (snapN - 1 - p.snap >= NSLOT) { dropPiece(p); return false; } return true; }); }
+function colReset() { for (const p of pieces) dropPiece(p); pieces = []; colSeed = true; }
+let colSeed = false;
+function collage(rdt, src, out) {
+  if (colSeed) { colSeed = false; for (let i = 0; i < 6; i++) paste(src, 3); for (const p of pieces) p.z += Math.random() * 1.2; }        // start with a table already covered
+  pasteAcc += rdt; const jump = lvS - prevLv9 > .1; prevLv9 = lvS;
+  if (jump || pasteAcc > .7 - .5 * tempoLv) { pasteAcc = 0; paste(src, jump ? 3 : 1); }
+  const sp = 1 + 2.5 * tempoLv;                    // the pieces fly toward the eye, turning; faster with the sound
+  for (const p of pieces) { p.z += p.vz * sp * rdt; p.x += p.vx * sp * rdt; p.y += p.vy * sp * rdt; p.rz += p.wz * sp * rdt; p.rx += p.wx * sp * rdt;
+    p.P = mul(mT(p.x, p.y, p.z), mul(rotZ(p.rz), mul(mRX(p.rx), mS(p.sz)))); }
+  pieces = pieces.filter(p => { const w = M[3] * p.x + M[7] * p.y + M[11] * p.z + M[15]; if (w < .03 || p.z > 2.5) { dropPiece(p); return false; } return true; });
+  gl.bindFramebuffer(gl.FRAMEBUFFER, out.f); gl.viewport(0, 0, FBW, FBH); gl.disable(gl.BLEND);
+  gl.useProgram(cpP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(CPU.t, 0); gl.uniform1f(CPU.uK, .3); quad(cpP);   // the live picture, dim, is the table
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.useProgram(pP);
+  const la = gl.getAttribLocation(pP, "pv"); gl.enableVertexAttribArray(la);
+  gl.uniformMatrix4fv(PU.uM, false, new Float32Array(M)); gl.uniform1i(PU.uSnap, 0);
+  const wOf = p => M[3] * p.P[12] + M[7] * p.P[13] + M[11] * p.P[14] + M[15];
+  const order = pieces.slice().sort((a, b) => wOf(b) - wOf(a));        // far first
+  for (const p of order) { if (wOf(p) < .02) continue;
+    gl.uniformMatrix4fv(PU.uP, false, new Float32Array(p.P)); gl.uniform4fv(PU.uCrop, p.crop); gl.uniform3fv(PU.uPaper, p.paper);
+    gl.bindTexture(gl.TEXTURE_2D, snaps[p.snap % NSLOT].t);
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.fb); gl.vertexAttribPointer(la, 3, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(PU.uMode, 0); gl.uniform2f(PU.uOff, 0, 0); gl.drawArrays(gl.TRIANGLE_FAN, 0, p.n);
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.pb); gl.vertexAttribPointer(la, 3, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(PU.uMode, 2); gl.drawArrays(gl.LINE_STRIP, 0, p.np); }
+  gl.disableVertexAttribArray(la); gl.blendFunc(gl.ONE, gl.ONE); }
+function frame(now) {
+  const rdt = Math.min(.05, (now - last) / 1000); last = now; const dt = rdt * speed;
+  T += rdt; stageT += dt * (autoRun ? tempo : 1);      // in automatic running the sound speeds the timeline up or holds it back
+  if (!ending && stageT >= STAGES[stage].d && stage < STAGES.length - 1) setStage(stage + 1);
+  const n = STAGES[stage].n; totalRate = 0;
+  for (let i = 0; i < CATS.length; i++) {
+    if (!ending && i < n) arrived[i] = Math.min(1, arrived[i] + dt / RAMP);
+    if (ending) arrived[i] = Math.max(0, arrived[i] - rdt / 2.5);
+    const r = CATS[i].rate * arrived[i]; totalRate += r; counts[i] += r * dt;
+  }
+  if (stageT > 12) labelA = Math.max(0, labelA - rdt / 4);
+  sndStep(rdt); oneStep(rdt); autoStep(rdt);
+  dimK += ((dimOn ? 1 - .45 * snd.lv : 1) - dimK) * .03;      // while there is sound, the counted lines step back a little
+  const drawRate = Math.min(totalRate, CAP);
+  voicesStep(rdt);
+  { const act = CATS.map((c, i) => c.rate * arrived[i]), nAct = act.filter(r => r > 0).length || 1;
+    for (let i = 0; i < CATS.length; i++) { if (act[i] <= 0) continue;
+      const share = Math.min(act[i], CAP / nAct); V[i].draw = share; V[i].per = act[i] / share;
+      V[i].acc += share * rdt; const kk = Math.floor(V[i].acc); V[i].acc -= kk; if (kk > 0) spawn(kk, T, i); }
+    flush(); }
+  const per = linesPer();
+  const alpha = Math.min(1, 0.9 / Math.pow(Math.max(drawRate, 1) / 20, 0.35)) * Math.min(12, Math.pow(per, 0.33));
+  /* the text turns dark when the screen is mostly white */
+  const veil = Math.max(0, Math.min(1, (Math.log10(Math.max(1, totalRate)) - 6) / 2)) * Math.min(1, cam.dist / 4);
+  camStep(dt, rdt, T);
+  const src = fbs[ping], dst = fbs[1 - ping];
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.f); gl.viewport(0, 0, FBW, FBH);
+  if (analog) {
+    gl.disable(gl.BLEND);
+    gl.useProgram(fbP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); gl.uniform1i(FU.tex, 0);
+    gl.uniform1f(FU.uT, T); gl.uniform1f(FU.uAsp, ASP); gl.uniform1f(FU.uZoom, 1.0 + MO.z * Math.min(2, rdt * 60));
+    gl.uniform1f(FU.uRot, MO.r * Math.min(2, rdt * 60)); gl.uniform1f(FU.uFlow, MO.f * Math.min(2, rdt * 60)); gl.uniform1f(FU.uDecay, Math.pow(MO.d, rdt * 60));     // fade per second, not per frame
+    quad(fbP); gl.enable(gl.BLEND);
+  } else { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  linesSetup();
+  gl.uniformMatrix4fv(U.uM, false, new Float32Array(M));
+  gl.uniformMatrix4fv(U.uL, false, new Float32Array(V.flatMap(v => v.mat)));
+  gl.uniform1fv(U.uG, new Float32Array(V.map(v => v.gain))); gl.uniform1fv(U.uS, new Float32Array(V.map(v => v.turn)));
+  gl.uniform1f(U.uT, T); gl.uniform1f(U.uLife, LIFE); gl.uniform1f(U.uHole, HOLE); gl.uniform1f(U.uDepth, DEPTH);
+  gl.uniform1f(U.uAlpha, dimK * (analog ? (FBTYPE === gl.UNSIGNED_BYTE ? 1.2 : 0.75) : 1));    // density is handled per voice (gain)
+  if (mat === 3 && ML) {                 // the spread: the same deaths drawn under the low estimate (left) and the high one (right)
+    const gl_ = V.map(v => v.gain), lo = CATS.map(c => Math.pow(c.lo / c.rate, .25)), hi = CATS.map(c => Math.pow(c.hi / c.rate, .25));
+    gl.viewport(0, 0, FBW / 2, FBH); gl.uniformMatrix4fv(U.uM, false, new Float32Array(ML)); gl.uniform1fv(U.uG, new Float32Array(gl_.map((g, i) => g * lo[i])));
+    gl.drawArrays(gl.LINES, 0, N * 2);
+    gl.viewport(FBW / 2, 0, FBW / 2, FBH); gl.uniformMatrix4fv(U.uM, false, new Float32Array(MR)); gl.uniform1fv(U.uG, new Float32Array(gl_.map((g, i) => g * hi[i])));
+    gl.drawArrays(gl.LINES, 0, N * 2);
+    gl.viewport(0, 0, FBW, FBH);
+  } else if (mat === 6) {                // false colour: each filter plate exposes only its own voices, a moment apart and a little out of register
+    const PL = [[2, 0], [3], [1, 4]], g0 = V.map(v => v.gain), t0 = V.map(v => v.turn);
+    for (let k = 0; k < 3; k++) {
+      gl.colorMask(k === 0, k === 1, k === 2, false);
+      const dx = .012 * Math.sin(T * .11 + k * 2.1), dy = .012 * Math.cos(T * .09 + k * 1.7), Mk = M.slice();
+      for (let i = 0; i < 4; i++) { Mk[i * 4] += dx * M[i * 4 + 3]; Mk[i * 4 + 1] += dy * M[i * 4 + 3]; }
+      gl.uniformMatrix4fv(U.uM, false, new Float32Array(Mk));
+      gl.uniform1fv(U.uG, new Float32Array(g0.map((g, i) => PL[k].includes(i) ? g * 1.6 : 0)));
+      gl.uniform1fv(U.uS, new Float32Array(t0.map(t => t + (k - 1) * .09)));
+      gl.drawArrays(gl.LINES, 0, N * 2);
+    }
+    gl.colorMask(true, true, true, true); gl.uniformMatrix4fv(U.uM, false, new Float32Array(M));
+  } else gl.drawArrays(gl.LINES, 0, N * 2);
+  let showTex = dst.t;
+  if (mat === 5) {                       // the sound is the shutter: open while it plays, opened and shut by its pulse, so the streaks break into dashes
+    const pulse = (T * (2.5 + 9 * tempoLv)) % 1 < .62 ? 1 : 0;
+    const want = lvS > .08 ? pulse : 0; shut += (want - shut) * Math.min(1, rdt * 30);
+    const ms = mos[mping], md = mos[1 - mping];
+    gl.bindFramebuffer(gl.FRAMEBUFFER, md.f); gl.viewport(0, 0, FBW, FBH); gl.disable(gl.BLEND); gl.useProgram(exP);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(XU.uCur, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, ms.t); gl.uniform1i(XU.uPrev, 1); gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1f(XU.uOpen, shut * .07 * Math.min(2, rdt * 60)); gl.uniform1f(XU.uHold, Math.pow(shut > .5 ? .985 : .996, rdt * 60));
+    quad(exP); gl.enable(gl.BLEND); mping = 1 - mping; showTex = md.t;
+  }
+  if (mat === 2) {                       // the time mosaic
+    if (mosFill) { mosFill = false;            // start from the whole picture, so no empty tiles show the grid
+      gl.disable(gl.BLEND); gl.useProgram(exP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(XU.uCur, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(XU.uPrev, 1); gl.activeTexture(gl.TEXTURE0);
+      gl.uniform1f(XU.uOpen, 1); gl.uniform1f(XU.uHold, 0);
+      for (const f of mos) { gl.bindFramebuffer(gl.FRAMEBUFFER, f.f); gl.viewport(0, 0, FBW, FBH); quad(exP); } gl.enable(gl.BLEND); }
+    const ms = mos[mping], md = mos[1 - mping];
+    gl.bindFramebuffer(gl.FRAMEBUFFER, md.f); gl.viewport(0, 0, FBW, FBH); gl.disable(gl.BLEND); gl.useProgram(msP);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(MU.uCur, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, ms.t); gl.uniform1i(MU.uPrev, 1); gl.activeTexture(gl.TEXTURE0);
+    mosPh += rdt * (0.04 + 0.22 * tempoLv);             // tiles per second follow the sound
+    gl.uniform1f(MU.uPh, mosPh); gl.uniform1f(MU.uW, 0.035); gl.uniform1f(MU.uAsp, ASP); gl.uniform1f(MU.uSeed, mosSeed);
+    quad(msP); gl.enable(gl.BLEND); mping = 1 - mping; showTex = md.t;
+  }
+  if (mat === 9) { const md = mos[1 - mping]; collage(rdt, dst.t, md); mping = 1 - mping; showTex = md.t; }
+  drawOverlay(veil); uploadOverlay();
+  {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, gc.width, gc.height); gl.disable(gl.BLEND);
+    gl.useProgram(dP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, showTex); gl.uniform1i(DU.tex, 0);
+    gl.uniform1f(DU.uMat, inst ? 0 : mat); gl.uniformMatrix3fv(DU.uHP, false, new Float32Array(pageH()));
+    gl.uniform1f(DU.uCurl, .6 + .4 * Math.sin(T * .13)); gl.uniform1f(DU.uGx, .5 + .6 * Math.sin(T * .09 + 1.3));
+    lvS += (snd.lv - lvS) * .08; bandA += rdt * (0.05 + 0.6 * tempoLv) * bandDir; bandO = .35 * Math.sin(T * .05 + bandA);
+    stipPh += rdt * (.15 + 3.5 * lvS);                  // the stipple is set down again, faster while there is sound
+    gl.uniform1f(DU.uLv, lvS); gl.uniform1f(DU.uBandA, bandA); gl.uniform1f(DU.uBandO, bandO); gl.uniform1f(DU.uTerm, Math.floor(stipPh));
+    gl.uniform2f(DU.uPx, 1 / FBW, 1 / FBH); gl.uniform1f(DU.uT, T); gl.uniform1f(DU.uAna, analog ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, ovTex); gl.uniform1i(DU.uOv, 1); gl.activeTexture(gl.TEXTURE0);
+    gl.uniformMatrix3fv(DU.uH, false, new Float32Array(Hinv));
+    gl.uniform1f(DU.uInst, inst ? 1 : 0); gl.uniform1f(DU.uTan, IV.tan); gl.uniform1f(DU.uS, IV.S);
+    gl.uniform3fv(DU.uCP, IV.P); gl.uniform3fv(DU.uCF, IV.f); gl.uniform3fv(DU.uCR, IV.r); gl.uniform3fv(DU.uCU, IV.u); gl.uniform1f(DU.uTone, tone); gl.uniform1f(DU.uAsp, ASP);
+    gl.uniform2f(DU.uRes, gc.width, gc.height); gl.uniform1f(DU.uMos, mosaic ? 1 : 0); gl.uniform1f(DU.uInv, invert ? 1 : 0); gl.uniform1f(DU.uSpec, spec ? 1 : 0);
+    quad(dP); gl.enable(gl.BLEND); ping = 1 - ping;
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- controls ----------
+const endIt = () => { ending = true; fall = 0; labelA = 0; };
+document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => setStage(+b.dataset.s));
+document.getElementById("endB").onclick = endIt;
+document.getElementById("spd").onchange = e => speed = +e.target.value;
+document.getElementById("cap").onchange = e => CAP = +e.target.value;
+document.getElementById("anaB").onclick = e => { analog = !analog; e.target.classList.toggle("on", analog); makeFB(); };
+const cycleTone = () => { tone = (tone + 1) % TONES.length; const b = document.getElementById("toneB"); b.textContent = TONES[tone]; b.classList.toggle("on", !!tone); };
+document.getElementById("toneB").onclick = cycleTone;
+const tgl = (id, f) => document.getElementById(id).onclick = e => e.target.classList.toggle("on", f());
+tgl("mosB", () => (mosaic = !mosaic)); tgl("floorB", () => (floor = !floor));
+tgl("pinB", () => { pinOn = !pinOn; placePins(); return pinOn; });
+document.getElementById("pinR").onclick = () => { corners = [[0,0],[1,0],[1,1],[0,1]]; updatePin(); }; tgl("specB", () => (spec = !spec)); tgl("calcB", () => (calc = !calc)); tgl("roomB", () => (room = !room)); tgl("skyB", () => (sky = !sky)); tgl("invB", () => (invert = !invert)); tgl("recB", () => (record = !record));
+document.getElementById("camB").onclick = e => { camAuto = !camAuto; e.target.classList.toggle("on", camAuto); e.target.textContent = camAuto ? "動く" : "止める"; };
+document.getElementById("cntB").onclick = e => { showCount = !showCount; e.target.classList.toggle("on", showCount); };
+document.getElementById("rst").onclick = restart;
+document.getElementById("sceneLen").onchange = () => { sceneLen(); flash("one scene: " + Math.round(sceneMin) + "–" + Math.round(sceneMax) + " s"); };
+document.getElementById("matS").onchange = e => setMat(+e.target.value);
+document.getElementById("len").onchange = e => { TOTAL_MIN = +e.target.value; buildStages(); flash("length " + TOTAL_MIN + " min"); };
+tgl("autoRun", () => { autoRun = !autoRun; flash("automatic " + (autoRun ? "on: the sound sets the pace and the look" : "off")); return autoRun; });
+tgl("instB", () => { setInst(!inst); return inst; });
+document.getElementById("recOut").onclick = () => rec ? stopRec() : startRec();
+addEventListener("resize", () => { if (inst) ivDraw(); });
+document.getElementById("micB").onclick = startMic;
+document.getElementById("calB").onclick = () => { if (snd.mic) calibrate(); else startMic(); };
+const thr = d => { snd.sens = Math.max(1, Math.min(40, snd.sens + d)); showThr(); flash("threshold +" + snd.sens + " dB above the quiet"); };
+document.getElementById("thrM").onclick = () => thr(-1); document.getElementById("thrP").onclick = () => thr(1);
+tgl("simB", () => { snd.sim = !snd.sim; flash("simulated sound " + (snd.sim ? "on" : "off")); return snd.sim; });
+tgl("oneB", () => (showOne = !showOne));
+tgl("dimB", () => (dimOn = !dimOn));
+tgl("autoB", () => { snd.auto = !snd.auto; flash("auto end " + (snd.auto ? "on" : "off")); return snd.auto; });
+addEventListener("pointerdown", () => { if (actx && actx.state === "suspended") actx.resume(); }, { once: true });
+showThr();
+document.getElementById("tog").onclick = () => document.getElementById("ui").classList.toggle("hidden");
+addEventListener("keydown", e => {
+  if (e.key >= "0" && e.key <= "5") setStage(+e.key);
+  else if (e.key === "e") endIt();
+  else if (e.key === "t") cycleTone();
+  else if (e.key === "f") document.getElementById("floorB").click();
+  else if (e.key === "k") document.getElementById("pinB").click();
+  else if (e.key === "m") document.getElementById("mosB").click();
+  else if (e.key === "i") document.getElementById("invB").click();
+  else if (e.key === "r") document.getElementById("recB").click();
+  else if (e.key === "h") document.getElementById("ui").classList.toggle("hidden");
+  else if (e.key === "[") thr(-1);
+  else if (e.key === "]") thr(1);
+  else if (e.key === "n") { if (snd.mic) calibrate(); else startMic(); }
+  else if (e.key === "s") document.getElementById("simB").click();
+  else if (e.key === "x") document.getElementById("instB").click();
+  else if (e.key === "w") document.getElementById("recOut").click();
+  else if (e.key === "a") document.getElementById("autoB").click();
+  else if (e.key === "l") document.getElementById("oneB").click();
+  else if (e.key === "d") document.getElementById("dimB").click();
+  else if (e.key === "c") { showCount = !showCount; document.getElementById("cntB").classList.toggle("on", showCount); }
+});
+restart(); requestAnimationFrame(frame);
+startMic();
+</script>
+</body>
+</html>
