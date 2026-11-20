@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Thresholds of Presence — lit (study)</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font:12px/1.4 Georgia,serif;color:#999}
+canvas{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%)}
+#ui{position:fixed;left:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;transition:opacity .4s}
+#ui.hidden{opacity:0;pointer-events:none}
+button,label.b{background:#111;color:#bbb;border:1px solid #333;border-radius:4px;padding:5px 9px;font:inherit;cursor:pointer}
+button.on{border-color:#aaa;color:#fff}
+#fl{position:fixed;left:50%;top:14px;transform:translateX(-50%);opacity:0;transition:opacity .5s}
+#tg{position:fixed;right:10px;top:10px}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="fl"></div>
+<button id="tg">≡</button>
+<div id="ui">
+  <label class="b">画像を選ぶ<input id="file" type="file" accept="image/*" hidden></label>
+  <button id="cam">カメラ</button><button id="face">前／後</button>
+  <button id="mic">Mic</button><button id="sim">擬似音</button>
+  <span>起伏</span><input id="dp" type="range" min="5" max="100" value="35">
+  <span>光の高さ</span><input id="el" type="range" min="2" max="60" value="14">
+  <span>銀</span><input id="mt" type="range" min="0" max="100" value="70">
+</div>
+<script>
+/* Lit.
+   The camera's picture is not shown. It is turned into a surface: where the picture is light, the surface rises; where dark, it sinks.
+   The edges the lens drew — a hand, a jaw, a string — become crests. One low lamp is set beside that surface.
+   Crests throw the lamp back as silver; behind them falls a hard shadow; what is sunk stays black.
+   The room's sound walks the lamp around and lowers it. Nothing is compared with the frame before: each frame is lit as it is. */
+const c = document.getElementById("c"), gl = c.getContext("webgl", { antialias: false, alpha: false });
+const VS = `attribute vec2 p; varying vec2 uv; void main(){ uv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
+const FS = `precision highp float; varying vec2 uv; uniform sampler2D uS; uniform vec2 uR, uPx; uniform float uFlip, uDepth, uMet, uT; uniform vec3 uL;
+float h(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+vec2 sc(vec2 q){ return vec2(uFlip > .5 ? 1. - q.x : q.x, 1. - q.y); }
+float L(vec2 q){ return dot(texture2D(uS, sc(q)).rgb, vec3(.3, .59, .11)); }
+float Hh(vec2 q){ float s = L(q) * .4; s += (L(q + vec2(uPx.x, 0.) * 2.) + L(q - vec2(uPx.x, 0.) * 2.) + L(q + vec2(0., uPx.y) * 2.) + L(q - vec2(0., uPx.y) * 2.)) * .15; return s * uDepth; }  // a touch of smoothing: the sensor's noise is not a surface
+void main(){
+  float z = Hh(uv);
+  vec2 e = uPx * 3.; float asp = uR.x / uR.y;
+  float gx = (Hh(uv + vec2(e.x, 0.)) - Hh(uv - vec2(e.x, 0.))) / (2. * e.x * asp), gy = (Hh(uv + vec2(0., e.y)) - Hh(uv - vec2(0., e.y))) / (2. * e.y);
+  vec3 n = normalize(vec3(-gx, -gy, 1.));          // heights and distances both in screen heights
+  vec3 l = normalize(uL);
+  /* a hard shadow: walk toward the lamp; if the surface stands above the ray anywhere, this place is in the dark */
+  vec2 ld = normalize(l.xy); float tn = l.z / length(l.xy); float lit = 1.;
+  for (int i = 1; i <= 64; i++) { float dist = float(i) * 2.5 * uPx.y; vec2 q = uv + vec2(ld.x / asp, ld.y) * dist;
+    if (q.x < 0. || q.x > 1. || q.y < 0. || q.y > 1.) break;
+    if (Hh(q) > z + dist * tn) { lit = 0.; break; } }
+  /* a hollow gathers little of the light that comes back off the rest */
+  float mean = 0.; for (int i = 0; i < 8; i++) { float a = float(i) * .785; mean += Hh(uv + vec2(cos(a), sin(a)) * uPx * 12.); } mean /= 8.;
+  float occ = clamp(1. - (mean - z) * 6. / max(uDepth, .05), .15, 1.);
+  float dif = max(dot(n, l), 0.);
+  vec3 v = vec3(0., 0., 1.), hv = normalize(l + v);
+  float sp = pow(max(dot(n, hv), 0.), 70.);
+  float col = mix(dif, dif * .35 + sp * 1.8, uMet) * lit + .03 * occ * occ;
+  col *= occ;
+  float d = log2(1. + max(col, 0.) * 6.) / log2(7.);
+  d = smoothstep(0., 1., d) * .95 + d * .05;
+  d += (h(gl_FragCoord.xy + fract(uT) * 37.) - .5) / 255.;
+  gl_FragColor = vec4(vec3(d) * vec3(.97, .98, 1.), 1.);
+}`;
+function sh(t, s) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; }
+const P = gl.createProgram(); gl.attachShader(P, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(P, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(P); gl.useProgram(P);
+const U = {}; for (const k of ["uS","uR","uPx","uFlip","uDepth","uMet","uT","uL"]) U[k] = gl.getUniformLocation(P, k);
+const qb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, qb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+const la = gl.getAttribLocation(P, "p"); gl.enableVertexAttribArray(la); gl.vertexAttribPointer(la, 2, gl.FLOAT, false, 0, 0);
+const st = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, st);
+for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+let src = null, sw = 1, sh_ = 1, flip = 0, video = null, facing = "user";
+function fit(iw, ih) { const k = Math.min(innerWidth / iw, innerHeight / ih), d = Math.min(2, devicePixelRatio || 1);
+  const W = Math.round(iw * k * d), H = Math.round(ih * k * d); c.width = W; c.height = H; c.style.width = W / d + "px"; c.style.height = H / d + "px"; gl.viewport(0, 0, W, H); }
+function setSrc(el, iw, ih) { src = el; sw = iw; sh_ = ih; fit(iw, ih); upload(); }
+function upload() { if (!src) return; gl.bindTexture(gl.TEXTURE_2D, st); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); }
+addEventListener("resize", () => src && fit(sw, sh_));
+/* the room */
+const snd = { an: null, buf: null, floor: -70, lv: 0, sim: false, cal: 0, calv: [], sn: 0 };
+async function mic() { try { const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const a = new (window.AudioContext || window.webkitAudioContext)(); snd.an = a.createAnalyser(); snd.an.fftSize = 2048; snd.buf = new Float32Array(2048);
+  a.createMediaStreamSource(s).connect(snd.an); snd.cal = 2.5; snd.calv = []; flash("listening to the quiet…"); document.getElementById("mic").classList.add("on"); }
+  catch (e) { flash("no microphone here — 擬似音"); } }
+function sndStep(dt) {
+  if (snd.an) { snd.an.getFloatTimeDomainData(snd.buf); let q = 0; for (const v of snd.buf) q += v * v; const db = 20 * Math.log10(Math.sqrt(q / snd.buf.length) + 1e-9);
+    if (snd.cal > 0) { snd.calv.push(db); snd.cal -= dt; if (snd.cal <= 0) { const s = snd.calv.sort((a, b) => a - b); snd.floor = Math.max(-90, s[Math.floor(s.length * .6)]); } return; }
+    const v = Math.max(0, Math.min(1, (db - snd.floor - 8) / 24)); snd.lv += (v - snd.lv) * (v > snd.lv ? .3 : .06); }
+  else if (snd.sim) { snd.sn += (Math.random() - .5) * dt * 1.4; snd.sn *= .996; snd.lv += (Math.max(0, Math.min(1, .4 + snd.sn)) - snd.lv) * .1; }
+}
+let T = 0, last = performance.now(), DEPTH = .35, EL = 14, MET = .7, az = 2.3, lvS = 0;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; T += dt; sndStep(dt);
+  const live = snd.an || snd.sim; lvS += ((live ? snd.lv : .25) - lvS) * Math.min(1, dt * 1.5);
+  if (video && video.readyState >= 2) upload();
+  az += dt * (.03 + .5 * lvS);                                   // the lamp walks around; the sound hurries it
+  const el = EL * Math.PI / 180 * (1 - .5 * lvS);                  // and lowers it, so the shadows reach further
+  gl.uniform3f(U.uL, Math.cos(az) * Math.cos(el), Math.sin(az) * Math.cos(el), Math.sin(el));
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, st); gl.uniform1i(U.uS, 0);
+  gl.uniform2f(U.uR, c.width, c.height); gl.uniform2f(U.uPx, 1 / Math.min(c.width, 1280), 1 / Math.min(c.height, 720));
+  gl.uniform1f(U.uFlip, flip); gl.uniform1f(U.uDepth, DEPTH); gl.uniform1f(U.uMet, MET); gl.uniform1f(U.uT, T);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function flash(t) { const f = document.getElementById("fl"); f.textContent = t; f.style.opacity = 1; clearTimeout(flash.t); flash.t = setTimeout(() => f.style.opacity = 0, 2000); }
+function stopCam() { if (video) { video.srcObject.getTracks().forEach(t => t.stop()); video = null; document.getElementById("cam").classList.remove("on"); } }
+async function startCam() { try { const s = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } });
+  video = document.createElement("video"); video.srcObject = s; video.muted = true; video.playsInline = true; await video.play();
+  flip = facing === "user" ? 1 : 0; setSrc(video, video.videoWidth, video.videoHeight); document.getElementById("cam").classList.add("on"); } catch (e) { flash("no camera here"); } }
+document.getElementById("cam").onclick = () => video ? stopCam() : startCam();
+document.getElementById("face").onclick = async () => { facing = facing === "user" ? "environment" : "user"; if (video) { stopCam(); await startCam(); } };
+document.getElementById("file").onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => { stopCam(); flip = 0; setSrc(im, im.width, im.height); }; im.src = URL.createObjectURL(f); };
+document.getElementById("mic").onclick = mic;
+document.getElementById("sim").onclick = e => { snd.sim = !snd.sim; e.target.classList.toggle("on", snd.sim); };
+document.getElementById("dp").oninput = e => { DEPTH = e.target.value / 100; };
+document.getElementById("el").oninput = e => { EL = +e.target.value; };
+document.getElementById("mt").oninput = e => { MET = e.target.value / 100; };
+document.getElementById("tg").onclick = () => document.getElementById("ui").classList.toggle("hidden");
+addEventListener("keydown", e => { if (e.key === "h") document.getElementById("ui").classList.toggle("hidden"); });
+fit(16, 9); flash("カメラ、または画像を選ぶ");
+</script></body></html>
