@@ -2495,32 +2495,41 @@ function drawRoom() {
   ox.restore();
 }
 /* a celestial chart: the kinds of death as orbits round a centre that is not drawn, with their names and counts written along the rings */
-function arcText(t, cx, cy, r, a0, sz) {
+function arcText(t, cx, cy, r, a0, sz, sp = .18) {
   ox.save(); ox.font = `${sz}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "center"; ox.textBaseline = "middle";
-  let a = a0; for (const ch of t) { const w = ox.measureText(ch).width + sz * .18; a += w / 2 / r;
+  let a = a0; for (const ch of t) { const w = ox.measureText(ch).width + sz * sp; a += w / 2 / r;
     ox.save(); ox.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ox.rotate(a + Math.PI / 2); ox.fillText(ch, 0, 0); ox.restore(); a += w / 2 / r; }
   ox.restore();
 }
 function drawSky() {
-  const cx = W / 2, cy = H * .5, R = Math.min(W, H) * .46, ink = penInk(), sz = Math.max(10, R * .045);
-  ox.save(); ox.strokeStyle = ink; ox.fillStyle = ink; ox.lineWidth = 1.2;
-  // radial bands, faint, alternating — like rays from a sun that is not there
-  ox.globalAlpha = .045;
-  for (let i = 0; i < 24; i += 2) { ox.beginPath(); ox.moveTo(cx, cy); ox.arc(cx, cy, R, i / 24 * 6.283 + T * .01, (i + 1) / 24 * 6.283 + T * .01); ox.closePath(); ox.fill(); }
-  ox.globalAlpha = 1;
-  ox.beginPath(); ox.arc(cx, cy, R, 0, 6.283); ox.stroke(); ox.beginPath(); ox.arc(cx, cy, R * 1.035, 0, 6.283); ox.stroke();
-  const shown = CATS.filter((c, i) => arrived[i] > 0 || counts[i] >= 1);
+  /* an engraved chart, kept sparse: thin rings, small spaced capitals, only the names and the counts.
+     the orbits move: each its own slow turning, its own tilt, its centre a little off, so none keeps cutting through the deepest dark */
+  const cx = W / 2, cy = H * .5, R = Math.min(W, H) * .46, ink = penInk(), sz = Math.max(9, R * .03);
+  ox.save(); ox.strokeStyle = ink; ox.fillStyle = ink; ox.lineWidth = .7;
+  ox.globalAlpha = .6;
+  ox.beginPath(); ox.arc(cx, cy, R, 0, 6.283); ox.stroke(); ox.beginPath(); ox.arc(cx, cy, R * 1.03, 0, 6.283); ox.stroke();
   CATS.forEach((c, i) => {
-    const r = R * (.32 + i * .14);
-    ox.globalAlpha = (arrived[i] > 0 || counts[i] >= 1) ? .9 : .25;
+    const r = R * (.32 + i * .14), on = arrived[i] > 0 || counts[i] >= 1;
+    ox.globalAlpha = on ? .5 : .15;
     ox.beginPath(); ox.arc(cx, cy, r, 0, 6.283); ox.stroke();
-    arcText((c.k + "  ·  " + fmtN(counts[i])).toUpperCase(), cx, cy, r + sz * .9, -Math.PI / 2 - .25 - i * .35, sz);
+    ox.globalAlpha = on ? .75 : .2;
+    arcText((c.k + "   " + fmtN(counts[i])).toUpperCase(), cx, cy, r + sz * 1.1, -Math.PI / 2 - .25 - i * .35, sz, .55);
   });
-  ox.globalAlpha = .9;
-  arcText("SYSTEMA  MORTIS  ·  SINCE THIS BEGAN", cx, cy, R * 1.075, -Math.PI / 2 - .7, sz * 1.15);
-  // two tilted rings, as in an armillary sphere
-  ox.globalAlpha = .5; ox.beginPath(); ox.ellipse(cx, cy, R * .98, R * .3, .4, 0, 6.283); ox.stroke();
-  ox.beginPath(); ox.ellipse(cx, cy, R * .98, R * .22, -.9 + T * .005, 0, 6.283); ox.stroke();
+  ox.globalAlpha = .7;
+  arcText("SYSTEMA   MORTIS", cx, cy, R * 1.075, -Math.PI / 2 - .38, sz * 1.05, .7);
+  ox.lineWidth = .5;
+  for (let k = 0; k < 3; k++) {
+    const sp = [.011, -.007, .0045][k], ph = [0, 2.1, 4.2][k];
+    const tilt = ph + T * sp, off = R * (.05 + .05 * Math.sin(T * .006 + ph)), oa = ph * 1.7 + T * sp * .6;
+    const ex = cx + Math.cos(oa) * off, ey = cy + Math.sin(oa) * off;
+    const ra = R * (.86 + .1 * k), rb = R * (.42 + .08 * Math.sin(T * (.004 + k * .002) + ph) + .03 * k);   // never thinner than the dark at the centre
+    ox.globalAlpha = .32;
+    ox.beginPath(); ox.ellipse(ex, ey, ra, Math.abs(rb) + R * .04, tilt, 0, 6.283); ox.stroke();
+    /* a small mark travelling on each orbit */
+    const t = T * (.05 + k * .02) + ph, mx = ex + Math.cos(tilt) * Math.cos(t) * ra - Math.sin(tilt) * Math.sin(t) * (Math.abs(rb) + R * .04),
+      my = ey + Math.sin(tilt) * Math.cos(t) * ra + Math.cos(tilt) * Math.sin(t) * (Math.abs(rb) + R * .04);
+    ox.globalAlpha = .6; ox.beginPath(); ox.arc(mx, my, 1.6, 0, 6.283); ox.fill();
+  }
   ox.restore();
 }
 
