@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thresholds of Presence — the count (EMAF 2027)</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#888;
+  font-family:"EB Garamond",Garamond,Georgia,"Times New Roman",serif;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+#ui{position:fixed;left:0;right:0;bottom:0;background:rgba(6,6,6,.88);border-top:1px solid #1c1c1c;
+  padding:8px 10px;font:12px -apple-system,"Hiragino Sans",sans-serif;display:flex;flex-wrap:wrap;gap:6px;align-items:center;z-index:3}
+#ui.hidden{display:none}
+#ui .lab{color:#555;font-size:11px;margin:0 2px 0 6px}
+button,select{background:#141414;color:#bbb;border:1px solid #2a2a2a;border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit}
+button.on{background:#2c2c2c;color:#fff;border-color:#555}
+.pin{position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border:2px solid #fff;border-radius:50%;background:rgba(255,255,255,.15);z-index:6;touch-action:none;display:none}
+.pin.on{display:block}
+#tog{position:fixed;right:8px;top:8px;z-index:4;background:rgba(15,15,15,.6);transition:opacity .6s}
+#tog.idle{opacity:0}
+#cred{position:fixed;inset:6% 8%;overflow:auto;background:rgba(8,8,8,.94);border:1px solid #2a2a2a;color:#bbb;z-index:7;display:none;
+  padding:22px 26px;font:15px/1.6 "EB Garamond",Garamond,Georgia,serif}
+#cred.on{display:block}
+#cred h3{font-weight:400;letter-spacing:.06em;margin:0 0 10px;color:#ddd}
+#cred p{margin:0 0 10px}
+#flash{position:fixed;left:50%;top:12px;transform:translateX(-50%);font:12px -apple-system,sans-serif;color:#aaa;background:rgba(10,10,10,.85);
+  border:1px solid #2a2a2a;border-radius:6px;padding:5px 10px;z-index:8;opacity:0;transition:opacity .4s;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="ov" style="display:none"></canvas>
+<div id="pins"></div>
+<div id="flash"></div>
+<button id="tog">≡</button>
+<div id="ui" class="hidden">
+  <span class="lab">場面</span>
+  <button data-s="0">線</button><button data-s="1">星</button><button data-s="2">家畜</button><button data-s="3">魚</button><button data-s="4">虫</button><button id="endB">終</button>
+  <span class="lab">長さ</span><select id="len"><option value="12">12分</option><option value="16">16分</option><option value="22" selected>22分</option><option value="30">30分</option></select>
+  <span class="lab">速度</span><select id="spd"><option value="1" selected>x1</option><option value="4">x4</option><option value="12">x12</option></select>
+  <span class="lab">マイク</span><button id="micB">Mic</button><button id="calB">静けさを測る</button>
+  <button id="thrM">−</button><span id="thrV" class="lab" style="color:#999">+8 dB</span><button id="thrP">＋</button>
+  <span id="meter" class="lab" style="font-family:monospace;color:#777">········</span>
+  <button id="simB">擬似音</button><button id="autoB" class="on">自動終了</button>
+  <span class="lab">設置</span><button id="floorB">床</button><button id="pinB">台形</button><button id="pinR">台形リセット</button>
+  <span class="lab">表示</span><button id="cntB" class="on">数</button><button id="credB">出典</button><button id="rst">最初から</button>
+  <span class="lab">線の上限</span><select id="cap"><option value="10000">1万/s</option><option value="25000" selected>2.5万/s</option><option value="45000">4.5万/s</option></select>
+</div>
+<div id="cred"></div>
+<script>
+/* ===== Thresholds of Presence — v68 "the count, near and far" =====
+   Every line is one life ending, spiralling down a funnel into the dark. Nothing comes back out.
+   Rates are yearly estimates spread over the seconds. Stages add up: people → stars → land animals → fish → insects.
+   The camera follows the numbers: close enough to see one line pass when the lives are few (micro);
+   pulled back until the whole thing is a small bright eye when they are too many (macro); turning, zooming, low and high.
+   At the end the camera falls into the dark. */
+
+const YEAR = 365.25 * 86400;
+/* EMAF version. Human deaths are not counted, and nothing here is set beside them.
+   The first stage is one line only: the sound in this room — of all these endings, the one being listened to.
+   Then lines that are counted, by a clock of estimates, whatever the sound does. Insects are not counted at all: only the range is shown. */
+const CATS = [
+  { k:"stars",        lo: 10,                       hi: 1250,                     rate: 130,                       unit:"1 line = 1 star ending somewhere in the universe" },
+  { k:"land animals", lo: 87.9e9 / YEAR,            hi: 87.9e9 / YEAR,            rate: 87.9e9 / YEAR,             unit:"1 line = 1 land animal killed for food" },
+  { k:"fish",         lo: (1.1e12 + 124e9) / YEAR,  hi: (2.2e12 + 124e9) / YEAR,  rate: (1.65e12 + 124e9) / YEAR,  unit:"1 line = 1 fish caught or farmed" },
+  { k:"insects",      lo: 1e14 / YEAR,              hi: 1e16 / YEAR,              rate: 1e15 / YEAR,               unit:"insects killed by pesticides — not counted", nocount: true }
+];
+const ONE_UNIT = "1 line = the sound in this room";
+const WEIGHTS = [1, 5, 6, 6, 4];          // one line, stars, land animals, fish, insects (minutes at the default 22)
+let heard = false;                        // the first stage waits for the first sound (when there is a microphone)
+let TOTAL_MIN = 22, STAGES = [];
+function buildStages() { const k = TOTAL_MIN / 22 * 60; STAGES = WEIGHTS.map((w, i) => ({ d: i < 4 ? w * k : Infinity, n: i })); }
+buildStages();
+/* camera per stage: distance from the throat, height angle (deg), field of view (deg), turning speed (rad/s) */
+const CAM = [
+  { dist: 0.75, tilt: 40, fov: 70, spin: 0.02 },   // one line: close, in the dark
+  { dist: 2.6,  tilt: 58, fov: 50, spin: 0.04 },   // stars: pull back, the spiral appears
+  { dist: 1.1,  tilt: 28, fov: 65, spin: 0.06 },   // land animals: dive in, a tunnel
+  { dist: 4.2,  tilt: 70, fov: 45, spin: 0.08 },   // fish: high above, the whole field
+  { dist: 9.0,  tilt: 80, fov: 38, spin: 0.10 }    // insects: far, then near again, never settling
+];
+const RAMP = 10, LIFE = 5.0, HOLE = 0.16, DEPTH = 0.9;
+const funnelZ = r => -DEPTH * Math.exp(-r / 0.32);
+
+// ---------- GL ----------
+const gc = document.getElementById("gl"), gl = gc.getContext("webgl", { antialias: true, alpha: false });
+const ov = document.getElementById("ov"), ox = ov.getContext("2d");
+let W, H, DPR, ASP;
+function resize() {
+  DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; ASP = W / H;
+  for (const c of [gc, ov]) { c.width = W * DPR; c.height = H * DPR; }
+  gl.viewport(0, 0, gc.width, gc.height); ox.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (window.__fbReady) { makeFB(); placePins(); }
+}
+addEventListener("resize", resize); resize();
+
+const VS = `
+precision highp float;
+attribute vec4 a;      // theta0, r0, birth, tail(0/1)
+attribute float b;     // lifetime factor
+uniform mat4 uM;
+uniform float uT, uLife, uHole, uDepth, uAlpha;
+varying float v;
+void main(){
+  float L = uLife * b;
+  float age = uT - a.z - a.w * 0.1 * L;
+  float u = age / L;
+  if (age < 0.0 || u >= 1.0) { gl_Position = vec4(3.0, 3.0, 2.0, 1.0); v = 0.0; return; }
+  /* v69: no hole — the lines run all the way in and the funnel closes to a point */
+  float r = max(0.004, a.y * (1.0 - u * u));
+  float th = a.x + 2.4 * log(a.y / max(r, 0.03));
+  vec3 P = vec3(cos(th) * r, sin(th) * r, -uDepth * exp(-r / 0.32));
+  gl_Position = uM * vec4(P, 1.0);                // the GPU clips lines at the near plane
+  float near = 1.0 - r / a.y;
+  v = uAlpha * smoothstep(0.0, 0.08, u) * (1.0 - smoothstep(0.96, 1.0, u)) * (0.35 + 0.9 * near) * (1.0 - a.w * 0.85);
+}`;
+const FS = `precision mediump float; varying float v; void main(){ gl_FragColor = vec4(vec3(v), 1.0); }`;
+function sh(t, s) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o);
+  if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; }
+const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog); gl.useProgram(prog);
+const U = {}; for (const n of ["uM","uT","uLife","uHole","uDepth","uAlpha"]) U[n] = gl.getUniformLocation(prog, n);
+const N = 320000, data = new Float32Array(N * 2 * 5);
+let head = 0, dirtyLo = Infinity, dirtyHi = -1;
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+function clearData() { for (let i = 0; i < N * 2; i++) data[i * 5 + 2] = -1e6; gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW); head = 0; }
+clearData();
+{ const la = gl.getAttribLocation(prog, "a"), lb = gl.getAttribLocation(prog, "b");
+  gl.enableVertexAttribArray(la); gl.vertexAttribPointer(la, 4, gl.FLOAT, false, 20, 0);
+  gl.enableVertexAttribArray(lb); gl.vertexAttribPointer(lb, 1, gl.FLOAT, false, 20, 16); }
+gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.clearColor(0, 0, 0, 1);
+
+/* ===== v70: analogue quality =====
+   The image is made the way the sound is: by feedback. Each frame is laid back over the last one,
+   drawn slightly inward and turned, and pushed by a slow turbulent flow (like cloud bands), then faded.
+   New lines are added on top. What you see is the residue of everything that has flowed in — smeared, folded, never sharp.
+   On the way to the screen: a little softness, halation round the bright parts, grain, vignette, a tone like printed ink. */
+const QUAD = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+const qbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, qbuf); gl.bufferData(gl.ARRAY_BUFFER, QUAD, gl.STATIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+const QVS = `attribute vec2 p; varying vec2 uv; void main(){ uv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
+const FBFS = `precision highp float; varying vec2 uv; uniform sampler2D tex; uniform float uT, uAsp, uZoom, uRot, uFlow, uDecay;
+  float psi(vec2 p){ return sin(p.x*3.1+uT*.11)*cos(p.y*2.7-uT*.07) + .5*sin(p.x*6.3-p.y*5.1+uT*.19) + .25*cos(p.x*11.7+p.y*9.3-uT*.23); }
+  void main(){
+    vec2 c = uv - .5; c.x *= uAsp;
+    float e = .004; vec2 q = c * 3.0;
+    vec2 curl = vec2(psi(q+vec2(0.,e))-psi(q-vec2(0.,e)), -(psi(q+vec2(e,0.))-psi(q-vec2(e,0.)))) / (2.*e);
+    float r = length(c); float a = uRot * (0.6 + 0.8 / (1.0 + 6.0 * r));       // turns faster near the middle
+    vec2 s = mat2(cos(a), -sin(a), sin(a), cos(a)) * c * uZoom + curl * uFlow;
+    s.x /= uAsp; s += .5;
+    vec3 col = min(texture2D(tex, s).rgb, vec3(3.0)) * uDecay;
+    gl_FragColor = vec4(col, 1.);
+  }`;
+const DFS = `precision highp float; varying vec2 vuv; vec2 uv; uniform sampler2D tex, uOv; uniform mat3 uH; uniform vec2 uPx, uRes; uniform float uT, uAna, uTone, uAsp, uMos, uInv, uSpec;
+  vec3 comp(vec3 c){ vec4 o = texture2D(uOv, uv); return c * (1. - o.a) + o.rgb; }
+  float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+  float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
+    return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+  float look(vec2 q){                                   // the developed image: softness, halation, film shoulder
+    vec3 b = texture2D(tex, q).rgb * .4;
+    b += (texture2D(tex, q+vec2(uPx.x,0.)).rgb + texture2D(tex, q-vec2(uPx.x,0.)).rgb + texture2D(tex, q+vec2(0.,uPx.y)).rgb + texture2D(tex, q-vec2(0.,uPx.y)).rgb) * .15;
+    vec3 halo = vec3(0.);
+    for (int i = 0; i < 8; i++) { float an = float(i) * .785398; halo += max(texture2D(tex, q + vec2(cos(an), sin(an)) * uPx * 9.).rgb - .45, 0.); }
+    float l = dot(b + halo * .09, vec3(.333)); l = l / (1. + l * .35); return pow(l, .92);
+  }
+  void main(){
+    vec3 hq = uH * vec3(vuv, 1.); uv = hq.xy / hq.z;          // corner pin: where on the floor each point of the picture lands
+    if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1. || hq.z <= 0.) { gl_FragColor = vec4(0., 0., 0., 1.); return; }
+    if (uAna < .5) { gl_FragColor = vec4(comp(texture2D(tex, uv).rgb), 1.); return; }
+    vec2 q = uv; float gain = 1.; float paper = 0.; float seam = 0.;
+    if (uMos > .5) {                                    // a mosaic of frames, as a spacecraft sends them back
+      vec2 c = uv - .5; c.x *= uAsp; float an = .6; mat2 R = mat2(cos(an), -sin(an), sin(an), cos(an));
+      vec2 r = R * c * 6.0; vec2 id = floor(r); vec2 f = fract(r);
+      float k = h(id);
+      gain = .78 + .44 * k;
+      vec2 jit = (vec2(h(id+3.1), h(id+7.7)) - .5) * .012;
+      q = uv + jit;
+      seam = (1. - smoothstep(0., .025, f.x)) + (1. - smoothstep(0., .025, f.y));
+      float edge = length(c * vec2(.85, 1.)) + (k - .5) * .35;   // ragged, stepped outline
+      paper = step(.5, edge);
+    }
+    float l = look(q) * gain;
+    l *= 1. - seam * .25;
+    vec2 cc = uv - .5; cc.x *= uAsp; l *= 1. - .55 * smoothstep(.35, 1.05, length(cc));
+    l += (h(uv * 731. + fract(uT * 7.3)) - .5) * .07;
+    l = clamp(l, 0., 1.);
+    int m0 = int(uTone + .5);
+    if (m0 >= 2) {                                      // printed tones meter the page, like a printer setting exposure
+      float mean = 0.;
+      for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) mean += dot(texture2D(tex, vec2(.125 + float(i) * .25, .125 + float(j) * .25)).rgb, vec3(.333));
+      mean /= 16.; mean = mean / (1. + mean * .35);
+      l = clamp(l * .42 / max(.03, mean), 0., 1.); }
+    if (uInv > .5) l = 1. - l;
+    vec3 col = vec3(l);
+    int m = int(uTone + .5);
+    if (m == 1) { vec3 ink = vec3(.05,.035,.03), mid = vec3(.78,.36,.12), hi = vec3(.98,.92,.80);
+      col = l < .5 ? mix(ink, mid, l * 2.) : mix(mid, hi, (l - .5) * 2.); }
+    else if (m == 2) {                                  // blueprint / cyanotype
+      col = mix(vec3(.04,.12,.32), vec3(.80,.88,.96), smoothstep(.0, .95, l));
+      col = mix(col, vec3(.62,.78,.60), paper); }
+    else if (m == 3) {                                  // black ink on pink paper, halftone screen
+      vec2 p = uv * uRes; float an = .785398; vec2 g = mat2(cos(an), -sin(an), sin(an), cos(an)) * p / 4.5;
+      vec2 f = fract(g) - .5; float ink = 1. - l; float rad = sqrt(ink) * .62;
+      float dot_ = 1. - smoothstep(rad - .08, rad + .08, length(f));
+      col = mix(vec3(.93,.72,.72), vec3(.13,.08,.09), dot_);
+      col = mix(col, vec3(.93,.72,.72), paper); }
+    else if (m == 4) {                                  // orange stock, one black plate, posterised and blotchy
+      float n = vn(uv * uRes / 7.) * .6 + vn(uv * uRes / 2.5) * .4;
+      float ink = step(.62 + (n - .5) * .5, 1. - l);
+      col = mix(vec3(.96,.56,.18), vec3(.08,.05,.04), ink);
+      col = mix(col, vec3(.96,.56,.18), paper); }
+    else if (m == 5) {                                  // manuscript: pen and ink on pink paper; light is drawn as ink
+      float n = vn(uv * uRes / 3.) * .6 + vn(uv * uRes / 11.) * .4;
+      float ink = smoothstep(.02, .22, (uInv > .5 ? 1. - l : l) + (n - .5) * .12);
+      vec3 pap = vec3(.86,.62,.72) * (.94 + .06 * vn(uv * uRes / 40.));
+      col = mix(pap, vec3(.10,.06,.07), ink);
+      col = mix(col, vec3(.86,.62,.72), paper); }
+    else if (m == 6) {                                  // engraving: the light cut as hatching into a plate, printed on khaki paper
+      vec2 p = uv * uRes; float d = uInv > .5 ? 1. - l : clamp(l * 1.7, 0., 1.);   // the light is what gets cut
+      float h1 = .5 + .5 * sin(dot(p, vec2(.62, .78)) * 1.25);
+      float h2 = .5 + .5 * sin(dot(p, vec2(-.78, .62)) * 1.25);
+      float ink = step(h1, d * 1.15) * step(.2, d);
+      ink = max(ink, step(h2, (d - .55) * 2.2));       // cross-hatch only in the deepest parts
+      ink = max(ink, step(.9, d));
+      col = mix(vec3(.84,.79,.62), vec3(.07,.06,.05), ink);
+      col = mix(col, vec3(.84,.79,.62), paper); }
+    else if (m == 7) {                                  // a planet seen from close: the whole flow wrapped onto a lit sphere, airbrushed
+      vec2 c = uv - .5; c.x *= uAsp; vec2 o = vec2(0., -.78); float R = 1.28;
+      vec2 pp = (c - o) / R; float r = length(pp);
+      if (r > 1.) col = vec3(.035) + (h(uv * 913. + uT) - .5) * .03;
+      else { float z = sqrt(1. - r * r); vec3 n = vec3(pp, z); float dif = max(dot(n, normalize(vec3(.25, .9, .45))), 0.);
+        float t = clamp(l * 1.25 + dif * .5 - .22, 0., 1.);
+        vec3 w = t < .5 ? mix(vec3(.10,.05,.06), vec3(.86,.33,.10), t * 2.) : mix(vec3(.86,.33,.10), vec3(1.,.93,.55), (t - .5) * 2.);
+        w = mix(w, vec3(.80,.85,.95), smoothstep(.86, 1., r) * dif * .7);     // a thin haze at the limb
+        w += (h(uv * 611. + fract(uT * 3.1)) - .5) * .09;                      // airbrush grain
+        col = w; } }
+    else col = mix(col, vec3(.86), paper);
+    if (uSpec > .5) {                                   // a prism's spectrum lying across the page
+      vec2 c = uv - .5; c.x *= uAsp; float an = .7 + .15 * sin(uT * .05);
+      float d = dot(c, vec2(cos(an), sin(an))) - .05 * sin(uT * .07);
+      float w = .2 + .05 * sin(uT * .03), band = (1. - smoothstep(w * .25, w, abs(d))) * .85;
+      float k = clamp((d + w) / (2. * w), 0., 1.);
+      vec3 sp = clamp(vec3(abs(k * 6. - 3.) - 1., 2. - abs(k * 6. - 2.), 2. - abs(k * 6. - 4.)), 0., 1.);
+      sp = mix(sp, vec3(1.), .35);
+      col = mix(col, col * (.5 + sp * .95) + sp * .07, band); }
+    if (m == 0 || m == 1) col = mix(col, m == 1 ? vec3(.93,.88,.78) : vec3(.86), paper);
+    gl_FragColor = vec4(comp(col), 1.);
+  }`;
+function mkProg(v, f) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, v)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, f)); gl.linkProgram(p); return p; }
+const DVS = `attribute vec2 p; varying vec2 vuv; void main(){ vuv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
+const fbP = mkProg(QVS, FBFS), dP = mkProg(DVS, DFS);
+const FU = {}, DU = {};
+for (const n of ["tex","uT","uAsp","uZoom","uRot","uFlow","uDecay"]) FU[n] = gl.getUniformLocation(fbP, n);
+for (const n of ["tex","uOv","uH","uPx","uRes","uT","uAna","uTone","uAsp","uMos","uInv","uSpec"]) DU[n] = gl.getUniformLocation(dP, n);
+let fbs = [], ping = 0, FBW = 0, FBH = 0, analog = true, tone = 0, FBTYPE, mosaic = false, invert = false, record = false;
+const TONES = ["白黒", "琥珀", "青焼き", "桃色網点", "橙版", "手稿", "銅版", "惑星"];
+let room = false, sky = false, spec = false, calc = false, tally = [];
+function makeFB() {
+  FBW = Math.round(gc.width * .75); FBH = Math.round(gc.height * .75);
+  for (const f of fbs) { gl.deleteTexture(f.t); gl.deleteFramebuffer(f.f); }
+  /* light that fades slowly needs more than 8 bits, or it rounds away to black: half-float if the GPU has it */
+  if (FBTYPE === undefined) { const hf = gl.getExtension("OES_texture_half_float"); gl.getExtension("OES_texture_half_float_linear");
+    gl.getExtension("EXT_color_buffer_half_float"); const fl = gl.getExtension("OES_texture_float"); gl.getExtension("OES_texture_float_linear");
+    FBTYPE = hf ? hf.HALF_FLOAT_OES : fl ? gl.FLOAT : gl.UNSIGNED_BYTE; }
+  fbs = [0, 1].map(() => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, FBW, FBH, 0, gl.RGBA, FBTYPE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE && FBTYPE !== gl.UNSIGNED_BYTE) {
+      FBTYPE = gl.UNSIGNED_BYTE; gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, FBW, FBH, 0, gl.RGBA, FBTYPE, null); }
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); return { t, f }; });
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+makeFB(); window.__fbReady = true;
+function quad(p) { gl.useProgram(p); gl.bindBuffer(gl.ARRAY_BUFFER, qbuf); const l = gl.getAttribLocation(p, "p");
+  gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.disableVertexAttribArray(l); }
+function linesSetup() { gl.useProgram(prog); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  const la = gl.getAttribLocation(prog, "a"), lb = gl.getAttribLocation(prog, "b");
+  gl.enableVertexAttribArray(la); gl.vertexAttribPointer(la, 4, gl.FLOAT, false, 20, 0);
+  gl.enableVertexAttribArray(lb); gl.vertexAttribPointer(lb, 1, gl.FLOAT, false, 20, 16); }
+function spawn(n, t) {
+  for (let i = 0; i < n; i++) {
+    const th = Math.random() * 6.2832, r0 = 1.25 + Math.random() * 0.9, lf = 0.7 + Math.random() * 0.6, bt = t - Math.random() * 0.016, o = head * 10;
+    data[o] = th; data[o+1] = r0; data[o+2] = bt; data[o+3] = 0; data[o+4] = lf;
+    data[o+5] = th; data[o+6] = r0; data[o+7] = bt; data[o+8] = 1; data[o+9] = lf;
+    if (head < dirtyLo) dirtyLo = head; if (head > dirtyHi) dirtyHi = head;
+    if (++head >= N) { flush(); head = 0; }
+  }
+}
+function flush() { if (dirtyHi < 0) return; gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferSubData(gl.ARRAY_BUFFER, dirtyLo * 40, data.subarray(dirtyLo * 10, (dirtyHi + 1) * 10)); dirtyLo = Infinity; dirtyHi = -1; }
+
+// ---------- matrices (column-major) ----------
+function persp(fovDeg, asp, n, f) { const t = 1 / Math.tan(fovDeg * Math.PI / 360);
+  return [t / asp,0,0,0, 0,t,0,0, 0,0,(f + n) / (n - f),-1, 0,0,2 * f * n / (n - f),0]; }
+function mul(A, B) { const C = new Array(16).fill(0);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) C[c * 4 + r] += A[k * 4 + r] * B[c * 4 + k]; return C; }
+function lookAt(e, t, up) {
+  let z = [e[0]-t[0], e[1]-t[1], e[2]-t[2]]; let l = Math.hypot(...z); z = z.map(x => x / l);
+  let x = [up[1]*z[2]-up[2]*z[1], up[2]*z[0]-up[0]*z[2], up[0]*z[1]-up[1]*z[0]]; l = Math.hypot(...x) || 1; x = x.map(q => q / l);
+  const y = [z[1]*x[2]-z[2]*x[1], z[2]*x[0]-z[0]*x[2], z[0]*x[1]-z[1]*x[0]];
+  return [x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+    -(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]), -(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]), -(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]), 1]; }
+function rotZ(a) { const c = Math.cos(a), s = Math.sin(a); return [c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1]; }
+let M = null;
+function project(p) { const x = M[0]*p[0]+M[4]*p[1]+M[8]*p[2]+M[12], y = M[1]*p[0]+M[5]*p[1]+M[9]*p[2]+M[13], w = M[3]*p[0]+M[7]*p[1]+M[11]*p[2]+M[15];
+  if (w <= 0.02) return null; return [(x / w * .5 + .5) * W, (.5 - y / w * .5) * H]; }
+
+// ---------- camera ----------
+const cam = { dist: CAM[0].dist, tilt: CAM[0].tilt, fov: CAM[0].fov, spin: CAM[0].spin, az: 0, roll: 0 };
+let camAuto = true, fall = 0;
+function camStep(dt, rdt, t) {
+  const g = CAM[stage]; const k = 1 - Math.exp(-dt / 9);          // slow, heavy moves
+  let tg = g;
+  if (stage === 4) { const s = stageT, c = .5 - .5 * Math.cos(s * 6.2832 / 90);       // a 90 s journey out and back in
+    tg = { dist: 0.5 + 9.5 * c, tilt: 50 + 35 * Math.sin(s * 6.2832 / 130), fov: 55 + 20 * Math.sin(s * 6.2832 / 55), spin: 0.05 + 0.12 * c }; }
+  if (camAuto) for (const p of ["dist","tilt","fov","spin"]) cam[p] += (tg[p] - cam[p]) * (stage === 4 ? Math.min(1, k * 3) : k);
+  cam.az += cam.spin * rdt;
+  cam.roll = floor ? 0 : 0.35 * Math.sin(t * 0.05) + 0.15 * Math.sin(t * 0.13);       // turning
+  const fov = cam.fov + 7 * Math.sin(t * 0.07);                             // zoom breathing
+  const throat = [0, 0, funnelZ(HOLE)];
+  let dist = cam.dist;
+  if (ending) { fall = Math.min(1, fall + rdt / 14); dist = cam.dist * (1 - fall) + 0.02 * fall; }   // falling into the dark
+  const tilt = floor ? 88.5 : cam.tilt, ct = ending ? tilt + (89 - tilt) * fall : tilt, tr = ct * Math.PI / 180;
+  const tgt = [0, 0, throat[2] * 0.35];
+  const eye = [tgt[0] + dist * Math.cos(tr) * Math.cos(cam.az), tgt[1] + dist * Math.cos(tr) * Math.sin(cam.az), tgt[2] + dist * Math.sin(tr)];
+  const V = mul(rotZ(cam.roll), lookAt(eye, tgt, [0, 0, 1]));
+  M = mul(persp(fov, ASP, 0.01, 60), V);
+}
+
+// ---------- state ----------
+let T = 0, stage = 0, stageT = 0, speed = 1, CAP = 25000, acc = 0, ending = false, recT = -99;
+let showCount = true, counts = CATS.map(() => 0), arrived = CATS.map(() => 0), labelA = 0, labelTxt = ["", ""], totalRate = 0;
+function setStage(s) {
+  stage = s; stageT = 0; ending = false; fall = 0;
+  for (let i = 0; i < CATS.length; i++) if (i >= STAGES[s].n) arrived[i] = 0; else if (i < STAGES[s].n - 1) arrived[i] = 1;
+  recT = T;                                   // the record shows for a few seconds at every change
+}
+function restart() { T = 0; counts = CATS.map(() => 0); arrived = CATS.map(() => 0); acc = 0; clearData(); snd.total = 0; snd.quiet = 0; one.r0 = 0; one.r1 = 0; heard = false; setStage(0); }
+const linesPer = () => Math.max(1, totalRate / CAP);
+const fmtN = n => Math.floor(n).toLocaleString("en-US");
+
+// ---------- overlay: the dark at the centre, the white, the words ----------
+function drawOverlay(veil) {
+  ox.clearRect(0, 0, W, H);
+  if (ending && fall > 0.85) { ox.fillStyle = `rgba(0,0,0,${Math.min(1, (fall - .85) / .12)})`; ox.fillRect(0, 0, W, H); if (fall > .97) return; }
+  drawOneLine();
+  if (room) drawRoom();
+  if (sky) drawSky();
+  if (calc) drawCalc();
+  const ink = veil > .5 ? "20,20,20" : "150,146,138";
+  if (floor) { floorWords(veil); return; }
+  drawRecord(ink);
+  if (showCount && stage > 0 && !ending) {
+    ox.font = `${Math.max(11, Math.min(W, H) * .017)}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "right";
+    let y = 30; ox.fillStyle = `rgba(${ink},.55)`; ox.fillText("since this began", W - 22, y); y += 20;
+    for (let i = 0; i < CATS.length; i++) { if (CATS[i].nocount || (arrived[i] <= 0 && counts[i] < 1)) continue;
+      ox.fillStyle = `rgba(${ink},.8)`; ox.fillText(CATS[i].k + "  " + fmtN(counts[i]), W - 22, y); y += 19; }
+  }
+}
+
+/* ---- the record: at each change, for a few seconds — what one line is, and how far apart the estimates are ---- */
+const REC_SHOW = 9;
+const recAlpha = () => { const t = T - recT; return t < 0 || t > REC_SHOW ? 0 : Math.min(1, t / 1.2, (REC_SHOW - t) / 1.5); };
+const perSec = v => v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + " million" : v >= 100 ? fmtN(Math.round(v / 10) * 10) : fmtN(Math.round(v));
+function recLines() {
+  if (stage === 0) return [];                          // the one line is not named: it is found
+  const c = CATS[stage - 1];
+  return [c.unit, "LOW  " + perSec(c.lo) + " per second", "HIGH  " + perSec(c.hi) + " per second", "ACTUAL — UNKNOWN"];
+}
+function drawRecord(ink) {
+  const a = recAlpha(); if (a <= 0 || ending) return;
+  const L = recLines(); if (!L.length) return;
+  const cx = W / 2, cy = H * .5, s = Math.min(W, H);
+  ox.save(); ox.globalAlpha = a; ox.lineWidth = Math.max(1, s * .0018);
+  if (L.length > 1) {                     // two crosshairs that never meet, and the ellipse of not knowing
+    ox.strokeStyle = `rgba(${ink},.7)`; ox.beginPath(); ox.ellipse(cx, cy, s * .30, s * .12, -.4, 0, 6.283); ox.stroke();
+    ox.beginPath(); ox.moveTo(cx - s * .26, cy); ox.lineTo(cx + s * .26, cy); ox.moveTo(cx, cy - s * .18); ox.lineTo(cx, cy + s * .18); ox.stroke();
+    const d = s * .03; ox.strokeStyle = `rgba(${ink},.4)`;
+    ox.beginPath(); ox.moveTo(cx - s * .24 + d, cy + d); ox.lineTo(cx + s * .24 + d, cy + d); ox.moveTo(cx + d, cy - s * .16 + d); ox.lineTo(cx + d, cy + s * .16 + d); ox.stroke();
+  }
+  ox.textAlign = "center"; ox.textBaseline = "middle";
+  ox.font = `${Math.max(14, s * .028)}px "EB Garamond", Garamond, Georgia, serif`; ox.fillStyle = `rgba(${ink},1)`;
+  ox.fillText(L[0], cx, cy - s * .24);
+  ox.font = `${Math.max(11, s * .019)}px "Helvetica Neue", Arial, sans-serif`;
+  for (let i = 1; i < L.length; i++) ox.fillText(L[i], cx + s * .14, cy + s * (.04 + i * .035));
+  ox.restore(); ox.textBaseline = "alphabetic";
+}
+
+/* ---- the one line: the sound in this room. It lives only while there is sound; its light and width follow the sound.
+   When a sound begins, a new line is drawn in from the edge; when it stops, the line drains into the centre and is gone. ---- */
+const one = { th: 0, r0: 0, r1: 0, lv: 0, alive: false };
+function oneStep(rdt) {
+  const on = snd.on && !ending;
+  if (on && !one.alive) { one.alive = true; one.th = Math.random() * 6.2832; one.r0 = 2.0; one.r1 = 2.0; }   // born at the edge
+  if (on) { one.r1 = Math.max(0.05, one.r1 - rdt * 0.9); one.r0 = 2.0; }                                  // reaching in
+  else if (one.alive) { one.r0 = Math.max(0, one.r0 - rdt * 0.8); if (one.r0 <= one.r1 + 0.01) one.alive = false; }   // draining away
+  one.lv += ((on ? snd.lv : 0) - one.lv) * (on ? .25 : .08);
+}
+function drawOneLine() {
+  if (!one.alive && one.lv < .01) return;
+  const pts = []; const rA = Math.max(one.r1, 0.01), rB = Math.max(one.r0, rA);
+  for (let i = 0; i <= 160; i++) {
+    const r = rB - (rB - rA) * (i / 160); if (r <= 0) break;
+    const th = one.th + 2.4 * Math.log(2.0 / Math.max(r, 0.03)) + T * 0.12;
+    const p = project([Math.cos(th) * r, Math.sin(th) * r, funnelZ(r)]); if (p) pts.push(p);
+  }
+  if (pts.length < 2) return;
+  const s = Math.min(W, H) / 800, w = (1.2 + 7 * one.lv) * s, a = Math.min(1, .25 + .9 * one.lv);
+  ox.save(); ox.lineCap = "round"; ox.lineJoin = "round";
+  ox.shadowColor = `rgba(255,255,255,${a * .8})`; ox.shadowBlur = 6 + 22 * one.lv;
+  ox.strokeStyle = `rgba(255,252,244,${a})`; ox.lineWidth = w;
+  ox.beginPath(); pts.forEach((p, i) => i ? ox.lineTo(p[0], p[1]) : ox.moveTo(p[0], p[1])); ox.stroke(); ox.restore();
+}
+
+/* ---- hand-drawn things: lines that wobble like a pen, and "boil" a little (redrawn every half second) ---- */
+let seed = 1; const srnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const penInk = () => [3, 4, 5, 6].includes(tone) ? "rgba(26,14,16,.88)" : tone === 2 ? "rgba(225,235,248,.85)" : "rgba(235,228,210,.8)";
+function wob(x1, y1, x2, y2, j) {
+  const n = Math.max(2, Math.floor(Math.hypot(x2 - x1, y2 - y1) / 18)); ox.moveTo(x1 + (srnd() - .5) * j, y1 + (srnd() - .5) * j);
+  for (let i = 1; i <= n; i++) { const t = i / n; ox.lineTo(x1 + (x2 - x1) * t + (srnd() - .5) * j, y1 + (y2 - y1) * t + (srnd() - .5) * j); }
+}
+/* the room itself, drawn as a sketch: back wall, the corners running out to us, a window — the place where this happens */
+function drawRoom() {
+  seed = 1 + Math.floor(T * 2) % 7;
+  const bw = W * .5, bh = H * .42, bx = (W - bw) / 2, by = H * .24;
+  ox.save(); ox.strokeStyle = penInk(); ox.lineWidth = Math.max(1.5, Math.min(W, H) * .003); ox.lineCap = "round"; ox.beginPath();
+  wob(bx, by, bx + bw, by, 3); wob(bx + bw, by, bx + bw, by + bh, 3); wob(bx + bw, by + bh, bx, by + bh, 3); wob(bx, by + bh, bx, by, 3);
+  wob(bx, by, 0, 0, 4); wob(bx + bw, by, W, 0, 4); wob(bx, by + bh, 0, H, 4); wob(bx + bw, by + bh, W, H, 4);
+  const wx = bx + bw + (W - bx - bw) * .35, wy = by + bh * .15;      // a window on the right wall
+  wob(wx, wy, wx + W * .09, wy - H * .03, 3); wob(wx + W * .09, wy - H * .03, wx + W * .09, wy + bh * .55, 3);
+  wob(wx + W * .09, wy + bh * .55, wx, wy + bh * .6, 3); wob(wx, wy + bh * .6, wx, wy, 3);
+  ox.stroke();
+  ox.font = `italic ${Math.max(12, Math.min(W, H) * .022)}px "EB Garamond", Garamond, Georgia, serif`; ox.fillStyle = penInk(); ox.textAlign = "left";
+  ox.fillText("the room — where it is heard", bx + 8, by - 10);
+  ox.restore();
+}
+/* a celestial chart: the kinds of death as orbits round a centre that is not drawn, with their names and counts written along the rings */
+function arcText(t, cx, cy, r, a0, sz) {
+  ox.save(); ox.font = `${sz}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "center"; ox.textBaseline = "middle";
+  let a = a0; for (const ch of t) { const w = ox.measureText(ch).width + sz * .18; a += w / 2 / r;
+    ox.save(); ox.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ox.rotate(a + Math.PI / 2); ox.fillText(ch, 0, 0); ox.restore(); a += w / 2 / r; }
+  ox.restore();
+}
+function drawSky() {
+  const cx = W / 2, cy = H * .5, R = Math.min(W, H) * .46, ink = penInk(), sz = Math.max(10, R * .045);
+  ox.save(); ox.strokeStyle = ink; ox.fillStyle = ink; ox.lineWidth = 1.2;
+  // radial bands, faint, alternating — like rays from a sun that is not there
+  ox.globalAlpha = .045;
+  for (let i = 0; i < 24; i += 2) { ox.beginPath(); ox.moveTo(cx, cy); ox.arc(cx, cy, R, i / 24 * 6.283 + T * .01, (i + 1) / 24 * 6.283 + T * .01); ox.closePath(); ox.fill(); }
+  ox.globalAlpha = 1;
+  ox.beginPath(); ox.arc(cx, cy, R, 0, 6.283); ox.stroke(); ox.beginPath(); ox.arc(cx, cy, R * 1.035, 0, 6.283); ox.stroke();
+  const shown = CATS.filter((c, i) => arrived[i] > 0 || counts[i] >= 1);
+  CATS.forEach((c, i) => {
+    const r = R * (.32 + i * .14);
+    ox.globalAlpha = (arrived[i] > 0 || counts[i] >= 1) ? .9 : .25;
+    ox.beginPath(); ox.arc(cx, cy, r, 0, 6.283); ox.stroke();
+    arcText((c.k + "  ·  " + fmtN(counts[i])).toUpperCase(), cx, cy, r + sz * .9, -Math.PI / 2 - .25 - i * .35, sz);
+  });
+  ox.globalAlpha = .9;
+  arcText("SYSTEMA  MORTIS  ·  SINCE THIS BEGAN", cx, cy, R * 1.075, -Math.PI / 2 - .7, sz * 1.15);
+  // two tilted rings, as in an armillary sphere
+  ox.globalAlpha = .5; ox.beginPath(); ox.ellipse(cx, cy, R * .98, R * .3, .4, 0, 6.283); ox.stroke();
+  ox.beginPath(); ox.ellipse(cx, cy, R * .98, R * .22, -.9 + T * .005, 0, 6.283); ox.stroke();
+  ox.restore();
+}
+
+/* the tally, kept by hand: columns of figures in a sloping script, one line added every few seconds, the way a page of calculations fills up */
+let tallyT = 0;
+function drawCalc() {
+  if (T - tallyT > 4 && stage > 0) { tallyT = T; tally.push(counts.slice()); if (tally.length > 40) tally.shift(); }
+  const sz = Math.max(13, Math.min(W, H) * .026), lh = sz * 1.15;
+  ox.save(); ox.fillStyle = penInk(); ox.font = `italic ${sz}px "Snell Roundhand", "Apple Chancery", "EB Garamond", Garamond, cursive`;
+  ox.translate(W * .08, H * .12); ox.rotate(-.32); ox.globalAlpha = .75; ox.textAlign = "right";
+  CATS.forEach((c, i) => {
+    const x = (i + 1) * Math.min(W, H) * .2; let y = 0;
+    ox.fillText(c.k, x, y); y += lh * 1.3;
+    for (const row of tally) { if (row[i] < 1) continue; ox.fillText(fmtN(row[i]), x, y); y += lh; }
+    if (tally.length && tally[tally.length - 1][i] >= 1) { ox.fillRect(x - sz * 5, y - lh * .55, sz * 5, 1.2); }
+  });
+  ox.restore();
+}
+
+/* ===== v74: on the floor =====
+   The projector hangs above and points down; the picture lies on the floor in front of the player.
+   Floor mode: the camera looks straight down into the funnel (like looking into a washing machine from above);
+   nearer and farther, zoom, and turning stay, but nothing tilts sideways. The words are written round the edge,
+   facing inward, so people standing on three sides can read them. The corner pin fits the picture to the floor. */
+let floor = false, Hinv = [1,0,0, 0,1,0, 0,0,1], pinOn = false;
+let corners = [[0,0],[1,0],[1,1],[0,1]];        // where picture corners land, in screen units (0..1, y up): bottom-left, bottom-right, top-right, top-left
+try { const c = JSON.parse(localStorage.getItem("top-corners")); if (c && c.length === 4) corners = c; } catch (e) {}
+function sq2quad(q) {
+  const [[x0,y0],[x1,y1],[x2,y2],[x3,y3]] = q;
+  const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+  let g = 0, h = 0;
+  if (Math.abs(dx3) > 1e-9 || Math.abs(dy3) > 1e-9) { const det = dx1 * dy2 - dx2 * dy1; g = (dx3 * dy2 - dx2 * dy3) / det; h = (dx1 * dy3 - dx3 * dy1) / det; }
+  return [x1 - x0 + g * x1, x3 - x0 + h * x3, x0, y1 - y0 + g * y1, y3 - y0 + h * y3, y0, g, h, 1];   // row-major
+}
+function inv3(m) {
+  const [a,b,c,d,e,f,g,h,i] = m, A = e*i - f*h, B = -(d*i - f*g), C = d*h - e*g, det = a*A + b*B + c*C;
+  const r = [A, -(b*i - c*h), b*f - c*e, B, a*i - c*g, -(a*f - c*d), C, -(a*h - b*g), a*e - b*d].map(v => v / det);
+  return [r[0], r[3], r[6], r[1], r[4], r[7], r[2], r[5], r[8]];     // to column-major for GL
+}
+function updatePin() { Hinv = inv3(sq2quad(corners)); try { localStorage.setItem("top-corners", JSON.stringify(corners)); } catch (e) {} placePins(); }
+const pinEls = corners.map((c, i) => { const d = document.createElement("div"); d.className = "pin"; document.getElementById("pins").appendChild(d);
+  d.addEventListener("pointerdown", e => { d.setPointerCapture(e.pointerId); d.dataset.drag = 1; e.stopPropagation(); });
+  d.addEventListener("pointermove", e => { if (!d.dataset.drag) return; corners[i] = [Math.min(1.2, Math.max(-.2, e.clientX / W)), Math.min(1.2, Math.max(-.2, 1 - e.clientY / H))]; updatePin(); });
+  d.addEventListener("pointerup", () => { delete d.dataset.drag; });
+  return d; });
+function placePins() { pinEls.forEach((d, i) => { d.style.left = corners[i][0] * W + "px"; d.style.top = (1 - corners[i][1]) * H + "px"; d.classList.toggle("on", pinOn); }); }
+updatePin();
+// the overlay (words, charts) is drawn on its own canvas and laid into the picture, so it is warped and fitted with it
+const ovTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, ovTex);
+for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+function uploadOverlay() {
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, ovTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ov);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.activeTexture(gl.TEXTURE0);
+}
+/* words round the edge, facing in: a copy for each side people stand on (bottom, left, right; the player is at the top) */
+function arcIn(t, cx, cy, r, aMid, sz) {
+  ox.save(); ox.font = `${sz}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "center"; ox.textBaseline = "middle";
+  const ws = [...t].map(ch => ox.measureText(ch).width + sz * .12), span = ws.reduce((a, b) => a + b, 0) / r;
+  let a = aMid + span / 2;
+  for (let k = 0; k < ws.length; k++) { a -= ws[k] / 2 / r; ox.save(); ox.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ox.rotate(a - Math.PI / 2); ox.fillText([...t][k], 0, 0); ox.restore(); a -= ws[k] / 2 / r; }
+  ox.restore();
+}
+function floorWords(veil) {
+  const ink = veil > .5 ? "20,20,20" : "160,156,146", cx = W / 2, cy = H / 2, R = Math.min(W, H) * .47, sz = Math.max(12, Math.min(W, H) * .022);
+  const sides = [Math.PI / 2, 0, Math.PI];
+  const ra = recAlpha();
+  if (ra > 0 && !ending) {
+    const L = recLines();
+    if (L.length) for (const a of sides) { ox.fillStyle = `rgba(${ink},${ra})`; arcIn(L[0], cx, cy, R, a, sz);
+      if (L.length > 1) { ox.fillStyle = `rgba(${ink},${ra * .75})`; arcIn(L.slice(1).join("    ·    "), cx, cy, R - sz * 1.5, a, sz * .78); } }
+  }
+  if (showCount && stage > 0 && !ending) {
+    const t = CATS.filter((c, i) => !c.nocount && (arrived[i] > 0 || counts[i] >= 1)).map(c => c.k + " " + fmtN(counts[CATS.indexOf(c)])).join("   ·   ");
+    ox.fillStyle = `rgba(${ink},.7)`;
+    if (t) for (const a of sides) arcIn(t, cx, cy, R - sz * 3.4, a, sz * .8);
+  }
+}
+
+/* ===== the room's sound: one USB microphone, not wired to the instrument =====
+   On start it listens to the quiet for 2.5 s; anything above that by the threshold (adjustable) counts as sound.
+   Auto end: after 20 s of sound in all, 6 s of continuous quiet ends the piece (can be switched off). */
+const snd = { mic: false, an: null, buf: null, db: -90, floor: -70, sens: 8, lv: 0, on: false, total: 0, quiet: 0, cal: 0, calv: [], sim: false, sn: 0, sdead: 0, auto: true };
+let actx = null;
+const flashEl = () => document.getElementById("flash");
+function flash(t) { const f = flashEl(); f.textContent = t; f.style.opacity = 1; clearTimeout(flash.t); flash.t = setTimeout(() => f.style.opacity = 0, 1800); }
+function showThr() { document.getElementById("thrV").textContent = "+" + snd.sens + " dB"; }
+async function startMic() {
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") await actx.resume();
+    snd.an = actx.createAnalyser(); snd.an.fftSize = 2048; snd.buf = new Float32Array(snd.an.fftSize);
+    actx.createMediaStreamSource(st).connect(snd.an); snd.mic = true; snd.sim = false; calibrate();
+    document.getElementById("micB").classList.add("on");
+  } catch (e) { flash("no microphone — manual"); }
+}
+function calibrate() { snd.cal = 2.5; snd.calv = []; flash("listening to the quiet… 2.5 s"); }
+function sndStep(rdt) {
+  if (snd.mic && snd.an) {
+    snd.an.getFloatTimeDomainData(snd.buf); let q = 0; for (const x of snd.buf) q += x * x;
+    snd.db = 20 * Math.log10(Math.sqrt(q / snd.buf.length) + 1e-9);
+    if (snd.cal > 0) { snd.calv.push(snd.db); snd.cal -= rdt;
+      if (snd.cal <= 0) { const v = snd.calv.slice().sort((a, b) => a - b); snd.floor = Math.max(-90, v[Math.floor(v.length * .6)] ?? -70); flash("quiet = " + snd.floor.toFixed(1) + " dB"); }
+      snd.on = false; snd.lv = 0; return; }
+    const thr = snd.floor + snd.sens;
+    snd.on = snd.db > thr;
+    const v = Math.max(0, Math.min(1, (snd.db - thr) / 24));
+    snd.lv += (v - snd.lv) * (v > snd.lv ? .3 : .08);
+  } else if (snd.sim) {                     // for looking at it without a microphone (key S)
+    if (snd.sdead > 0) { snd.sdead -= rdt; snd.on = false; snd.lv *= .9; }
+    else { snd.sn += (Math.random() - .5) * rdt * 1.2; snd.sn *= .995; const v = Math.max(0, Math.min(1, .45 + snd.sn));
+      snd.lv += (v - snd.lv) * .2; snd.on = true; if (Math.random() < rdt * .03) snd.sdead = 3 + Math.random() * 5; }
+  } else { snd.on = false; snd.lv *= .9; }
+  if (snd.mic || snd.sim) {
+    if (snd.on) { snd.total += rdt; snd.quiet = 0; } else snd.quiet += rdt;
+    if (snd.auto && snd.mic && !ending && snd.total >= 20 && snd.quiet >= 6) endIt();
+  }
+  const m = document.getElementById("meter"); if (m) { const n = Math.round(snd.lv * 8); m.textContent = "■".repeat(n) + "·".repeat(8 - n); }
+}
+
+// ---------- loop ----------
+let last = performance.now(), dimK = 1;
+function frame(now) {
+  const rdt = Math.min(.05, (now - last) / 1000); last = now; const dt = rdt * speed;
+  T += rdt; stageT += dt;
+  if (stage === 0 && (snd.mic || snd.sim) && !heard) { if (snd.on) heard = true; else stageT = 0; }   // dark until the room sounds
+  if (!ending && stageT >= STAGES[stage].d && stage < STAGES.length - 1) setStage(stage + 1);
+  const n = STAGES[stage].n; totalRate = 0;
+  for (let i = 0; i < CATS.length; i++) {
+    if (!ending && i < n) arrived[i] = Math.min(1, arrived[i] + dt / RAMP);
+    if (ending) arrived[i] = Math.max(0, arrived[i] - rdt / 2.5);
+    const r = CATS[i].rate * arrived[i]; totalRate += r; counts[i] += r * dt;
+  }
+  sndStep(rdt); oneStep(rdt);
+  dimK += ((1 - .45 * snd.lv) - dimK) * .03;      // while there is sound, the counted lines step back a little
+  const drawRate = Math.min(totalRate, CAP);
+  acc += drawRate * rdt; const k = Math.floor(acc); acc -= k;
+  if (k > 0) { spawn(k, T); flush(); }
+  const per = linesPer();
+  const alpha = Math.min(1, 0.9 / Math.pow(Math.max(drawRate, 1) / 20, 0.35)) * Math.min(12, Math.pow(per, 0.33));
+  /* the text turns dark when the screen is mostly white */
+  const veil = Math.max(0, Math.min(1, (Math.log10(Math.max(1, totalRate)) - 6) / 2)) * Math.min(1, cam.dist / 4);
+  camStep(dt, rdt, T);
+  const src = fbs[ping], dst = fbs[1 - ping];
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.f); gl.viewport(0, 0, FBW, FBH);
+  if (analog) {
+    gl.disable(gl.BLEND);
+    gl.useProgram(fbP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); gl.uniform1i(FU.tex, 0);
+    gl.uniform1f(FU.uT, T); gl.uniform1f(FU.uAsp, ASP); gl.uniform1f(FU.uZoom, 1.0 - 0.0045 * Math.min(2, rdt * 60));
+    gl.uniform1f(FU.uRot, 0.006 * Math.min(2, rdt * 60)); gl.uniform1f(FU.uFlow, 0.0009 * Math.min(2, rdt * 60)); gl.uniform1f(FU.uDecay, Math.pow(0.955, rdt * 60));     // fade per second, not per frame
+    quad(fbP); gl.enable(gl.BLEND);
+  } else { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  linesSetup();
+  gl.uniformMatrix4fv(U.uM, false, new Float32Array(M));
+  gl.uniform1f(U.uT, T); gl.uniform1f(U.uLife, LIFE); gl.uniform1f(U.uHole, HOLE); gl.uniform1f(U.uDepth, DEPTH);
+  const aBase = Math.min(1, 0.9 / Math.pow(Math.max(drawRate, 1) / 20, 0.35));
+  gl.uniform1f(U.uAlpha, dimK * (analog ? aBase * (FBTYPE === gl.UNSIGNED_BYTE ? 1.2 : 0.75) * Math.min(1.8, Math.pow(per, 0.09)) : alpha));      // feedback piles the light up, so each new line is laid in thinner
+  gl.drawArrays(gl.LINES, 0, N * 2);
+  drawOverlay(veil); uploadOverlay();
+  {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, gc.width, gc.height); gl.disable(gl.BLEND);
+    gl.useProgram(dP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(DU.tex, 0);
+    gl.uniform2f(DU.uPx, 1 / FBW, 1 / FBH); gl.uniform1f(DU.uT, T); gl.uniform1f(DU.uAna, analog ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, ovTex); gl.uniform1i(DU.uOv, 1); gl.activeTexture(gl.TEXTURE0);
+    gl.uniformMatrix3fv(DU.uH, false, new Float32Array(Hinv)); gl.uniform1f(DU.uTone, tone); gl.uniform1f(DU.uAsp, ASP);
+    gl.uniform2f(DU.uRes, gc.width, gc.height); gl.uniform1f(DU.uMos, mosaic ? 1 : 0); gl.uniform1f(DU.uInv, invert ? 1 : 0); gl.uniform1f(DU.uSpec, spec ? 1 : 0);
+    quad(dP); gl.enable(gl.BLEND); ping = 1 - ping;
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- controls ----------
+const endIt = () => { if (!ending) { ending = true; fall = 0; } };
+document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => setStage(+b.dataset.s));
+document.getElementById("endB").onclick = endIt;
+document.getElementById("len").onchange = e => { TOTAL_MIN = +e.target.value; buildStages(); flash("length " + TOTAL_MIN + " min"); };
+document.getElementById("spd").onchange = e => speed = +e.target.value;
+document.getElementById("cap").onchange = e => CAP = +e.target.value;
+const tgl = (id, f) => document.getElementById(id).onclick = e => e.target.classList.toggle("on", f());
+tgl("floorB", () => (floor = !floor));
+tgl("pinB", () => { pinOn = !pinOn; placePins(); return pinOn; });
+document.getElementById("pinR").onclick = () => { corners = [[0,0],[1,0],[1,1],[0,1]]; updatePin(); };
+document.getElementById("cntB").onclick = e => { showCount = !showCount; e.target.classList.toggle("on", showCount); };
+document.getElementById("rst").onclick = restart;
+document.getElementById("micB").onclick = startMic;
+document.getElementById("calB").onclick = () => { if (snd.mic) calibrate(); else startMic(); };
+const thr = d => { snd.sens = Math.max(1, Math.min(40, snd.sens + d)); showThr(); flash("threshold +" + snd.sens + " dB above the quiet"); };
+document.getElementById("thrM").onclick = () => thr(-1); document.getElementById("thrP").onclick = () => thr(1);
+tgl("simB", () => { snd.sim = !snd.sim; flash("simulated sound " + (snd.sim ? "on" : "off")); return snd.sim; });
+tgl("autoB", () => { snd.auto = !snd.auto; flash("auto end " + (snd.auto ? "on" : "off")); return snd.auto; });
+const cred = () => document.getElementById("cred").classList.toggle("on");
+document.getElementById("credB").onclick = cred;
+const panel = () => document.getElementById("ui").classList.toggle("hidden");
+document.getElementById("tog").onclick = panel;
+/* the ≡ button fades away when the pointer is still, so nothing extra lies on the floor */
+let idleT; const wake = () => { const t = document.getElementById("tog"); t.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(() => t.classList.add("idle"), 3000); };
+addEventListener("pointermove", wake); addEventListener("pointerdown", wake); wake();
+/* the first touch or key also wakes the audio, if the browser held it back */
+addEventListener("pointerdown", () => { if (actx && actx.state === "suspended") actx.resume(); if (!snd.mic) startMic(); }, { once: true });
+addEventListener("keydown", e => {
+  const k = e.key;
+  if (k === "ArrowRight") setStage(Math.min(STAGES.length - 1, stage + 1));
+  else if (k === "ArrowLeft") setStage(Math.max(0, stage - 1));
+  else if (k >= "0" && k <= "4") setStage(+k);
+  else if (k === "e") endIt();
+  else if (k === "a") document.getElementById("autoB").click();
+  else if (k === "[") thr(-1);
+  else if (k === "]") thr(1);
+  else if (k === "n") { if (snd.mic) calibrate(); else startMic(); }
+  else if (k === "s") document.getElementById("simB").click();
+  else if (k === "i") cred();
+  else if (k === "h") panel();
+  else if (k === "f") document.getElementById("floorB").click();
+  else if (k === "k") document.getElementById("pinB").click();
+  else if (k === "c") document.getElementById("cntB").click();
+  /* hidden, for development only: the other looks */
+  else if (k === "t") { tone = (tone + 1) % TONES.length; flash("tone: " + TONES[tone]); }
+  else if (k === "m") mosaic = !mosaic;
+  else if (k === "v") invert = !invert;
+  else if (k === "o") room = !room;
+  else if (k === "y") sky = !sky;
+  else if (k === "p") spec = !spec;
+  else if (k === "q") calc = !calc;
+  else if (k === "g") { analog = !analog; makeFB(); }
+});
+document.getElementById("cred").innerHTML = `
+<h3>THE COUNT — sources and ranges</h3>
+<p>Nothing here is counted live. Each rate is a yearly estimate spread evenly over the seconds. Human deaths are not counted.</p>
+<p><b>Stars.</b> Supernovae in the observable universe: an average of about 130 per second, with estimates from about 10 to over 1,250 (IFLScience, 2025); another calculation gives about 40 per second (Astronomy.com). Shown here: 130 per second.</p>
+<p><b>Land animals killed for food.</b> 87,896,729,120 in 2024 (FAOSTAT, "Producing Animals/Slaughtered"; compiled by Faunalytics). About 2,800 per second.</p>
+<p><b>Fish caught or farmed.</b> Wild-caught: 1.1 to 2.2 trillion per year, 2000–2019 (fishcount.org.uk; summarised by Faunalytics). Farmed: about 124 billion per year (Mood, Lara, Boyland & Brooke, 2023; via Our World in Data). About 39,000 to 74,000 per second.</p>
+<p><b>Insects killed by pesticides.</b> Not counted. Agricultural pesticides are estimated to kill between 100 trillion and 10 quadrillion insects a year (Rowe, "The scale of direct human impact on invertebrates", 2020) — about 3 million to 300 million per second. The estimate is of low confidence.</p>
+<p><b>Drawing.</b> Up to 25,000 lines a second are drawn one by one. Past that, each line stands for more than one.</p>
+<p><b>The one line.</b> The sound in this room, heard through one microphone. It lives only while there is sound. It is not named on screen.</p>
+<p style="color:#777">I: close · H: panel · ←/→: stage · E: end · A: auto end · [ ]: threshold · N: measure the quiet again · F: floor · K: corner pin · S: simulated sound</p>`;
+showThr();
+startMic();
+restart(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
