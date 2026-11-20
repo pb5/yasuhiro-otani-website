@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Thresholds of Presence — the dark drawn in black (study)</title>
+<title>Thresholds of Presence — the dark drawn in black (study v2)</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;font:12px/1.4 Georgia,serif;color:#999}
 canvas{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%)}
@@ -35,16 +35,34 @@ function fit(iw, ih) {
   const k = Math.min(innerWidth / iw, innerHeight / ih), d = Math.min(2, devicePixelRatio || 1);
   W = Math.round(iw * k * d); H = Math.round(ih * k * d);
   c.width = W; c.height = H; c.style.width = W / d + "px"; c.style.height = H / d + "px";
-  x.fillStyle = PAPER; x.fillRect(0, 0, W, H);
+  x.fillStyle = PAPER; x.fillRect(0, 0, W, H); if (cov) cov.fill(0);
 }
-function readSource(el, iw, ih) {                 // the picture is reduced to its dark, and the direction its shadows run
-  srcW = Math.round(Math.min(480, iw)); srcH = Math.round(srcW * ih / iw);
+function blur(a, w, h, r) {                         // a box blur, run twice
+  let o = new Float32Array(a.length), t = new Float32Array(a.length);
+  for (let pass = 0; pass < 2; pass++) { const src = pass ? o : a;
+    for (let y = 0; y < h; y++) { let s = 0; for (let x0 = -r; x0 <= r; x0++) s += src[y * w + Math.min(w - 1, Math.max(0, x0))];
+      for (let X = 0; X < w; X++) { t[y * w + X] = s / (2 * r + 1); s += src[y * w + Math.min(w - 1, X + r + 1)] - src[y * w + Math.max(0, X - r)]; } }
+    for (let X = 0; X < w; X++) { let s = 0; for (let y0 = -r; y0 <= r; y0++) s += t[Math.min(h - 1, Math.max(0, y0)) * w + X];
+      for (let y = 0; y < h; y++) { o[y * w + X] = s / (2 * r + 1); s += t[Math.min(h - 1, y + r + 1) * w + X] - t[Math.max(0, y - r) * w + X]; } } }
+  return o; }
+let cov = null, tgt = null;
+function readSource(el, iw, ih) {                 // the picture is reduced to how dark each place should become, and the direction its shadows run
+  const nw = Math.round(Math.min(480, iw)), nh = Math.round(nw * ih / iw);
+  if (nw !== srcW || nh !== srcH) { srcW = nw; srcH = nh; cov = new Float32Array(nw * nh); }
   off.width = srcW; off.height = srcH; ox.drawImage(el, 0, 0, srcW, srcH);
-  const d = ox.getImageData(0, 0, srcW, srcH).data, n = srcW * srcH;
-  lum = new Float32Array(n); gx = new Float32Array(n); gy = new Float32Array(n);
-  for (let i = 0; i < n; i++) lum[i] = (d[i * 4] * .3 + d[i * 4 + 1] * .59 + d[i * 4 + 2] * .11) / 255;
+  const d = ox.getImageData(0, 0, srcW, srcH).data, n = srcW * srcH, raw = new Float32Array(n);
+  for (let i = 0; i < n; i++) raw[i] = (d[i * 4] * .3 + d[i * 4 + 1] * .59 + d[i * 4 + 2] * .11) / 255;
+  lum = blur(raw, srcW, srcH, 1);                  // the smallest glints are not kept: they made the picture look like a filter
+  const sm = blur(raw, srcW, srcH, 5);             // the shadows' direction is read from a softer picture, so even the deepest dark has a grain to follow
+  gx = new Float32Array(n); gy = new Float32Array(n); tgt = new Float32Array(n);
   for (let y = 1; y < srcH - 1; y++) for (let X = 1; X < srcW - 1; X++) { const i = y * srcW + X;
-    gx[i] = lum[i + 1] - lum[i - 1]; gy[i] = lum[i + srcW] - lum[i - srcW]; }
+    gx[i] = sm[i + 1] - sm[i - 1] + (lum[i + 1] - lum[i - 1]) * .5; gy[i] = sm[i + srcW] - sm[i - srcW] + (lum[i + srcW] - lum[i - srcW]) * .5; }
+  /* how dark each place may become. the black is never one black: the darkest stays a little open,
+     and the levels just above it are spread apart, so that the dark itself has steps you can read */
+  let lo = 1, hi = 0; for (let i = 0; i < n; i += 7) { lo = Math.min(lo, lum[i]); hi = Math.max(hi, lum[i]); }
+  for (let i = 0; i < n; i++) { const l = Math.max(0, Math.min(1, (lum[i] - lo) / Math.max(.05, hi - lo)));
+    const dk = 1 - l; const want = dk < .12 ? 0 : .92 * Math.pow((dk - .12) / .88, 1.3) * (.9 + .1 * Math.sin(l * 40));
+    tgt[i] = -Math.log(1 - Math.min(.97, want)); }
 }
 function sample(a, u, v) { const X = Math.min(srcW - 1, Math.max(0, u * srcW | 0)), Y = Math.min(srcH - 1, Math.max(0, v * srcH | 0)); return a[Y * srcW + X]; }
 function strokes(k) {
@@ -52,22 +70,31 @@ function strokes(k) {
   x.strokeStyle = "#000"; x.lineCap = "round";
   for (let s = 0; s < k; s++) {
     let u = Math.random(), v = Math.random();
+    const ci = (v * srcH | 0) * srcW + (u * srcW | 0);
+    if (cov[ci] >= tgt[ci]) continue;                       // this place is already as dark as it should be
     const dark = 1 - sample(lum, u, v);
-    if (Math.random() > Math.pow(dark, 2.2)) continue;        // only the dark is drawn
     const len = 6 + Math.random() * 30 * (W / 1400), step = 1.5 / srcW;
-    x.globalAlpha = .04 + .10 * dark; x.lineWidth = (.4 + Math.random() * .9) * (W / 1800 + .5);
+    const a = .05 + .08 * dark, da = -Math.log(1 - a) * .45;
+    x.globalAlpha = a; x.lineWidth = (.35 + Math.random() * .7) * (W / 1800 + .5);
     x.beginPath(); x.moveTo(u * W, v * H);
     for (let t = 0; t < len; t++) {                           // follow the shadow along its own contour
-      const a = sample(gx, u, v), b = sample(gy, u, v), m = Math.hypot(a, b) + 1e-6;
-      let dx = -b / m, dy = a / m;
-      dx += (Math.random() - .5) * .5; dy += (Math.random() - .5) * .5;
+      const p = sample(gx, u, v), q = sample(gy, u, v), m = Math.hypot(p, q) + 1e-6;
+      let dx = -q / m, dy = p / m;
+      dx += (Math.random() - .5) * .35; dy += (Math.random() - .5) * .35;
       u += dx * step * 2; v += dy * step * 2 * srcW / srcH;
-      if (u < 0 || u > 1 || v < 0 || v > 1 || 1 - sample(lum, u, v) < .15) break;   // the line stops where the light begins
-      x.lineTo(u * W, v * H);
+      if (u < 0 || u > 1 || v < 0 || v > 1) break;
+      const j = (v * srcH | 0) * srcW + (u * srcW | 0);
+      if (cov[j] >= tgt[j]) break;                            // the line stops where the dark is already full, or where the light begins
+      cov[j] += da; x.lineTo(u * W, v * H);
     }
     x.stroke();
   }
   x.globalAlpha = 1;
+}
+function fade(dt) {                                         // the paper slowly comes back, so the dark is always being redrawn, never finished
+  const k = 1 - Math.exp(-dt * .05);
+  x.globalAlpha = k; x.fillStyle = PAPER; x.fillRect(0, 0, W, H); x.globalAlpha = 1;
+  if (cov) { const m = 1 - k; for (let i = 0; i < cov.length; i++) cov[i] = -Math.log(1 - (1 - Math.exp(-cov[i])) * m); }
 }
 /* the room */
 const snd = { an: null, buf: null, floor: -70, lv: 0, sim: false, cal: 0, calv: [], sn: 0 };
@@ -85,8 +112,9 @@ let last = performance.now(), camT = 0;
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; sndStep(dt);
   if (video && video.readyState >= 2) { camT += dt; if (camT > .5) { camT = 0; readSource(video, video.videoWidth, video.videoHeight); } }
+  fade(dt);
   const live = snd.an || snd.sim;
-  strokes(Math.round(live ? 40 + 1400 * snd.lv : 300));     // silence: the drawing nearly stops. sound: it presses on
+  strokes(Math.round(live ? 300 + 3000 * snd.lv : 1500));     // silence: the drawing nearly stops. sound: it presses on
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -100,7 +128,7 @@ document.getElementById("cam").onclick = async () => { if (video) { stopCam(); r
   catch (e) { flash("no camera here"); } };
 document.getElementById("mic").onclick = mic;
 document.getElementById("sim").onclick = e => { snd.sim = !snd.sim; e.target.classList.toggle("on", snd.sim); };
-document.getElementById("clear").onclick = () => { x.fillStyle = PAPER; x.fillRect(0, 0, W, H); };
+document.getElementById("clear").onclick = () => { x.fillStyle = PAPER; x.fillRect(0, 0, W, H); if (cov) cov.fill(0); };
 document.getElementById("tg").onclick = () => document.getElementById("ui").classList.toggle("hidden");
 addEventListener("keydown", e => { if (e.key === "h") document.getElementById("ui").classList.toggle("hidden"); });
 fit(4, 3); flash("画像を選ぶ、またはカメラ");
