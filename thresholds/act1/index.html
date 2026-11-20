@@ -38,7 +38,7 @@ button.on{background:#2c2c2c;color:#fff;border-color:#555}
   <span class="lab">カメラ</span><button id="camB" class="on">動く</button>
   <span class="lab">質</span><button id="anaB" class="on">アナログ</button><button id="toneB">白黒</button><button id="mosB">モザイク</button><button id="invB">反転</button><button id="recB">記録</button><button id="roomB">部屋</button><button id="skyB">天球</button><button id="specB">分光</button><button id="calcB">計算</button>
   <span class="lab">設置</span><button id="floorB">床</button><button id="pinB">台形</button><button id="pinR">台形リセット</button><button id="instB">設置イメージ</button>
-  <span class="lab">原稿</span><select id="matS"><option value="0">なし</option><option value="1">光沢図版</option><option value="2">探査機モザイク</option><option value="3">天球図の見開き</option><option value="4">手稿と光</option><option value="5">長時間露光</option><option value="6">擬似カラー</option><option value="7">点描</option><option value="8">エアブラシ</option></select>
+  <span class="lab">原稿</span><select id="matS"><option value="0">なし</option><option value="1">光沢図版</option><option value="2">探査機モザイク</option><option value="3">天球図の見開き</option><option value="4">手稿と光</option><option value="5">長時間露光</option><option value="6">擬似カラー</option><option value="7">点描</option><option value="8">エアブラシ</option><option value="9">立体コラージュ</option></select>
   <span class="lab">書き出し</span><select id="outR"><option value="">画面</option><option value="1920x1080">1080p</option><option value="2560x1440" selected>1440p</option></select><button id="recOut">● 書き出し</button>
   <span class="lab">マイク</span><button id="micB">Mic</button><button id="calB">静けさを測る</button>
   <button id="thrM">−</button><span id="thrV" class="lab" style="color:#999">+8 dB</span><button id="thrP">＋</button>
@@ -287,14 +287,6 @@ const DFS = `precision highp float; varying vec2 vuv; vec2 uv; uniform sampler2D
       vec3 paperC = vec3(.86, .80, .70) * (.94 + .06 * vn(uv * uRes / 40.));
       float ll = min(1., l * 2.6); vec3 lit = paperC * (.55 + sp * .75) * (1. - ll * .85) + sp * ll * .3;
       col = mix(paperC, lit, band); }
-    if (uMat > .5 && uMat < 1.5) {                      // a window cut in the plate, rounded at the foot, edged in pale blue; outside it the page is printed dark
-      vec2 c = uv - vec2(.56, .5); vec2 hb = vec2(.36, .40); float rr = .16;
-      vec2 dq = abs(c) - hb + rr; float sd = length(max(dq, 0.)) + min(max(dq.x, dq.y), 0.) - rr;
-      if (c.y > 0.) { vec2 dt = abs(c) - hb; sd = max(dt.x, dt.y); }        // square at the top, round at the foot
-      vec3 frameC = vec3(.70, .80, .92);
-      if (sd > 0.) col = col * .16 + vec3(.05, .05, .09) * (.9 + .2 * vn(uv * uRes / 50.));
-      float bar = abs(uv.x - .155) < .006 && uv.y > .08 && uv.y < .9 ? 1. : 0.;
-      col = mix(col, frameC, max(1. - smoothstep(.004, .009, abs(sd)), bar)); }
     if (uMat > 5.5 && uMat < 6.5) {                     // false colour: three plates, one per filter, laid over one another as printed
       vec3 b3 = texture2D(tex, q).rgb * .4;
       b3 += (texture2D(tex, q+vec2(uPx.x,0.)).rgb + texture2D(tex, q-vec2(uPx.x,0.)).rgb + texture2D(tex, q+vec2(0.,uPx.y)).rgb + texture2D(tex, q-vec2(0.,uPx.y)).rgb) * .15;
@@ -334,6 +326,9 @@ const DFS = `precision highp float; varying vec2 vuv; vec2 uv; uniform sampler2D
       ab += vec3(1., .95, .88) * smoothstep(.25, .8, sharp) * .7 * (.4 + .6 * mask);        // white pencil
       ab = mix(ab, vec3(.75, .80, .95), (1. - smoothstep(.0, .004, abs(length(c - o) - R))) * .35);   // the card's edge leaves a faint rim
       col = ab; }
+    if (uMat > 8.5) {                                   // the collage is already a picture of paper; only the print's grain and fall-off
+      vec3 c9 = texture2D(tex, q).rgb; vec2 cv = uv - .5; cv.x *= uAsp;
+      c9 *= 1. - .4 * smoothstep(.4, 1.1, length(cv)); c9 += (h(uv * 731. + fract(uT * 7.3)) - .5) * .045; col = clamp(c9, 0., 1.); }
     if (uSpec > .5) {                                   // a prism's spectrum lying across the page
       vec2 c = uv - .5; c.x *= uAsp; float an = .7 + .15 * sin(uT * .05);
       float d = dot(c, vec2(cos(an), sin(an))) - .05 * sin(uT * .07);
@@ -370,6 +365,21 @@ const EXPFS = `precision highp float; varying vec2 uv; uniform sampler2D uCur, u
   void main(){ vec3 p = texture2D(uPrev, uv).rgb * uHold; vec3 c = texture2D(uCur, uv).rgb;
     gl_FragColor = vec4(min(p + c * uOpen, vec3(3.)), 1.); }`;
 const fbP = mkProg(QVS, FBFS), dP = mkProg(DVS, DFS), msP = mkProg(QVS, MOSFS), exP = mkProg(QVS, EXPFS);
+/* the collage: hand-cut pieces of paper, each carrying the picture of one moment, set at different depths in the room of the funnel */
+const PVS = `attribute vec3 pv; uniform mat4 uM, uP; uniform vec4 uCrop; uniform vec2 uOff; varying vec2 vt; varying float ve;
+  void main(){ vec4 c = uM * (uP * vec4(pv.xy, 0., 1.)); c.xy += uOff * c.w; gl_Position = c; vt = uCrop.xy + (pv.xy * .5 + .5) * uCrop.zw; ve = pv.z; }`;
+const PFS = `precision mediump float; varying vec2 vt; varying float ve; uniform sampler2D uSnap; uniform float uMode; uniform vec3 uPaper;
+  void main(){
+    if (uMode > 1.5) { gl_FragColor = vec4(.93, .90, .84, .75 * step(.5, ve)); return; }       // the pen; where it lifted, nothing
+    if (uMode > .5) { gl_FragColor = vec4(0., 0., 0., .5); return; }                           // the shadow under a piece
+    vec3 c = texture2D(uSnap, vt).rgb * 1.7; c = c / (1. + c * .3);
+    c = mix(c, uPaper, smoothstep(.935, .965, ve));                                              // the cut leaves a rim of bare paper
+    gl_FragColor = vec4(c, 1.); }`;
+const CPFS = `precision mediump float; varying vec2 uv; uniform sampler2D t; uniform float uK;
+  void main(){ vec3 c = texture2D(t, uv).rgb * 1.4; gl_FragColor = vec4(c / (1. + c * .6) * uK, 1.); }`;
+const pP = mkProg(PVS, PFS), cpP = mkProg(QVS, CPFS);
+const PU = {}; for (const n of ["uM","uP","uCrop","uOff","uSnap","uMode","uPaper"]) PU[n] = gl.getUniformLocation(pP, n);
+const CPU = { t: gl.getUniformLocation(cpP, "t"), uK: gl.getUniformLocation(cpP, "uK") };
 const XU = {}; for (const n of ["uCur","uPrev","uOpen","uHold"]) XU[n] = gl.getUniformLocation(exP, n);
 const MU = {}; for (const n of ["uCur","uPrev","uPh","uW","uAsp","uSeed"]) MU[n] = gl.getUniformLocation(msP, n);
 const FU = {}, DU = {};
@@ -709,12 +719,15 @@ const LOOKS = [
   { mat: 7, tone: 0, mo: { z: 0.0004, r: 0.0020, f: .0008, d: 0.95 } },                   // stipple: the light set down as dots
   { mat: 8, tone: 0, mo: { z: 0.0006, r: 0.0050, f: .0018, d: 0.95 } },                   // airbrush through a moving stencil, scratched highlights
   { mat: 8, tone: 0, mo: { z: 0.0016, r: -0.0030, f: .0008, d: 0.94 } },
+  { mat: 9, tone: 0, mo: { z: 0.0006, r: 0.0030, f: .0010, d: 0.93 } },                   // collage: torn pieces of different moments, floating at different depths
+  { mat: 9, tone: 0, mo: { z: 0.0012, r: -0.0040, f: .0006, d: 0.94 } },
 ];
 let MO = { ...LOOKS[0].mo };
 let lookIdx = 0, lastCut = -99, busy = 0, prevOn = false, quietRun = 0, prevLv = 0;
 /* what each manuscript sets: its colour, and the motion of the feedback that suits it */
 function setMat(m) { mat = m; const sel = document.getElementById("matS"); if (sel) sel.value = String(m);
   if (m === 2 || m === 5) { mosSeed = Math.random() * 10; for (const f of mos) { gl.bindFramebuffer(gl.FRAMEBUFFER, f.f); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
+  if (m === 9) colReset();
   if (m === 4) bandDir = Math.random() < .5 ? -1 : 1; }
 function applyLook(L) { setMat(L.mat || 0); tone = L.tone; mosaic = !!L.mosaic; room = !!L.room; spec = !!L.spec; sky = !!L.sky; calc = !!L.calc; record = !!L.record; invert = !!L.invert;
   MO = { ...(L.mo || LOOKS[0].mo) }; syncLookUI(); }
@@ -922,6 +935,65 @@ function pageH() {
              [.86 + k * Math.cos(t * .7), .95 - k * .4 * Math.sin(t)], [.06 + k * .7 * Math.cos(t * 1.2), .90 + k * .5 * Math.sin(t * .9)]];
   return inv3(sq2quad(q));
 }
+const SNW = 512, NSLOT = 14, MAXP = 40;
+let snaps = null, snapN = 0, pieces = [], pasteAcc = 0, prevLv9 = 0;
+function makeSnaps() { snaps = [];
+  const SNH = Math.round(SNW / ASP);
+  for (let i = 0; i < NSLOT; i++) { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, SNW, SNH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    snaps.push({ t, f, h: SNH }); }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
+function snapTake(src) {                 // a print of this moment, kept for the pieces cut from it
+  if (!snaps) makeSnaps(); const sl = snaps[snapN % NSLOT]; snapN++;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sl.f); gl.viewport(0, 0, SNW, sl.h); gl.disable(gl.BLEND); gl.useProgram(cpP);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(CPU.t, 0); gl.uniform1f(CPU.uK, 1); quad(cpP);
+  gl.enable(gl.BLEND); return snapN - 1; }
+const DEPTHS = [-.15, .55, -.85, .15, .9];   // by voice: people, stars, land animals, fish, insects — low sounds far back, high ones near
+function cutPiece(snap) {               // a piece cut by hand: a rough quadrilateral, its edge wandering
+  const rim = [], pen = [], K = 18;
+  const w = .7 + Math.random() * .3, hh = .7 + Math.random() * .3, sk = (Math.random() - .5) * .3;
+  for (let k = 0; k < K; k++) { const t = k / K * 4, side = Math.floor(t), f = t - side;
+    let x, y; if (side === 0) { x = -1 + 2 * f; y = -1; } else if (side === 1) { x = 1; y = -1 + 2 * f; } else if (side === 2) { x = 1 - 2 * f; y = 1; } else { x = -1; y = 1 - 2 * f; }
+    x = x * w + y * sk + (Math.random() - .5) * .09; y = y * hh + (Math.random() - .5) * .09; rim.push([x, y]); }
+  const fan = [0, 0, 0]; for (let k = 0; k <= K; k++) { const r = rim[k % K]; fan.push(r[0], r[1], 1); }
+  let on = 1; for (let k = 0; k <= K + 2; k++) { const r = rim[k % K]; if (Math.random() < .12) on = 1 - on; else if (!on && Math.random() < .5) on = 1;
+    pen.push(r[0] * 1.03 + (Math.random() - .5) * .04, r[1] * 1.03 + (Math.random() - .5) * .04, on); }
+  const mk = a => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(a), gl.STATIC_DRAW); return b; };
+  let vi = 0, best = -1; V.forEach((v, i) => { if (arrived[i] > 0 && v.band / (v.bmax || 1) > best) { best = v.band / (v.bmax || 1); vi = i; } });
+  if (!(snd.mic || snd.sim)) vi = Math.floor(Math.random() * 5);
+  const z = DEPTHS[vi] * .7 + (Math.random() - .5) * .25, a = Math.random() * 6.283, rr = .15 + Math.random() * 1.0;
+  const sz = .12 + Math.random() * .22, cw = .28 + Math.random() * .3;
+  return { fb: mk(fan), pb: mk(pen), n: K + 2, np: K + 3, snap,
+    P: mul(mT(Math.cos(a) * rr, Math.sin(a) * rr, z), mul(rotZ(Math.random() * 6.283), mul(mRX((Math.random() - .5) * .7), mS(sz)))),
+    crop: [.5 - cw / 2 + (Math.random() - .5) * .35, .5 - cw * ASP * .4 + (Math.random() - .5) * .35, cw, cw * ASP * .8], paper: [.80 + Math.random() * .1, .76 + Math.random() * .08, .66 + Math.random() * .08] }; }
+function dropPiece(p) { gl.deleteBuffer(p.fb); gl.deleteBuffer(p.pb); }
+function paste(src, k) { const sn = snapTake(src);
+  for (let i = 0; i < k; i++) { pieces.push(cutPiece(sn)); while (pieces.length > MAXP) dropPiece(pieces.shift()); }
+  pieces = pieces.filter(p => { if (snapN - 1 - p.snap >= NSLOT) { dropPiece(p); return false; } return true; }); }
+function colReset() { for (const p of pieces) dropPiece(p); pieces = []; colSeed = true; }
+let colSeed = false;
+function collage(rdt, src, out) {
+  if (colSeed) { colSeed = false; for (let i = 0; i < 8; i++) paste(src, 3); }        // start with a table already covered
+  pasteAcc += rdt; const jump = lvS - prevLv9 > .1; prevLv9 = lvS;
+  if (jump || pasteAcc > 2.4 - 1.8 * tempoLv) { pasteAcc = 0; paste(src, jump ? 2 : 1); }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, out.f); gl.viewport(0, 0, FBW, FBH); gl.disable(gl.BLEND);
+  gl.useProgram(cpP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(CPU.t, 0); gl.uniform1f(CPU.uK, .3); quad(cpP);   // the live picture, dim, is the table
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.useProgram(pP);
+  const la = gl.getAttribLocation(pP, "pv"); gl.enableVertexAttribArray(la);
+  gl.uniformMatrix4fv(PU.uM, false, new Float32Array(M)); gl.uniform1i(PU.uSnap, 0);
+  const wOf = p => M[3] * p.P[12] + M[7] * p.P[13] + M[11] * p.P[14] + M[15];
+  const order = pieces.slice().sort((a, b) => wOf(b) - wOf(a));        // far first
+  for (const p of order) { if (wOf(p) < .02) continue;
+    gl.uniformMatrix4fv(PU.uP, false, new Float32Array(p.P)); gl.uniform4fv(PU.uCrop, p.crop); gl.uniform3fv(PU.uPaper, p.paper);
+    gl.bindTexture(gl.TEXTURE_2D, snaps[p.snap % NSLOT].t);
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.fb); gl.vertexAttribPointer(la, 3, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(PU.uMode, 1); gl.uniform2f(PU.uOff, .012, -.016); gl.drawArrays(gl.TRIANGLE_FAN, 0, p.n);
+    gl.uniform1f(PU.uMode, 0); gl.uniform2f(PU.uOff, 0, 0); gl.drawArrays(gl.TRIANGLE_FAN, 0, p.n);
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.pb); gl.vertexAttribPointer(la, 3, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(PU.uMode, 2); gl.drawArrays(gl.LINE_STRIP, 0, p.np); }
+  gl.disableVertexAttribArray(la); gl.blendFunc(gl.ONE, gl.ONE); }
 function frame(now) {
   const rdt = Math.min(.05, (now - last) / 1000); last = now; const dt = rdt * speed;
   T += rdt; stageT += dt * (autoRun ? tempo : 1);      // in automatic running the sound speeds the timeline up or holds it back
@@ -1002,6 +1074,7 @@ function frame(now) {
     gl.uniform1f(MU.uPh, mosPh); gl.uniform1f(MU.uW, 0.035); gl.uniform1f(MU.uAsp, ASP); gl.uniform1f(MU.uSeed, mosSeed);
     quad(msP); gl.enable(gl.BLEND); mping = 1 - mping; showTex = md.t;
   }
+  if (mat === 9) { const md = mos[1 - mping]; collage(rdt, dst.t, md); mping = 1 - mping; showTex = md.t; }
   drawOverlay(veil); uploadOverlay();
   {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, gc.width, gc.height); gl.disable(gl.BLEND);
