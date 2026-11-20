@@ -40,7 +40,7 @@ button.on{background:#2c2c2c;color:#fff;border-color:#555}
   <span class="lab">設置</span><button id="floorB">床</button><button id="pinB">台形</button><button id="pinR">台形リセット</button><button id="instB">設置イメージ</button>
   <span class="lab">光の向き</span><input id="lampA" type="range" min="0" max="360" value="130"><button id="lampSpin" class="on">回す</button><span class="lab">光の高さ</span><input id="lampE" type="range" min="3" max="40" value="15"><select id="matS" style="display:none"><option value="10">銀の起伏</option></select>
   <span class="lab">書き出し</span><select id="outR"><option value="">画面</option><option value="1920x1080">1080p</option><option value="2560x1440" selected>1440p</option></select><button id="recOut">● 書き出し</button>
-  <span class="lab">マイク</span><button id="micB">Mic</button><button id="calB">静けさを測る</button>
+  <span class="lab">マイク</span><button id="micB">Mic</button><button id="calB">静けさを測る</button><label id="afL" style="background:#111;border:1px solid #333;border-radius:4px;padding:3px 8px;cursor:pointer">音声ファイル<input id="afI" type="file" accept="audio/*" hidden></label><button id="afP">再生</button>
   <button id="thrM">−</button><span id="thrV" class="lab" style="color:#999">+8 dB</span><button id="thrP">＋</button>
   <span id="meter" class="lab" style="font-family:monospace;color:#777">········</span>
   <button id="simB">擬似音</button><button id="oneB">一本の線</button><button id="dimB" class="on">減光</button><button id="autoB">自動終了</button>
@@ -2629,6 +2629,22 @@ async function startMic() {
     document.getElementById("micB").classList.add("on"); document.getElementById("simB").classList.remove("on");
   } catch (e) { flash("no microphone here — use 擬似音 (S) to look"); }
 }
+/* a recorded performance can stand in for the room: the file is played, heard by the same ears as the microphone,
+   and its sound goes into the exported file. its quiet is not measured (a file has no room tone to trust): the threshold starts at -60 dB */
+const af = { el: null, src: null, dest: null, url: null };
+async function loadAudioFile(f) {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") await actx.resume();
+  if (snd.stream && snd.mic && !af.el) snd.stream.getTracks().forEach(t => t.stop());
+  if (!af.el) { af.el = new Audio(); af.el.crossOrigin = "anonymous"; af.src = actx.createMediaElementSource(af.el); af.dest = actx.createMediaStreamDestination();
+    af.el.onended = () => document.getElementById("afP").textContent = "再生"; }
+  if (af.url) URL.revokeObjectURL(af.url); af.url = URL.createObjectURL(f); af.el.src = af.url;
+  snd.an = actx.createAnalyser(); snd.an.fftSize = 2048; snd.buf = new Float32Array(snd.an.fftSize);
+  af.src.disconnect(); af.src.connect(snd.an); af.src.connect(actx.destination); af.src.connect(af.dest);
+  snd.stream = af.dest.stream; snd.mic = true; snd.sim = false; snd.cal = 0; snd.floor = -60;
+  document.getElementById("micB").classList.remove("on"); document.getElementById("simB").classList.remove("on"); document.getElementById("afL").style.borderColor = "#aaa";
+  flash(f.name + " — 再生 (P) to play"); }
+function playAudio(fromStart) { if (!af.el) return; if (fromStart) af.el.currentTime = 0;
+  if (af.el.paused) { af.el.play(); document.getElementById("afP").textContent = "停止"; } else { af.el.pause(); document.getElementById("afP").textContent = "再生"; } }
 function calibrate() { snd.cal = 2.5; snd.calv = []; flash("listening to the quiet… 2.5 s"); }
 /* ===== automatic running: pace and texture follow the sound =====
    tempo: how fast the timeline moves. Quiet holds it back (to 0.3x); a strong, dense sound drives it on (to about 2.5x).
@@ -2870,6 +2886,7 @@ async function startRecWC() {
     (async () => { for (;;) { const { value, done } = await reader.read(); if (done || !rec) { if (value) value.close(); break; }
       if (ae.state === "configured") ae.encode(value); value.close(); } tr.stop(); })();
   }
+  if (af.el) { af.el.currentTime = 0; if (af.el.paused) playAudio(false); }
   rec = { wc: true, ve, ae, reader, muxer, writer, name, t0: performance.now(), n: 0, drop: 0, w, h };
   recUI(); flash(`recording ${w}×${h} ${vid.mux === "avc" ? "H.264" : "VP9"} ${Math.round(vid.cfg.bitrate / 1e6)} Mbit/s`);
   return true;
@@ -2891,6 +2908,7 @@ function startRecMR() {                  // the older way, for browsers without 
   const chunks = [];
   mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   mr.onstop = () => { const url = URL.createObjectURL(new Blob(chunks, { type: mime })); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); flash("saved: " + name + " (lower quality: use Chrome)"); OUT = null; resize(); };
+  if (af.el) { af.el.currentTime = 0; if (af.el.paused) playAudio(false); }
   mr.start(1000); rec = { mr, t0: performance.now() }; recUI(); flash("this browser records at its own quality — Chrome is better");
 }
 function recUI() { const b = document.getElementById("recOut"); b.classList.add("on");
@@ -3152,6 +3170,8 @@ document.getElementById("fbq").onchange = e => { FBQ = +e.target.value; makeFB()
 document.getElementById("recOut").onclick = () => rec ? stopRec() : startRec();
 addEventListener("resize", () => { if (inst) ivDraw(); });
 document.getElementById("micB").onclick = startMic;
+document.getElementById("afI").onchange = e => { const f = e.target.files[0]; if (f) loadAudioFile(f); };
+document.getElementById("afP").onclick = () => playAudio(false);
 document.getElementById("calB").onclick = () => { if (snd.mic) calibrate(); else startMic(); };
 const thr = d => { snd.sens = Math.max(1, Math.min(40, snd.sens + d)); showThr(); flash("threshold +" + snd.sens + " dB above the quiet"); };
 document.getElementById("thrM").onclick = () => thr(-1); document.getElementById("thrP").onclick = () => thr(1);
@@ -3173,6 +3193,7 @@ addEventListener("keydown", e => {
   else if (e.key === "h") document.getElementById("ui").classList.toggle("hidden");
   else if (e.key === "[") thr(-1);
   else if (e.key === "]") thr(1);
+  else if (e.key === "p") playAudio(false);
   else if (e.key === "n") { if (snd.mic) calibrate(); else startMic(); }
   else if (e.key === "s") document.getElementById("simB").click();
   else if (e.key === "x") document.getElementById("instB").click();
