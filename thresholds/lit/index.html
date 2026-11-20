@@ -21,7 +21,7 @@ button.on{border-color:#aaa;color:#fff}
   <button id="mic">Mic</button><button id="sim">擬似音</button>
   <span>起伏</span><input id="dp" type="range" min="5" max="100" value="35">
   <span>光の高さ</span><input id="el" type="range" min="2" max="60" value="14">
-  <span>銀</span><input id="mt" type="range" min="0" max="100" value="70">
+  <span>光の向き</span><input id="az" type="range" min="0" max="360" value="130"><button id="spin" class="on">回す</button><span>銀</span><input id="mt" type="range" min="0" max="100" value="70">
 </div>
 <script>
 /* Lit.
@@ -86,12 +86,12 @@ function sndStep(dt) {
     const v = Math.max(0, Math.min(1, (db - snd.floor - 8) / 24)); snd.lv += (v - snd.lv) * (v > snd.lv ? .3 : .06); }
   else if (snd.sim) { snd.sn += (Math.random() - .5) * dt * 1.4; snd.sn *= .996; snd.lv += (Math.max(0, Math.min(1, .4 + snd.sn)) - snd.lv) * .1; }
 }
-let T = 0, last = performance.now(), DEPTH = .35, EL = 14, MET = .7, az = 2.3, lvS = 0;
+let SPIN = true, T = 0, last = performance.now(), DEPTH = .35, EL = 14, MET = .7, az = 2.3, lvS = 0;
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; T += dt; sndStep(dt);
   const live = snd.an || snd.sim; lvS += ((live ? snd.lv : .25) - lvS) * Math.min(1, dt * 1.5);
   if (video && video.readyState >= 2) upload();
-  az += dt * (.03 + .5 * lvS);                                   // the lamp walks around; the sound hurries it
+  if (SPIN) { az += dt * (.03 + .5 * lvS); document.getElementById("az").value = String(Math.round(((az * 180 / Math.PI) % 360 + 360) % 360)); }   // the lamp walks around; the sound hurries it
   const el = EL * Math.PI / 180 * (1 - .5 * lvS);                  // and lowers it, so the shadows reach further
   gl.uniform3f(U.uL, Math.cos(az) * Math.cos(el), Math.sin(az) * Math.cos(el), Math.sin(el));
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, st); gl.uniform1i(U.uS, 0);
@@ -112,6 +112,8 @@ document.getElementById("mic").onclick = mic;
 document.getElementById("sim").onclick = e => { snd.sim = !snd.sim; e.target.classList.toggle("on", snd.sim); };
 document.getElementById("dp").oninput = e => { DEPTH = e.target.value / 100; };
 document.getElementById("el").oninput = e => { EL = +e.target.value; };
+document.getElementById("az").oninput = e => { az = e.target.value * Math.PI / 180; };
+document.getElementById("spin").onclick = e => { SPIN = !SPIN; e.target.classList.toggle("on", SPIN); };
 document.getElementById("mt").oninput = e => { MET = e.target.value / 100; };
 document.getElementById("tg").onclick = () => document.getElementById("ui").classList.toggle("hidden");
 addEventListener("keydown", e => { if (e.key === "h") document.getElementById("ui").classList.toggle("hidden"); });

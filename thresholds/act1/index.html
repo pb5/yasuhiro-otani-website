@@ -38,7 +38,7 @@ button.on{background:#2c2c2c;color:#fff;border-color:#555}
   <span class="lab">カメラ</span><button id="camB" class="on">動く</button>
   <span class="lab">質</span><button id="anaB" class="on">アナログ</button><button id="toneB">白黒</button><button id="invB">反転</button><button id="recB">記録</button><button id="roomB">部屋</button><button id="skyB">天球</button><button id="specB">分光</button><button id="calcB">計算</button>
   <span class="lab">設置</span><button id="floorB">床</button><button id="pinB">台形</button><button id="pinR">台形リセット</button><button id="instB">設置イメージ</button>
-  <span class="lab">原稿</span><select id="matS"><option value="0">なし</option><option value="1">光沢図版</option><option value="2">探査機モザイク</option><option value="3">天球図の見開き</option><option value="4">手稿と光</option><option value="5">長時間露光</option><option value="6">擬似カラー</option><option value="7">点描</option><option value="8">エアブラシ</option><option value="9">立体コラージュ</option></select>
+  <span class="lab">原稿</span><select id="matS"><option value="0">なし</option><option value="1">光沢図版</option><option value="2">探査機モザイク</option><option value="3">天球図の見開き</option><option value="4">手稿と光</option><option value="5">長時間露光</option><option value="6">擬似カラー</option><option value="7">点描</option><option value="8">エアブラシ</option><option value="9">立体コラージュ</option><option value="10">銀の起伏</option></select>
   <span class="lab">書き出し</span><select id="outR"><option value="">画面</option><option value="1920x1080">1080p</option><option value="2560x1440" selected>1440p</option></select><button id="recOut">● 書き出し</button>
   <span class="lab">マイク</span><button id="micB">Mic</button><button id="calB">静けさを測る</button>
   <button id="thrM">−</button><span id="thrV" class="lab" style="color:#999">+8 dB</span><button id="thrP">＋</button>
@@ -2072,6 +2072,8 @@ const FBFS = `precision highp float; varying vec2 uv; uniform sampler2D tex; uni
 const DFS = `precision highp float; varying vec2 vuv; vec2 uv; uniform sampler2D tex, uOv; uniform mat3 uH; uniform vec2 uPx, uRes; uniform float uT, uAna, uTone, uAsp, uMos, uInv, uSpec, uGs;
   uniform float uInst, uTan, uS; uniform vec3 uCP, uCF, uCR, uCU;
   uniform float uMat; uniform mat3 uHP; uniform float uCurl, uGx, uLv, uBandA, uBandO, uTerm;  // uTerm: stipple seed
+  uniform vec3 uLamp;
+  float lh(vec2 q){ vec3 c = texture2D(tex, q).rgb; float v = dot(c, vec3(.333)); return v / (1. + v); }
   float hf(vec2 q){ float v = dot(texture2D(tex, q).rgb, vec3(.333)); return v / (1. + v); }
   vec3 comp(vec3 c){ vec4 o = texture2D(uOv, uv); return c * (1. - o.a) + o.rgb; }
   float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
@@ -2234,9 +2236,27 @@ const DFS = `precision highp float; varying vec2 vuv; vec2 uv; uniform sampler2D
       ab += vec3(1., .95, .88) * smoothstep(.25, .8, sharp) * .7 * (.4 + .6 * mask);        // white pencil
       ab = mix(ab, vec3(.75, .80, .95), (1. - smoothstep(.0, .004, abs(length(c - o) - R))) * .35);   // the card's edge leaves a faint rim
       col = ab; }
-    if (uMat > 8.5) {                                   // the collage is already a picture of paper; only the print's grain and fall-off
+    if (uMat > 8.5 && uMat < 9.5) {                     // the collage is already a picture of paper; only the print's grain and fall-off
       vec3 c9 = texture2D(tex, q).rgb; vec2 cv = uv - .5; cv.x *= uAsp;
       c9 *= 1. - .4 * smoothstep(.4, 1.1, length(cv)); c9 += (h(uv * 731. + fract(uT * 7.3 * uGs)) - .5) * .045; col = clamp(c9, 0., 1.); }
+    if (uMat > 9.5) {
+      /* lit: the picture is not shown as light. it is a surface — where the lines of the count are dense, it stands up —
+         and one low lamp is set beside it. crests throw the lamp back as silver, behind them falls a hard shadow, what is sunk stays black */
+      float asp = uRes.x / uRes.y; vec2 ps = uPx * 1.5;
+      float z = lh(q) * .22;
+      float gx = (lh(q + vec2(ps.x, 0.)) - lh(q - vec2(ps.x, 0.))) * .22 / (2. * ps.x * asp), gy = (lh(q + vec2(0., ps.y)) - lh(q - vec2(0., ps.y))) * .22 / (2. * ps.y);
+      vec3 nn = normalize(vec3(-gx, -gy, 1.)), ll = normalize(uLamp);
+      vec2 ld = normalize(ll.xy); float tn = ll.z / length(ll.xy); float lit = 1.;
+      for (int i = 1; i <= 48; i++) { float dist = float(i) * 2.5 * uPx.y; vec2 qq = q + vec2(ld.x / asp, ld.y) * dist;
+        if (qq.x < 0. || qq.x > 1. || qq.y < 0. || qq.y > 1.) break;
+        if (lh(qq) * .22 > z + dist * tn) { lit = 0.; break; } }
+      float mean = 0.; for (int i = 0; i < 8; i++) { float a = float(i) * .785; mean += lh(q + vec2(cos(a), sin(a)) * uPx * 10.); } mean = mean / 8. * .22;
+      float occ = clamp(1. - (mean - z) * 30., .1, 1.);
+      float dif = max(dot(nn, ll), 0.), sp = pow(max(dot(nn, normalize(ll + vec3(0., 0., 1.))), 0.), 70.);
+      float lc = (dif * .3 + sp * 1.7) * lit + .025 * occ * occ;
+      lc *= occ * (.35 + .65 * smoothstep(0., .08, z));            // the bare floor, where nothing has died yet, stays dark
+      float dd = log2(1. + max(lc, 0.) * 6.) / log2(7.); dd = smoothstep(0., 1., dd) * .95 + dd * .05;
+      col = vec3(dd) * vec3(.97, .98, 1.); }
     if (uSpec > .5) {                                   // a prism's spectrum lying across the page
       vec2 c = uv - .5; c.x *= uAsp; float an = .7 + .15 * sin(uT * .05);
       float d = dot(c, vec2(cos(an), sin(an))) - .05 * sin(uT * .07);
@@ -2292,7 +2312,7 @@ const XU = {}; for (const n of ["uCur","uPrev","uOpen","uHold"]) XU[n] = gl.getU
 const MU = {}; for (const n of ["uCur","uPrev","uPh","uW","uAsp","uSeed"]) MU[n] = gl.getUniformLocation(msP, n);
 const FU = {}, DU = {};
 for (const n of ["tex","uT","uAsp","uZoom","uRot","uFlow","uDecay"]) FU[n] = gl.getUniformLocation(fbP, n);
-for (const n of ["tex","uOv","uH","uPx","uRes","uT","uAna","uTone","uAsp","uMos","uInv","uSpec","uInst","uTan","uS","uCP","uCF","uCR","uCU","uMat","uHP","uCurl","uGx","uLv","uBandA","uBandO","uTerm","uGs"]) DU[n] = gl.getUniformLocation(dP, n);
+for (const n of ["tex","uOv","uH","uPx","uRes","uT","uAna","uTone","uAsp","uMos","uInv","uSpec","uInst","uTan","uS","uCP","uCF","uCR","uCU","uMat","uHP","uCurl","uGx","uLv","uBandA","uBandO","uTerm","uGs","uLamp"]) DU[n] = gl.getUniformLocation(dP, n);
 let FBQ = 1, fbs = [], ping = 0, FBW = 0, FBH = 0, analog = true, tone = 0, FBTYPE, mosaic = false, invert = false, record = false;
 const TONES = ["白黒", "琥珀", "青焼き", "桃色網点", "橙版", "手稿", "銅版", "惑星"];
 let room = false, sky = false, spec = false, calc = false, tally = [];
@@ -2664,6 +2684,7 @@ const SCENES = [
   { mat: 7, tones: [0],    mo: [{ z: .0004, r: .0020, f: .0008, d: .95 }, { z: .0010, r: -.0040, f: .0004, d: .94 }] },
   { mat: 8, tones: [0],    mo: [{ z: .0006, r: .0050, f: .0018, d: .95 }, { z: .0016, r: -.0030, f: .0008, d: .94 }] },
   { mat: 9, tones: [0],    mo: [{ z: .0006, r: .0030, f: .0010, d: .93 }, { z: .0012, r: -.0040, f: .0006, d: .94 }] },
+  { mat: 10, tones: [0],   mo: [{ z: .0006, r: .0030, f: .0008, d: .95 }, { z: .0010, r: -.0050, f: .0004, d: .95 }] },
 ];
 let sceneIdx = -1, sceneT = 0, sceneMin = 60, sceneMax = 120, deck = [], phraseT = 0, toneSwapped = false, moIdx = 0;
 function sceneLen() { const v = +document.getElementById("sceneLen").value;
@@ -2925,7 +2946,7 @@ function voicesStep(rdt) {
 }
 
 // ---------- loop ----------
-let mosFill = false, shut = 0, stipPh = 0, last = performance.now(), dimK = 1, mosPh = 0, mosSeed = 0, lvS = 0, bandA = .7, bandO = 0, bandDir = 1, mat = 0;
+let lampAz = 2.3, mosFill = false, shut = 0, stipPh = 0, last = performance.now(), dimK = 1, mosPh = 0, mosSeed = 0, lvS = 0, bandA = .7, bandO = 0, bandDir = 1, mat = 0;
 /* the glossy plate: a page lying slightly turned on the table, photographed from above at a slant */
 function pageH() {
   const t = T * .04, k = .07, sx = .5, sy = .5;
@@ -3097,7 +3118,8 @@ function frame(now) {
     gl.uniform1f(DU.uInst, inst ? 1 : 0); gl.uniform1f(DU.uTan, IV.tan); gl.uniform1f(DU.uS, IV.S);
     gl.uniform3fv(DU.uCP, IV.P); gl.uniform3fv(DU.uCF, IV.f); gl.uniform3fv(DU.uCR, IV.r); gl.uniform3fv(DU.uCU, IV.u); gl.uniform1f(DU.uTone, tone); gl.uniform1f(DU.uAsp, ASP);
     gl.uniform2f(DU.uRes, gc.width, gc.height); gl.uniform1f(DU.uMos, 0); gl.uniform1f(DU.uInv, invert ? 1 : 0); gl.uniform1f(DU.uSpec, spec ? 1 : 0);
-    gl.uniform1f(DU.uGs, rec ? 0 : 1);   // while recording, the grain stays put like the grain of paper, so the encoder spends its bits on the picture
+    gl.uniform1f(DU.uGs, rec ? 0 : 1);
+    lampAz += rdt * (.03 + .5 * lvS); { const el = (.26 - .14 * lvS); gl.uniform3f(DU.uLamp, Math.cos(lampAz) * Math.cos(el), Math.sin(lampAz) * Math.cos(el), Math.sin(el)); }   // the lamp walks around; the sound lowers it   // while recording, the grain stays put like the grain of paper, so the encoder spends its bits on the picture
     quad(dP); gl.enable(gl.BLEND); ping = 1 - ping;
     if (rec && rec.wc) recFrame();
   }
