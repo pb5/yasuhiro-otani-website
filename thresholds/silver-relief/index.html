@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Thresholds of Presence — Silver Relief</title>
+<title>Silver Relief — Yasuhiro Otani</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#888;
   font-family:"EB Garamond",Garamond,Georgia,"Times New Roman",serif;-webkit-user-select:none;user-select:none}
@@ -1964,14 +1964,14 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 
 const YEAR = 365.25 * 86400;
 const CATS = [
-  { k:"people", lo: 63.6e6 / YEAR, hi: 63.6e6 / YEAR, rate: 63.6e6 / YEAR,  unit:"1 line = 1 human death", note:"about 2 per second" },
+  { k:"people", lo: 0, hi: 0, rate: 0,   /* not counted in this piece */  unit:"1 line = 1 human death", note:"about 2 per second" },
   { k:"stars", lo: 10, hi: 1250, rate: 130,            unit:"1 line = 1 star exploding somewhere in the universe", note:"~130 per second (estimates range 10–1,250)" },
   { k:"land animals", lo: 87.9e9 / YEAR, hi: 87.9e9 / YEAR, rate: 87.9e9 / YEAR, unit:"1 line = 1 land animal slaughtered for meat", note:"~2,800 per second" },
   { k:"fish", lo: (1.1e12 + 124e9) / YEAR, hi: (2.2e12 + 124e9) / YEAR, rate: (1.65e12 + 124e9) / YEAR, unit:"1 line = 1 fish, caught from the wild or farmed", note:"~35,000–70,000 per second" },
   { k:"insects", lo: 1e14 / YEAR, hi: 1e16 / YEAR, rate: 1e15 / YEAR,    unit:"insects killed by pesticides", note:"~3 million–300 million per second. This can no longer be drawn." }
 ];
 /* the timeline: a total length (default 22 min) shared out by weight. In automatic running, the sound sets the pace (see tempo) */
-const WEIGHTS = [0.4, 3, 4, 5, 5.6, 4];      // dark, people, stars, land animals, fish, insects (minutes at 22)
+const WEIGHTS = [0.4, 0, 5, 6, 6.6, 4];      // people are not counted in Silver Relief      // dark, people, stars, land animals, fish, insects (minutes at 22)
 let TOTAL_MIN = 22, STAGES = [];
 function buildStages() { const k = TOTAL_MIN / 22 * 60; STAGES = WEIGHTS.map((w, i) => ({ d: i < WEIGHTS.length - 1 ? w * k : Infinity, n: i })); }
 buildStages();
@@ -2412,11 +2412,11 @@ let ML = null, MR = null;
 
 // ---------- state ----------
 let T = 0, stage = 0, stageT = 0, speed = 1, CAP = 25000, acc = 0, ending = false, autoRun = true, tempo = 1;
-let showCount = true, counts = CATS.map(() => 0), arrived = CATS.map(() => 0), labelA = 0, labelTxt = ["", ""], totalRate = 0;
+let showCount = false, counts = CATS.map(() => 0), arrived = CATS.map(() => 0), labelA = 0, labelTxt = ["", ""], totalRate = 0;
 function setStage(s) {
   stage = s; stageT = 0; ending = false; fall = 0;
   for (let i = 0; i < CATS.length; i++) if (i >= STAGES[s].n) arrived[i] = 0; else if (i < STAGES[s].n - 1) arrived[i] = 1;
-  const c = CATS[STAGES[s].n - 1]; labelTxt = c ? [c.unit, c.note] : ["", ""]; labelA = c ? 1 : 0;
+  const c = CATS[STAGES[s].n - 1]; labelTxt = ["", ""]; labelA = 0;   // no line is said to equal anything
 }
 function restart() { T = 0; counts = CATS.map(() => 0); arrived = CATS.map(() => 0); acc = 0; clearData(); if (typeof snd !== "undefined") { snd.total = 0; snd.quiet = 0; } setStage(0); }
 const linesPer = () => Math.max(1, totalRate / CAP);
@@ -2435,6 +2435,7 @@ function drawOverlay(veil) {
   if (room) drawRoom();
   if (sky) drawSky();
   if (calc) drawCalc();
+  drawTitle();
   if (floor) { floorWords(veil); return; }
   const ink = veil > .5 ? "20,20,20" : "150,146,138";
   if (labelA > .01 && !ending) {
@@ -2452,6 +2453,28 @@ function drawOverlay(veil) {
   }
 }
 
+/* title, author, and what is computed — for the first seconds, at the end, and whenever C is held on */
+const TITLE = "Silver Relief", AUTHOR = "Yasuhiro Otani, 2026";
+const ABOUT = ["Drawn in real time from estimated rates per second:",
+  "stars ending in the universe, land animals killed for food, fish caught or farmed, insects killed by pesticides.",
+  "The density of the lines becomes the relief. The sound in the room moves the light."];
+let showTitle = false;
+function drawTitle() {
+  let a = 0;
+  if (T < 16) a = Math.min(1, T / 2.5) * Math.min(1, (16 - T) / 3);
+  if (ending && fall > .6) a = Math.max(a, Math.min(1, (fall - .6) / .2));
+  if (showTitle) a = 1;
+  if (a < .01) return;
+  const s = Math.min(W, H), x = 28, y = H - (document.getElementById("ui").classList.contains("hidden") ? 30 : 84);
+  ox.save(); ox.textAlign = "left"; ox.textBaseline = "alphabetic";
+  ox.fillStyle = `rgba(222,218,208,${.9 * a})`; ox.font = `${Math.max(16, s * .032)}px "EB Garamond", Garamond, Georgia, serif`;
+  ox.fillText(TITLE, x, y - s * .118);
+  ox.fillStyle = `rgba(222,218,208,${.7 * a})`; ox.font = `${Math.max(11, s * .018)}px "EB Garamond", Garamond, Georgia, serif`;
+  ox.fillText(AUTHOR, x, y - s * .085);
+  ox.fillStyle = `rgba(222,218,208,${.5 * a})`; ox.font = `${Math.max(10, s * .015)}px "EB Garamond", Garamond, Georgia, serif`;
+  ABOUT.forEach((l, k) => ox.fillText(l, x, y - s * .05 + k * s * .022));
+  ox.restore();
+}
 /* the count, recorded like a landing site: the low estimate and the high one, never the same point */
 function drawRecord() {
   const i = Math.max(0, STAGES[stage].n - 1), c = CATS[i], el = Math.max(T - 0, 0);
@@ -2509,7 +2532,8 @@ function drawSky() {
   ox.globalAlpha = .6;
   ox.beginPath(); ox.arc(cx, cy, R, 0, 6.283); ox.stroke(); ox.beginPath(); ox.arc(cx, cy, R * 1.03, 0, 6.283); ox.stroke();
   CATS.forEach((c, i) => {
-    const r = R * (.32 + i * .14), on = arrived[i] > 0 || counts[i] >= 1;
+    if (c.k === "people") return;
+    const r = R * (.32 + (i - 1) * .16), on = arrived[i] > 0 || counts[i] >= 1;
     ox.globalAlpha = on ? .5 : .15;
     ox.beginPath(); ox.arc(cx, cy, r, 0, 6.283); ox.stroke();
     ox.globalAlpha = on ? .75 : .2;
@@ -2541,6 +2565,7 @@ function drawCalc() {
   ox.save(); ox.fillStyle = penInk(); ox.font = `italic ${sz}px "Snell Roundhand", "Apple Chancery", "EB Garamond", Garamond, cursive`;
   ox.translate(W * .08, H * .12); ox.rotate(-.32); ox.globalAlpha = .75; ox.textAlign = "right";
   CATS.forEach((c, i) => {
+    if (c.k === "people") return;
     const x = (i + 1) * Math.min(W, H) * .2; let y = 0;
     ox.fillText(c.k, x, y); y += lh * 1.3;
     for (const row of tally) { if (row[i] < 1) continue; ox.fillText(fmtN(row[i]), x, y); y += lh; }
@@ -2631,12 +2656,14 @@ async function startMic() {
 }
 /* a recorded performance can stand in for the room: the file is played, heard by the same ears as the microphone,
    and its sound goes into the exported file. its quiet is not measured (a file has no room tone to trust): the threshold starts at -60 dB */
-const af = { el: null, src: null, dest: null, url: null };
+const af = { el: null, src: null, dest: null, url: null, sync: false };
 async function loadAudioFile(f) {
   actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") await actx.resume();
   if (snd.stream && snd.mic && !af.el) snd.stream.getTracks().forEach(t => t.stop());
   if (!af.el) { af.el = new Audio(); af.el.crossOrigin = "anonymous"; af.src = actx.createMediaElementSource(af.el); af.dest = actx.createMediaStreamDestination();
-    af.el.onended = () => document.getElementById("afP").textContent = "再生"; }
+    af.el.onended = () => { document.getElementById("afP").textContent = "再生"; if (af.sync) endIt(); };       // the file ends: the picture falls into the centre with it
+    af.el.onloadedmetadata = () => { if (!isFinite(af.el.duration)) return; af.sync = true; TOTAL_MIN = af.el.duration / 60; buildStages(); sceneLen();
+      const m = Math.floor(af.el.duration / 60), s2 = Math.round(af.el.duration % 60); flash("the piece is shaped to the file: " + m + ":" + String(s2).padStart(2, "0")); }; }
   if (af.url) URL.revokeObjectURL(af.url); af.url = URL.createObjectURL(f); af.el.src = af.url;
   snd.an = actx.createAnalyser(); snd.an.fftSize = 2048; snd.buf = new Float32Array(snd.an.fftSize);
   af.src.disconnect(); af.src.connect(snd.an); af.src.connect(actx.destination); af.src.connect(af.dest);
@@ -2644,6 +2671,7 @@ async function loadAudioFile(f) {
   document.getElementById("micB").classList.remove("on"); document.getElementById("simB").classList.remove("on"); document.getElementById("afL").style.borderColor = "#aaa";
   flash(f.name + " — 再生 (P) to play"); }
 function playAudio(fromStart) { if (!af.el) return; if (fromStart) af.el.currentTime = 0;
+  if (af.el.paused && (fromStart || af.el.currentTime < .05 || af.el.ended)) { af.el.currentTime = 0; restart(); setMat(10); }
   if (af.el.paused) { af.el.play(); document.getElementById("afP").textContent = "停止"; } else { af.el.pause(); document.getElementById("afP").textContent = "再生"; } }
 function calibrate() { snd.cal = 2.5; snd.calv = []; flash("listening to the quiet… 2.5 s"); }
 /* ===== automatic running: pace and texture follow the sound =====
@@ -3038,8 +3066,16 @@ function collage(rdt, src, out) {
   gl.disableVertexAttribArray(la); gl.blendFunc(gl.ONE, gl.ONE); }
 function frame(now) {
   const rdt = Math.min(.05, (now - last) / 1000); last = now; const dt = rdt * speed;
-  T += rdt; stageT += dt * (autoRun ? tempo : 1);      // in automatic running the sound speeds the timeline up or holds it back
-  if (!ending && stageT >= STAGES[stage].d && stage < STAGES.length - 1) setStage(stage + 1);
+  T += rdt;
+  if (af.sync && af.el && !ending) {                   // with a file, the timeline is the file: each stage begins at its share of the file's length
+    const ft = af.el.currentTime; let c0 = 0, sN = STAGES.length - 1;
+    for (let i = 0; i < STAGES.length - 1; i++) { if (ft < c0 + STAGES[i].d) { sN = i; break; } c0 += STAGES[i].d; }
+    if (sN !== stage) setStage(sN);
+    stageT = ft - c0;
+  } else {
+    stageT += dt * (autoRun ? tempo : 1);      // in automatic running the sound speeds the timeline up or holds it back
+    if (!ending && stageT >= STAGES[stage].d && stage < STAGES.length - 1) setStage(stage + 1);
+  }
   const n = STAGES[stage].n; totalRate = 0;
   for (let i = 0; i < CATS.length; i++) {
     if (!ending && i < n) arrived[i] = Math.min(1, arrived[i] + dt / RAMP);
@@ -3188,6 +3224,7 @@ addEventListener("keydown", e => {
   else if (e.key === "t") cycleTone();
   else if (e.key === "f") document.getElementById("floorB").click();
   else if (e.key === "k") document.getElementById("pinB").click();
+  else if (e.key === "c") { showTitle = !showTitle; }
   else if (e.key === "i") document.getElementById("invB").click();
   else if (e.key === "r") document.getElementById("recB").click();
   else if (e.key === "h") document.getElementById("ui").classList.toggle("hidden");
