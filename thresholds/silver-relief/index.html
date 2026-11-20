@@ -2433,7 +2433,7 @@ function drawOverlay(veil) {
     ox.fillText("LOW ESTIMATE", W * .25, H - 24); ox.fillText("HIGH ESTIMATE", W * .75, H - 24); ox.restore(); }
   if (record && stage > 0) drawRecord();
   if (room) drawRoom();
-  if (sky) drawSky();
+  floorSkyDone = false; if (sky && !floor) { drawSky(); floorSkyDone = true; }
   if (calc) drawCalc();
   drawTitle();
   if (floor) { floorWords(veil); return; }
@@ -2458,7 +2458,7 @@ const TITLE = "Silver Relief", AUTHOR = "Yasuhiro Otani, 2026";
 const ABOUT = ["Drawn in real time from estimated rates per second:",
   "stars ending in the universe, land animals killed for food, fish caught or farmed, insects killed by pesticides.",
   "The density of the lines becomes the relief. The sound in the room moves the light."];
-let showTitle = false;
+let showTitle = false, floorSkyDone = false;
 function drawTitle() {
   let a = 0;
   if (T < 16) a = Math.min(1, T / 2.5) * Math.min(1, (16 - T) / 3);
@@ -2524,36 +2524,23 @@ function arcText(t, cx, cy, r, a0, sz, sp = .18) {
     ox.save(); ox.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ox.rotate(a + Math.PI / 2); ox.fillText(ch, 0, 0); ox.restore(); a += w / 2 / r; }
   ox.restore();
 }
+function ringText(t, cx, cy, r, a0, sz) {         // the text is repeated until it closes the circle exactly: no gap, no overlap
+  ox.save(); ox.font = `${sz}px "EB Garamond", Garamond, Georgia, serif`; ox.textAlign = "center"; ox.textBaseline = "middle";
+  const unit = t + "   ·   ", ws = [...unit].map(ch => ox.measureText(ch).width), w1 = ws.reduce((x, y) => x + y, 0);
+  const circ = 6.2832 * r, n = Math.max(1, Math.round(circ / w1)), k = circ / (w1 * n);    // stretch the spacing a little so it meets itself
+  let a = a0;
+  for (let rep = 0; rep < n; rep++) [...unit].forEach((ch, i) => { const w = ws[i] * k; a += w / 2 / r;
+    ox.save(); ox.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ox.rotate(a + Math.PI / 2); ox.fillText(ch, 0, 0); ox.restore(); a += w / 2 / r; });
+  ox.restore();
+}
 function drawSky() {
-  /* an engraved chart, kept sparse: thin rings, small spaced capitals, only the names and the counts.
-     the orbits move: each its own slow turning, its own tilt, its centre a little off, so none keeps cutting through the deepest dark */
-  const cx = W / 2, cy = H * .5, R = Math.min(W, H) * .46, ink = penInk(), sz = Math.max(9, R * .03);
-  ox.save(); ox.strokeStyle = ink; ox.fillStyle = ink; ox.lineWidth = .7;
-  ox.globalAlpha = .6;
-  ox.beginPath(); ox.arc(cx, cy, R, 0, 6.283); ox.stroke(); ox.beginPath(); ox.arc(cx, cy, R * 1.03, 0, 6.283); ox.stroke();
-  CATS.forEach((c, i) => {
-    if (c.k === "people") return;
-    const r = R * (.32 + (i - 1) * .16), on = arrived[i] > 0 || counts[i] >= 1;
-    ox.globalAlpha = on ? .5 : .15;
-    ox.beginPath(); ox.arc(cx, cy, r, 0, 6.283); ox.stroke();
-    ox.globalAlpha = on ? .75 : .2;
-    arcText((c.k + "   " + fmtN(counts[i])).toUpperCase(), cx, cy, r + sz * 1.1, -Math.PI / 2 - .25 - i * .35, sz, .55);
-  });
-  ox.globalAlpha = .7;
-  arcText("SYSTEMA   MORTIS", cx, cy, R * 1.075, -Math.PI / 2 - .38, sz * 1.05, .7);
-  ox.lineWidth = .5;
-  for (let k = 0; k < 3; k++) {
-    const sp = [.011, -.007, .0045][k], ph = [0, 2.1, 4.2][k];
-    const tilt = ph + T * sp, off = R * (.05 + .05 * Math.sin(T * .006 + ph)), oa = ph * 1.7 + T * sp * .6;
-    const ex = cx + Math.cos(oa) * off, ey = cy + Math.sin(oa) * off;
-    const ra = R * (.86 + .1 * k), rb = R * (.42 + .08 * Math.sin(T * (.004 + k * .002) + ph) + .03 * k);   // never thinner than the dark at the centre
-    ox.globalAlpha = .32;
-    ox.beginPath(); ox.ellipse(ex, ey, ra, Math.abs(rb) + R * .04, tilt, 0, 6.283); ox.stroke();
-    /* a small mark travelling on each orbit */
-    const t = T * (.05 + k * .02) + ph, mx = ex + Math.cos(tilt) * Math.cos(t) * ra - Math.sin(tilt) * Math.sin(t) * (Math.abs(rb) + R * .04),
-      my = ey + Math.sin(tilt) * Math.cos(t) * ra + Math.cos(tilt) * Math.sin(t) * (Math.abs(rb) + R * .04);
-    ox.globalAlpha = .6; ox.beginPath(); ox.arc(mx, my, 1.6, 0, 6.283); ox.fill();
-  }
+  /* no drawn rings: the circle is made only of the words and the counts, written round and round until they close */
+  const cx = W / 2, cy = H * .5, R = Math.min(W, H) * .46, ink = penInk(), sz = Math.max(11, R * .045);
+  const t = CATS.filter((c, i) => c.k !== "people" && (arrived[i] > 0 || counts[i] >= 1)).map(c => c.k + "  " + fmtN(counts[CATS.indexOf(c)])).join("   ·   ");
+  if (!t) return;
+  ox.save(); ox.fillStyle = ink;
+  ox.globalAlpha = .7; ringText(t, cx, cy, R, -Math.PI / 2 + T * .006, sz);
+  ox.globalAlpha = .35; ringText(t, cx, cy, R * .9, -Math.PI / 2 - T * .004 + 1.3, sz * .72);
   ox.restore();
 }
 
@@ -2627,11 +2614,7 @@ function floorWords(veil) {
     ox.fillStyle = `rgba(${ink},${labelA})`;
     for (const a of sides) { arcIn(labelTxt[0], cx, cy, R, a, sz); ox.fillStyle = `rgba(${ink},${labelA * .7})`; arcIn(labelTxt[1], cx, cy, R - sz * 1.4, a, sz * .85); ox.fillStyle = `rgba(${ink},${labelA})`; }
   }
-  if (showCount && stage > 0) {
-    const t = CATS.filter((c, i) => arrived[i] > 0 || counts[i] >= 1).map(c => c.k + " " + fmtN(counts[CATS.indexOf(c)])).join("   ·   ");
-    ox.fillStyle = `rgba(${ink},.75)`;
-    for (const a of sides) arcIn(t, cx, cy, R - sz * 3.2, a, sz * .8);
-  }
+  if (sky && !floorSkyDone) drawSky();
 }
 
 /* ===== microphone (added to Act I) =====
