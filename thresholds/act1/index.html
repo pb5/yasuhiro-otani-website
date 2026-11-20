@@ -355,8 +355,7 @@ const MOSFS = `precision highp float; varying vec2 uv; uniform sampler2D uCur, u
     float a2 = (h(id + 1.7) - .5) * .5, z = .8 + h(id + 3.3) * .5; vec2 o = (vec2(h(id + 5.1), h(id + 7.9)) - .5) * .25;
     vec2 q = mat2(cos(a2), -sin(a2), sin(a2), cos(a2)) * c * z + o; q.x /= uAsp; q += .5;
     vec3 cur = texture2D(uCur, q).rgb;
-    float line = .85 + .15 * step(.5, fract(f.y * 60.));  // faint scan lines
-    gl_FragColor = vec4(cur * line, 1.);
+    gl_FragColor = vec4(cur, 1.);
   }`;
 function mkProg(v, f) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, v)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, f)); gl.linkProgram(p); return p; }
 const DVS = `attribute vec2 p; varying vec2 vuv; void main(){ vuv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
@@ -706,9 +705,9 @@ const LOOKS = [
   { mat: 0, tone: 0, mo: { z: 0.0015, r: -0.0080, f: .0003, d: 0.945 } },
   { mat: 1, tone: 1, mo: { z: 0.0004, r: 0.0060, f: .0022, d: 0.92 } },                   // glossy plate, amber ink
   { mat: 1, tone: 0, mo: { z: 0.0008, r: -0.0050, f: .0014, d: 0.93 } },                  // glossy plate, black and white
-  { mat: 2, tone: 2, mosaic: true, mo: { z: 0.0, r: 0.0, f: .0006, d: 0.94 } },           // spacecraft mosaic, blueprint
-  { mat: 2, tone: 3, mosaic: true, mo: { z: 0.0, r: 0.0, f: .0004, d: 0.93 } },           // spacecraft mosaic, pink halftone
-  { mat: 2, tone: 4, mosaic: true, mo: { z: 0.0, r: 0.0, f: .0010, d: 0.95 } },           // spacecraft mosaic, orange plate
+  { mat: 2, tone: 2, mo: { z: 0.0, r: 0.0, f: .0006, d: 0.94 } },           // spacecraft mosaic, blueprint
+  { mat: 2, tone: 3, mo: { z: 0.0, r: 0.0, f: .0004, d: 0.93 } },           // spacecraft mosaic, pink halftone
+  { mat: 2, tone: 4, mo: { z: 0.0, r: 0.0, f: .0010, d: 0.95 } },           // spacecraft mosaic, orange plate
   { mat: 3, tone: 6, mo: { z: 0.0, r: 0.0, f: .0004, d: 0.93 } },                         // the spread of two systems, engraved
   { mat: 3, tone: 1, mo: { z: 0.0, r: 0.0, f: .0006, d: 0.94 } },
   { mat: 4, tone: 0, calc: true, mo: { z: 0.0006, r: 0.0040, f: .0010, d: 0.94 } },                   // the record, and the light falling on it
@@ -726,6 +725,7 @@ let MO = { ...LOOKS[0].mo };
 let lookIdx = 0, lastCut = -99, busy = 0, prevOn = false, quietRun = 0, prevLv = 0;
 /* what each manuscript sets: its colour, and the motion of the feedback that suits it */
 function setMat(m) { mat = m; const sel = document.getElementById("matS"); if (sel) sel.value = String(m);
+  if (m === 2) mosFill = true;
   if (m === 2 || m === 5) { mosSeed = Math.random() * 10; for (const f of mos) { gl.bindFramebuffer(gl.FRAMEBUFFER, f.f); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
   if (m === 9) colReset();
   if (m === 4) bandDir = Math.random() < .5 ? -1 : 1; }
@@ -927,7 +927,7 @@ function voicesStep(rdt) {
 }
 
 // ---------- loop ----------
-let shut = 0, stipPh = 0, last = performance.now(), dimK = 1, mosPh = 0, mosSeed = 0, lvS = 0, bandA = .7, bandO = 0, bandDir = 1, mat = 0;
+let mosFill = false, shut = 0, stipPh = 0, last = performance.now(), dimK = 1, mosPh = 0, mosSeed = 0, lvS = 0, bandA = .7, bandO = 0, bandDir = 1, mat = 0;
 /* the glossy plate: a page lying slightly turned on the table, photographed from above at a slant */
 function pageH() {
   const t = T * .04, k = .07, sx = .5, sy = .5;
@@ -935,7 +935,7 @@ function pageH() {
              [.86 + k * Math.cos(t * .7), .95 - k * .4 * Math.sin(t)], [.06 + k * .7 * Math.cos(t * 1.2), .90 + k * .5 * Math.sin(t * .9)]];
   return inv3(sq2quad(q));
 }
-const SNW = 512, NSLOT = 14, MAXP = 40;
+const SNW = 384, NSLOT = 10, MAXP = 26;
 let snaps = null, snapN = 0, pieces = [], pasteAcc = 0, prevLv9 = 0;
 function makeSnaps() { snaps = [];
   const SNH = Math.round(SNW / ASP);
@@ -965,8 +965,9 @@ function cutPiece(snap) {               // a piece cut by hand: a rough quadrila
   if (!(snd.mic || snd.sim)) vi = Math.floor(Math.random() * 5);
   const z = DEPTHS[vi] * .7 + (Math.random() - .5) * .25, a = Math.random() * 6.283, rr = .15 + Math.random() * 1.0;
   const sz = .12 + Math.random() * .22, cw = .28 + Math.random() * .3;
-  return { fb: mk(fan), pb: mk(pen), n: K + 2, np: K + 3, snap,
-    P: mul(mT(Math.cos(a) * rr, Math.sin(a) * rr, z), mul(rotZ(Math.random() * 6.283), mul(mRX((Math.random() - .5) * .7), mS(sz)))),
+  return { fb: mk(fan), pb: mk(pen), n: K + 2, np: K + 3, snap, x: Math.cos(a) * rr, y: Math.sin(a) * rr, z: z - .6, sz,
+    rz: Math.random() * 6.283, rx: (Math.random() - .5) * .7, wz: (Math.random() - .5) * 2.4, wx: (Math.random() - .5) * 1.6,
+    vz: .35 + Math.random() * .5, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, P: null,
     crop: [.5 - cw / 2 + (Math.random() - .5) * .35, .5 - cw * ASP * .4 + (Math.random() - .5) * .35, cw, cw * ASP * .8], paper: [.80 + Math.random() * .1, .76 + Math.random() * .08, .66 + Math.random() * .08] }; }
 function dropPiece(p) { gl.deleteBuffer(p.fb); gl.deleteBuffer(p.pb); }
 function paste(src, k) { const sn = snapTake(src);
@@ -975,9 +976,13 @@ function paste(src, k) { const sn = snapTake(src);
 function colReset() { for (const p of pieces) dropPiece(p); pieces = []; colSeed = true; }
 let colSeed = false;
 function collage(rdt, src, out) {
-  if (colSeed) { colSeed = false; for (let i = 0; i < 8; i++) paste(src, 3); }        // start with a table already covered
+  if (colSeed) { colSeed = false; for (let i = 0; i < 6; i++) paste(src, 3); for (const p of pieces) p.z += Math.random() * 1.2; }        // start with a table already covered
   pasteAcc += rdt; const jump = lvS - prevLv9 > .1; prevLv9 = lvS;
-  if (jump || pasteAcc > 2.4 - 1.8 * tempoLv) { pasteAcc = 0; paste(src, jump ? 2 : 1); }
+  if (jump || pasteAcc > .7 - .5 * tempoLv) { pasteAcc = 0; paste(src, jump ? 3 : 1); }
+  const sp = 1 + 2.5 * tempoLv;                    // the pieces fly toward the eye, turning; faster with the sound
+  for (const p of pieces) { p.z += p.vz * sp * rdt; p.x += p.vx * sp * rdt; p.y += p.vy * sp * rdt; p.rz += p.wz * sp * rdt; p.rx += p.wx * sp * rdt;
+    p.P = mul(mT(p.x, p.y, p.z), mul(rotZ(p.rz), mul(mRX(p.rx), mS(p.sz)))); }
+  pieces = pieces.filter(p => { const w = M[3] * p.x + M[7] * p.y + M[11] * p.z + M[15]; if (w < .03 || p.z > 2.5) { dropPiece(p); return false; } return true; });
   gl.bindFramebuffer(gl.FRAMEBUFFER, out.f); gl.viewport(0, 0, FBW, FBH); gl.disable(gl.BLEND);
   gl.useProgram(cpP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src); gl.uniform1i(CPU.t, 0); gl.uniform1f(CPU.uK, .3); quad(cpP);   // the live picture, dim, is the table
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.useProgram(pP);
@@ -989,7 +994,6 @@ function collage(rdt, src, out) {
     gl.uniformMatrix4fv(PU.uP, false, new Float32Array(p.P)); gl.uniform4fv(PU.uCrop, p.crop); gl.uniform3fv(PU.uPaper, p.paper);
     gl.bindTexture(gl.TEXTURE_2D, snaps[p.snap % NSLOT].t);
     gl.bindBuffer(gl.ARRAY_BUFFER, p.fb); gl.vertexAttribPointer(la, 3, gl.FLOAT, false, 0, 0);
-    gl.uniform1f(PU.uMode, 1); gl.uniform2f(PU.uOff, .012, -.016); gl.drawArrays(gl.TRIANGLE_FAN, 0, p.n);
     gl.uniform1f(PU.uMode, 0); gl.uniform2f(PU.uOff, 0, 0); gl.drawArrays(gl.TRIANGLE_FAN, 0, p.n);
     gl.bindBuffer(gl.ARRAY_BUFFER, p.pb); gl.vertexAttribPointer(la, 3, gl.FLOAT, false, 0, 0);
     gl.uniform1f(PU.uMode, 2); gl.drawArrays(gl.LINE_STRIP, 0, p.np); }
@@ -1066,6 +1070,11 @@ function frame(now) {
     quad(exP); gl.enable(gl.BLEND); mping = 1 - mping; showTex = md.t;
   }
   if (mat === 2) {                       // the time mosaic
+    if (mosFill) { mosFill = false;            // start from the whole picture, so no empty tiles show the grid
+      gl.disable(gl.BLEND); gl.useProgram(exP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(XU.uCur, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(XU.uPrev, 1); gl.activeTexture(gl.TEXTURE0);
+      gl.uniform1f(XU.uOpen, 1); gl.uniform1f(XU.uHold, 0);
+      for (const f of mos) { gl.bindFramebuffer(gl.FRAMEBUFFER, f.f); gl.viewport(0, 0, FBW, FBH); quad(exP); } gl.enable(gl.BLEND); }
     const ms = mos[mping], md = mos[1 - mping];
     gl.bindFramebuffer(gl.FRAMEBUFFER, md.f); gl.viewport(0, 0, FBW, FBH); gl.disable(gl.BLEND); gl.useProgram(msP);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(MU.uCur, 0);
