@@ -182,6 +182,8 @@ precision highp float;
 layout(location=0) in vec2 a;
 uniform mat4 uVP;uniform float uS0,uSp;
 ${PATH}
+/* 竪穴の太さ：いまより太くはならず、ところどころで細く締まる */
+float rad(float s){float a=sin(s*.045+uPh*.37)*.6+sin(s*.017+1.3+uPh*.11)*.4;return 1.1*(1.-.66*pow(max(0.,a),1.6));}
 out vec3 vN,vW,vTu,vTv;out vec2 vUV;
 void main(){
   float s=uS0+(float(gl_InstanceID)+a.y)*uSp;
@@ -190,7 +192,7 @@ void main(){
   vec3 up=abs(t.y)>.9?vec3(1,0,0):vec3(0,1,0);
   vec3 bx=normalize(cross(up,t)),by=cross(t,bx);
   vec3 dir=bx*cos(a.x)+by*sin(a.x);
-  vec3 w=c+dir*1.1;
+  vec3 w=c+dir*rad(s);
   vN=-dir;vTu=-bx*sin(a.x)+by*cos(a.x);vTv=t;vW=w;
   vUV=vec2(a.x/6.2832*2.,s*.12);
   gl_Position=uVP*vec4(w,1.);
@@ -323,6 +325,7 @@ function switchWorld(){
   roll=rnd()*TAU;floatP=(rnd()-.5)*.5;floatR=0;fpv=(rnd()-.5)*.25;frv=(rnd()-.5)*.6;
 }
 const SPEED=4.2;
+const radAt=s=>{const a=Math.sin(s*.045+PH*.37)*.6+Math.sin(s*.017+1.3+PH*.11)*.4;return 1.1*(1-.66*Math.pow(Math.max(0,a),1.6));};
 /* 落ちた先に球がある。球に着くと無重力で浮き、上から眺め、やがて球の中へ落ちこむ。球の中で次の竪穴に変わり、また次の球へ */
 let memW=1,memS=0,memRot=0,memTh=.5,warpT=30,wT=0,warped=false,inT=0,inLen=0,exitFw=null,exitT=9,memT=5,memOn=0,memI=0,memR=[.5,.5,1],memLeft=0,memGap=0,post=false,phase='fall',sS=1e9,sphOn=false,sphT=14,phT=0,phLen=0,orbE=null;
 function frame(ms){
@@ -364,7 +367,8 @@ function frame(ms){
     if(!warped&&x>.55){warped=true;switchWorld();}
     if(x>=1){phase='fall';vel=3.2;warpT=40+rnd()*45;}}
   const v=vel;
-  camS+=v*SPEED*dt;
+  const rNow=radAt(camS),narrow=1.1/rNow;
+  camS+=v*SPEED*dt*Math.pow(narrow,.9);            /* 狭いところでは加速する */
   roll+=dt*(.05*Math.sin(T*.13))*Math.min(1,Math.abs(v));
 
   WOB=WD.wob*(1+.8*(1-Math.min(1,Math.abs(vel)/3)));HEL=WD.hel;PH=WD.ph;
@@ -440,7 +444,7 @@ function frame(ms){
     gl.uniformMatrix4fv(U2.uVP,false,VP);gl.uniform1f(U2.uS0,Math.floor(camS/sp2)*sp2-2*sp2);gl.uniform1f(U2.uSp,sp2);
     gl.uniform1f(U2.uWob,WOB);gl.uniform1f(U2.uHelix,HEL);gl.uniform1f(U2.uPh,PH);gl.uniform3f(U2.uCam,...eyeV);
     gl.uniform1f(U2.uFog,WD.fog*(.35+.65*Math.min(1,spd*3)));gl.uniform1f(U2.uDepth,1);
-    {const ls=camS+1.6+.4*Math.sin(Tm*.3),pl=path(ls);gl.uniform3f(U2.uLp,pl[0]+.7*Math.cos(WD.lamp+Tm*.2),pl[1]+.7*Math.sin(WD.lamp+Tm*.2),-ls);}
+    {const ls=camS+1.6+.4*Math.sin(Tm*.3),pl=path(ls),rl=radAt(ls)*.62;gl.uniform3f(U2.uLp,pl[0]+rl*Math.cos(WD.lamp+Tm*.2),pl[1]+rl*Math.sin(WD.lamp+Tm*.2),-ls);}
     for(let i=0;i<4;i++){gl.activeTexture(gl.TEXTURE2+i);gl.bindTexture(gl.TEXTURE_2D,MT[i]||null);gl.uniform1i(U2['I'+i],2+i);}
     gl.activeTexture(gl.TEXTURE0);
     gl.drawElementsInstanced(gl.TRIANGLES,tix.length,gl.UNSIGNED_SHORT,0,N2);
