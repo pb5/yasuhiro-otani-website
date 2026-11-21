@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Silver Relief — 落ち方の変奏</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#aaa;font:12px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;image-rendering:auto}
+#ui{position:fixed;left:14px;bottom:14px;z-index:2;display:flex;flex-wrap:wrap;gap:8px;align-items:center;transition:opacity .6s}
+#ui.hid{opacity:0;pointer-events:none}
+select,button{background:rgba(0,0,0,.6);color:#ccc;border:1px solid #444;font:inherit;padding:4px 10px}
+#name{position:fixed;left:16px;top:14px;z-index:2;letter-spacing:.25em;color:#999;transition:opacity 1.2s;pointer-events:none}
+#name b{font-weight:400;color:#ddd}
+#name small{display:block;letter-spacing:.05em;color:#777;margin-top:4px;max-width:34em}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="name"><b id="vn">—</b><small id="vd"></small></div>
+<div id="ui">
+  <select id="sel"></select>
+  <select id="q"><option value="0.35">軽い</option><option value="0.5" selected>標準</option><option value="0.75">細かい</option><option value="1">最高</option></select>
+  <button id="mic">マイクで</button>
+  <button id="fs">全画面</button>
+  <span style="color:#666">H：表示を消す</span>
+</div>
+<script>
+"use strict";
+/* 落ち方の変奏
+   空間を「中心からの距離の対数・仰角・方位角」で数える。距離の対数から落下量を引くと、
+   拡大しても同じ構造が繰り返されるので、どこまでも底に着かずに沈みつづける。
+   （考え方は yonatan @zozuar の #つぶやきGLSL を参照。コードは書き直し） */
+const V=[
+ {n:"ジェットコースター",d:"巻き上げ、最初の落下のあと、丘・宙返り・コークスクリュー・ゼロG・螺旋・宙吊りダイブ・トンネル・後ろ向き・発射・ブレーキが毎回ちがう順でつながる。終わらない。",speed:.3,spin:0,twist:.15,sway:0,step:0,stall:0,breath:0,vert:0,rough:1,coaster:1},
+ {n:"沈降",d:"まっすぐ、一定の速さで沈む。何も起きないまま、終わらない。",speed:.32,spin:0,twist:0,sway:0,step:0,stall:0,breath:0,vert:0,rough:1,coaster:0},
+ {n:"渦",d:"深さに比例してねじれる。落ちるほど回転が締まる。",speed:.3,spin:.05,twist:1.6,sway:0,step:0,stall:0,breath:0,vert:0,rough:1,coaster:0},
+ {n:"揺らぎ",d:"落ちる軸そのものが傾き、戻る。木の葉の落ち方。",speed:.26,spin:.02,twist:.3,sway:.42,step:0,stall:0,breath:0,vert:0,rough:1,coaster:0},
+ {n:"失速と墜落",d:"ほとんど止まり、ある瞬間に一気に落ちる。音の立ち上がりでも落ちる。",speed:.22,spin:0,twist:.2,sway:.05,step:0,stall:1,breath:0,vert:0,rough:1.1,coaster:0},
+ {n:"層を抜ける",d:"一枚の床で止まり、抜けて、次の床で止まる。",speed:.3,spin:0,twist:0,sway:0,step:1,stall:0,breath:0,vert:0,rough:.9,coaster:0},
+ {n:"呼吸",d:"落ちては戻る。沈む方向と浮く方向が入れ替わる。",speed:.34,spin:.01,twist:.4,sway:.06,step:0,stall:0,breath:1,vert:0,rough:1,coaster:0},
+ {n:"眩暈",d:"落ちながら視野が伸び縮みする。距離の感覚だけが狂う。",speed:.2,spin:0,twist:.1,sway:0,step:0,stall:0,breath:0,vert:1,rough:1,coaster:0},
+];
+const AUTO=V.length;
+const sel=document.getElementById('sel');
+V.forEach((v,i)=>sel.add(new Option(v.n,i)));sel.add(new Option("自動で巡る",AUTO));sel.value=0;
+
+const VS=`#version 300 es
+in vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`;
+const FS=`#version 300 es
+precision highp float;
+uniform vec2 r;uniform float uSharp,uRoll,uFall,uAz,uTwist,uFov,uTx,uTy,uRough,uLamp,uGain,uT;
+out vec4 o;
+mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
+/* 対数球座標の中の面：仰角を基準に、倍々の細かさの起伏を重ねる */
+float field(vec3 p){
+  float e=p.y,s=1.;
+  for(int k=0;k<9;k++){
+    e+=uRough*sin(p.x*s+sin(p.z*s*2.+p.y*s))*cos(p.y*s*1.3+p.z*s+1.1)/s;   /* 方位は整数倍だけ：継ぎ目が出ない */
+    s*=2.;
+  }
+  return e;
+}
+void main(){
+  vec2 uv=(gl_FragCoord.xy-.5*r)/r.y;uv*=rot(uRoll);
+  vec3 d=normalize(vec3(uv,uFov));
+  d.yz*=rot(uTx);d.xz*=rot(uTy);
+  vec3 q=vec3(0.,0.,-1.);
+  float R=1.,e=1.,acc=0.;
+  for(int i=0;i<96;i++){
+    q+=d*max(e,.015)*R*.3;
+    R=length(q);
+    float lr=log(R);
+    vec3 p=vec3(lr-uFall,asin(clamp(-q.z/R,-1.,1.))-1.,atan(q.x,q.y)+uAz+uTwist*lr);
+    e=field(p);
+    float sheet=exp(-abs(e)*uSharp);                 /* 面のごく近くだけが光る＝薄い銀の膜 */
+    float lit=.5+.5*cos(p.z*2.-uLamp);            /* 一灯：方位で明暗 */
+    acc+=sheet*(.12+.88*lit*lit*lit)*(1.-float(i)/110.);
+  }
+  float c=1.-exp(-acc*uGain*.08);
+  o=vec4(c,c,c,1.);
+}`;
+const cv=document.getElementById('c'),gl=cv.getContext('webgl2',{antialias:false});
+if(!gl)document.body.innerHTML='<p style="padding:20px">このブラウザでは動きません（WebGL2が必要）</p>';
+const sh=(k,s)=>{const x=gl.createShader(k);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(x);return x;};
+const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+/* 尾を引く（速さの分だけ、前のコマを中心から外へ流して重ねる）／黒を物語に合わせて変える */
+const TRAIL=`#version 300 es
+precision highp float;uniform sampler2D S,P;uniform vec2 r;uniform float uTr,uZb,uRot;out vec4 o;
+void main(){vec2 u=gl_FragCoord.xy/r,c=u-.5;
+  float a=uRot,cs=cos(a),sn=sin(a);c=mat2(cs,-sn,sn,cs)*c;
+  vec3 s=texture(S,u).rgb,p=texture(P,.5+c*(1.-uZb)).rgb;
+  o=vec4(min(s,mix(vec3(1.),p,uTr)),1.);}`;   /* 黒が尾を引く：前のコマの暗さが流れて残る */
+const SHOW=`#version 300 es
+precision highp float;uniform sampler2D A;uniform vec2 r;uniform float uT,uLift,uGam,uVig,uVigS,uPulse,uGrain,uFlash;out vec4 o;
+float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
+void main(){vec2 u=gl_FragCoord.xy/r;float c=texture(A,u).r;
+  c=pow(max(c,0.),uGam);                                   /* 黒の深さ */
+  vec2 q=(gl_FragCoord.xy-.5*r)/r.y;float d=length(q);
+  c*=smoothstep(uVig,uVig*uVigS,d);                        /* 視野が狭まる */
+  c*=1.-uPulse;                                            /* 鼓動で明るさが沈む */
+  c=uLift+(1.-uLift)*c;                                    /* 黒が持ち上がる（無重力の乳白） */
+  c+=uFlash;
+  c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
+  o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);}`;
+function prog(fs){const p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,VS));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);return p;}
+const prT=prog(TRAIL),prS=prog(SHOW);
+const UT={},US={};
+for(const n of['S','P','r','uTr','uZb','uRot'])UT[n]=gl.getUniformLocation(prT,n);
+for(const n of['A','r','uT','uLift','uGam','uVig','uVigS','uPulse','uGrain','uFlash'])US[n]=gl.getUniformLocation(prS,n);
+let fb=null;
+function mkT(w,h){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  for(const[k,v]of[[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]])gl.texParameteri(gl.TEXTURE_2D,k,v);
+  const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);return{t,f};}
+function ensureFB(w,h){if(fb&&fb.w===w&&fb.h===h)return;fb={w,h,s:mkT(w,h),a:[mkT(w,h),mkT(w,h)],i:0};gl.bindFramebuffer(gl.FRAMEBUFFER,null);}
+const U={};for(const n of['uSharp','r','uRoll','uFall','uAz','uTwist','uFov','uTx','uTy','uRough','uLamp','uGain','uT'])U[n]=gl.getUniformLocation(pr,n);
+
+/* 音：マイクは任意。なければ音なしで動く */
+let an=null,buf=null,lvl=0,lvlSlow=0,kick=0;
+document.getElementById('mic').onclick=async()=>{
+  try{const ac=new (window.AudioContext||window.webkitAudioContext)();await ac.resume();
+    const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    an=ac.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);ac.createMediaStreamSource(st).connect(an);
+    document.getElementById('mic').textContent='マイク：入';}
+  catch(e){document.getElementById('mic').textContent='マイク不可';}
+};
+document.getElementById('fs').onclick=()=>{const d=document.documentElement;(d.requestFullscreen||d.webkitRequestFullscreen||(()=>{})).call(d);};
+let ui=true;addEventListener('keydown',e=>{if(e.key==='h'||e.key==='H'){ui=!ui;document.getElementById('ui').classList.toggle('hid',!ui);document.getElementById('name').style.opacity=ui?1:0;}});
+
+/* 状態：落下量・回転は速さを積分して持つ（速さが変わっても跳ばない） */
+let Tm=0,MD={sharp:26,lift:0,gam:1.9,vig:1.4,pulse:0,rate:1,grain:.012,flash:0},beat=0,trr=0,fall=0,az=0,last=0,T=0,cur=Object.assign({},V[1],{coaster:0}),idx=0,autoT=0,shown=-1;
+const keys=['coaster','speed','spin','twist','sway','step','stall','breath','vert','rough'];
+const sm=x=>x*x*(3-2*x);
+/* ---------- ジェットコースターの要素 ----------
+   各要素は x（0→1）と経過秒 t から、速さ v・ピッチ p・ロール r・ヨー y・視野 f・揺れ s・明るさ d を返す */
+const ez=(a,b,x)=>sm(Math.max(0,Math.min(1,(x-a)/(b-a))));
+const TAU=Math.PI*2;
+const EL={
+ lift:{n:"巻き上げ",d:9,f:(x,t)=>({v:-.07,p:.34,r:0,y:0,f:0,s:.004*(Math.sin(t*19)>.6?1:0),d:1})},
+ drop:{n:"ファーストドロップ",d:7,f:(x,t)=>{const c=t<2.2;const a=Math.max(0,t-2.2);
+   return {v:c?.02:.05+.62*a*a,p:c?.34-.92*ez(0,2.2,t):-.58+.3*ez(4,7,t),r:0,y:0,f:-.3*ez(2.2,5.5,t),s:c?0:.002+.0022*a*a,d:1};}},
+ camel:{n:"エアタイムの丘",d:5,f:(x,t)=>{const w=Math.sin(x*TAU*2);return {v:1.2-.9*Math.max(0,w),p:.45*w,r:0,y:0,f:.18*Math.max(0,w),s:w>.6?0:.006,d:1};}},
+ loop:{n:"宙返り",d:5,f:(x,t)=>({v:1.6,p:TAU*ez(.1,.9,x),r:0,y:0,f:-.12*Math.sin(x*Math.PI),s:.006,d:1})},
+ cork:{n:"コークスクリュー",d:4.5,f:(x,t)=>({v:1.3,p:-.2,r:TAU*ez(.15,.85,x),y:.5*Math.sin(x*Math.PI),f:-.1,s:.006,d:1})},
+ zerog:{n:"ゼロG・ロール",d:4,f:(x,t)=>({v:.12,p:.05,r:TAU*ez(.1,.9,x),y:0,f:.22*Math.sin(x*Math.PI),s:0,d:1})},
+ helix:{n:"螺旋降下",d:8,f:(x,t)=>({v:2.2,p:-.25,r:.75*Math.sin(Math.min(1,x*4)*Math.PI/2)*(1-ez(.85,1,x)),y:TAU*1.5*x,f:-.15,s:.008,d:1})},
+ dive:{n:"垂直ダイブ（宙吊り）",d:8,f:(x,t)=>{const hang=t<4.2;const a=Math.max(0,t-4.2);
+   return {v:hang?0:.6*a*a,p:-(Math.PI/2)*ez(0,2.4,t)*(1-.6*ez(6,8,t)),r:0,y:0,f:hang?.15*ez(2.4,4.2,t):-.35*ez(4.2,6,t),s:hang?0:.003+.003*a*a,d:1};}},
+ tunnel:{n:"トンネル",d:3.5,f:(x,t)=>({v:2.4,p:-.1,r:.2*Math.sin(t*3),y:0,f:-.2,s:.01,d:.04+.96*Math.pow(Math.abs(x*2-1),6)})},
+ back:{n:"後ろ向き",d:6,f:(x,t)=>({v:-1.4*Math.sin(x*Math.PI)-.1,p:Math.PI*ez(0,.25,x)*(1-ez(.8,1,x)),r:0,y:0,f:-.12,s:.006,d:1})},
+ brake:{n:"ブレーキ",d:3,f:(x,t)=>({v:1.8*Math.pow(1-x,3)+.05,p:.08*Math.sin(t*30)*(1-x),r:0,y:0,f:0,s:.03*(1-x),d:1})},
+ launch:{n:"発射",d:4,f:(x,t)=>({v:x<.12?0:3.2*(1-ez(.6,1,x))+.4,p:.1,r:0,y:0,f:x<.12?.1:-.4*(1-ez(.5,1,x)),s:x<.12?.01:.012,d:1})},
+};
+/* 乗車の組み立て：巻き上げ→最初の落下で始め、あとは毎回ちがう並び。終わりはない */
+const POOL=['camel','loop','cork','zerog','helix','dive','tunnel','back','launch'];
+let rq=['lift','drop'],re=null,rt=0,rprev=null,rsince=0,rseed=7;
+const rr=()=>{rseed=(rseed*16807)%2147483647;return rseed/2147483647;};
+function nextEl(){
+  if(!rq.length){
+    rsince++;
+    if(rsince>=4&&rr()<.55){rq=rr()<.5?['brake','lift','drop']:['lift','drop'];rsince=0;}
+    else{let e;do{e=POOL[Math.floor(rr()*POOL.length)];}while(re&&e===re);rq=[e];if(rr()<.25)rq.push('camel');}
+  }
+  return rq.shift();
+}
+/* 物語ごとの黒：sharp＝膜の細かさ（止まれば鋭く、走れば溶ける） lift＝黒の持ち上がり gam＝黒の深さ
+   vig＝視野の広さ pulse＝鼓動 grain＝粒 flash＝閃光 */
+function mood(e,x,t){
+  const M={sharp:26,lift:0,gam:1.9,vig:1.4,pulse:0,rate:1,grain:.012,flash:0};
+  if(e==='lift'){M.sharp=34;M.gam=2.1+.6*x;M.vig=1.2-.3*x;}                         /* 登るほど黒が満ちてくる */
+  else if(e==='drop'){if(t<2.2){const h=t/2.2;M.sharp=48;M.gam=2.8+1.2*h;M.vig=.9-.3*h;}   /* 頂上：時間が止まり、黒が縁から染みこむ */
+    else{M.sharp=12;M.gam=2.6;M.vig=.5;M.grain=.03;M.flash=t<2.36?-1:0;}}            /* 放される瞬間：一瞬の暗転 */
+  else if(e==='camel'){const w=Math.max(0,Math.sin(x*Math.PI*4));M.gam=1.9+1.2*w;M.sharp=26+14*w;M.vig=1.3-.4*w;}  /* 浮く瞬間は止まり、黒が濃くなる */
+  else if(e==='loop'){M.vig=.75;M.gam=2.3;M.sharp=16;}
+  else if(e==='cork'){M.vig=.7;M.gam=2.4;M.sharp=16;}
+  else if(e==='zerog'){const w=Math.sin(x*Math.PI);M.gam=2+1.6*w;M.sharp=30+20*w;M.vig=1.2-.45*w;}
+  else if(e==='helix'){M.vig=.6;M.gam=2.4;M.sharp=12;M.grain=.025;}
+  else if(e==='dive'){if(t<4.2){const h=t/4.2;M.sharp=60;M.gam=2.6+2.4*h;M.vig=1.1-.6*h;M.grain=.012;}   /* 宙吊り：止まった時間の中で、黒だけが進む */
+    else{M.sharp=10;M.gam=2.6;M.vig=.42;M.grain=.04;M.flash=t<4.36?-1:0;}}
+  else if(e==='tunnel'){M.gam=3;M.vig=.55;}
+  else if(e==='back'){M.gam=2.6;M.vig=.65;M.sharp=14;}
+  else if(e==='brake'){M.grain=.05*(1-x);M.gam=2.2;M.flash=(Math.sin(t*41)>.95?-.6:0)*(1-x);}
+  else if(e==='launch'){if(x<.12){const h=x/.12;M.sharp=50;M.gam=2.8+1.2*h;M.vig=1-.4*h;}else{M.sharp=9;M.vig=.5;M.flash=x<.15?-1:0;M.grain=.03;}}
+  return M;
+}
+function ride(dt){
+  if(!re){re=nextEl();rt=0;}
+  rt+=dt;
+  let E=EL[re];
+  if(rt>E.d){rprev=E.f(1,E.d);re=nextEl();rt=0;E=EL[re];}
+  let s=E.f(Math.min(1,rt/E.d),rt);
+  if(rprev&&rt<.9){const m=sm(rt/.9);
+    /* ピッチ・ロール・ヨーは一周分を落として近い向きでつなぐ */
+    const wrap=(a,b)=>{let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return a+d;};
+    const o={};for(const k of['v','f','s','d'])o[k]=rprev[k]*(1-m)+s[k]*m;
+    for(const k of['p','r','y']){const a=rprev[k]%TAU,b=wrap(a,s[k]%TAU);o[k]=a*(1-m)+b*m;}
+    s=o;}
+  ride.name_=E.n;ride.mood_=mood(re,Math.min(1,rt/E.d),rt);return s;
+}
+
+function frame(ms){
+  requestAnimationFrame(frame);
+  const dt=Math.min(.1,(ms-last)/1000||0);last=ms;T+=dt;
+  const auto=+sel.value===AUTO;
+  if(auto){autoT+=dt;if(autoT>28){autoT=0;idx=(idx+1)%V.length;}}else idx=+sel.value;
+  const tg=V[idx];
+  for(const k of keys)cur[k]+=(tg[k]-cur[k])*Math.min(1,dt*.6);     /* 変奏どうしはゆっくり溶け合う */
+  const nm=tg.coaster?tg.n+' — '+(ride.name_||''):tg.n;
+  if(shown!==nm){shown=nm;document.getElementById('vn').textContent=nm;document.getElementById('vd').textContent=tg.d;}
+
+  if(an){an.getFloatTimeDomainData(buf);let s=0;for(const x of buf)s+=x*x;const l=Math.max(0,Math.min(1,(20*Math.log10(Math.sqrt(s/buf.length)+1e-9)+60)/50));
+    if(l>lvlSlow+.18)kick=1;lvl+=(l-lvl)*.3;lvlSlow+=(l-lvlSlow)*.02;}
+  kick*=Math.exp(-dt*2.5);
+
+  let v=cur.speed*(1+.8*lvl);
+  /* 失速と墜落：長い停滞のあと、短い急降下 */
+  const plunge=Math.pow(Math.max(0,Math.sin(T*.33)),14)*9+kick*6;
+  v*=1-cur.stall+cur.stall*(.06+plunge);
+  /* 呼吸：方向の反転 */
+  v*=1-cur.breath+cur.breath*Math.sin(T*.21)*1.4;
+  /* ジェットコースター：要素をつないだ終わりのない乗車 */
+  let cPitch=0,cRoll=0,cFov=0,cShake=0,cYaw=0,cDark=1;
+  if(cur.coaster>.001){
+    const k=cur.coaster,st=ride(dt);
+    v=v*(1-k)+st.v*k*(1+.5*lvl+kick);cPitch=st.p*k;cRoll=st.r*k;cFov=st.f*k;cShake=st.s*k;cYaw=st.y*k;cDark=1-(1-st.d)*k;
+  }
+  fall+=v*dt;
+  az+=cur.spin*dt*(1+lvl)*Math.min(1,Math.abs(v)/.05+(cur.coaster>.5?0:1));
+  /* 層を抜ける：落下量を床ごとに止める */
+  const L=1.1,f=fall/L,ff=Math.floor(f),fr=f-ff;
+  const stepped=(ff+sm(Math.max(0,(fr-.72)/.28)))*L;
+  const F=fall*(1-cur.step)+stepped*cur.step;
+  /* 眩暈：視野の伸縮と、それを打ち消す落下 */
+  const vz=Math.sin(T*.27);
+  const fov=.7+cur.vert*.45*vz+cFov;
+  const Fv=F-cur.vert*.35*vz;
+
+  const q=+document.getElementById('q').value,dpr=Math.min(2,devicePixelRatio||1);
+  const W=Math.max(2,innerWidth*dpr*q|0),H=Math.max(2,innerHeight*dpr*q|0);
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
+  ensureFB(W,H);
+  /* 黒と質感：物語（要素）＋速さで決める */
+  const sp=Math.min(1,Math.abs(v)/2.5);
+  const tg2=(cur.coaster>.5&&ride.mood_)?ride.mood_:{sharp:26,lift:0,gam:1.9,vig:1.4,pulse:0,rate:1,grain:.012,flash:0};
+  for(const k in MD){const a=k==='flash'?1:Math.min(1,dt*2.2);MD[k]+=(tg2[k]-MD[k])*a;}
+  const still=1-Math.min(1,Math.abs(v)/.05);Tm+=dt*(1-still);   /* 止まれば時間も止まる：灯・回転・粒が凍る */
+  beat+=dt*MD.rate*TAU;const hb=Math.pow(Math.max(0,Math.sin(beat)),12)+.6*Math.pow(Math.max(0,Math.sin(beat-.9)),12);  /* ドクン・ドクン */
+  const sharp=Math.max(20,MD.sharp*(1-.25*sp)), tr=Math.min(.94,.15+.85*sp), zb=.004+.05*sp*Math.sign(v||1);
+  gl.useProgram(pr);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb.s.f);
+  gl.viewport(0,0,W,H);
+  gl.uniform1f(U.uSharp,sharp);
+  gl.uniform2f(U.r,W,H);gl.uniform1f(U.uFall,Fv);gl.uniform1f(U.uAz,az);gl.uniform1f(U.uTwist,cur.twist);
+  gl.uniform1f(U.uFov,fov);
+  const shk=cShake*(1-still);const sh1=shk*(Math.sin(T*71)+Math.sin(T*53.7)),sh2=shk*(Math.sin(T*67.3)+Math.sin(T*41.1));
+  gl.uniform1f(U.uTx,cur.sway*Math.sin(T*.43)+cPitch+sh1);gl.uniform1f(U.uTy,cur.sway*.7*Math.sin(T*.31+1.3)+sh2+cYaw);gl.uniform1f(U.uRoll,cRoll);
+  gl.uniform1f(U.uRough,cur.rough*(1+.25*lvl));gl.uniform1f(U.uLamp,Tm*.05);gl.uniform1f(U.uGain,(1+.6*lvl+.8*kick)*cDark);gl.uniform1f(U.uT,T);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  /* 尾 */
+  const A=fb.a[fb.i],B=fb.a[1-fb.i];
+  gl.useProgram(prT);gl.bindFramebuffer(gl.FRAMEBUFFER,A.f);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fb.s.t);gl.uniform1i(UT.S,0);
+  gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,B.t);gl.uniform1i(UT.P,1);
+  gl.uniform2f(UT.r,W,H);gl.uniform1f(UT.uTr,tr);gl.uniform1f(UT.uZb,zb);gl.uniform1f(UT.uRot,(cRoll-(frame.pr||0))*.5);frame.pr=cRoll;
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  /* 表示 */
+  gl.useProgram(prS);gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,A.t);gl.uniform1i(US.A,0);
+  gl.uniform2f(US.r,W,H);gl.uniform1f(US.uT,Tm);gl.uniform1f(US.uLift,MD.lift);gl.uniform1f(US.uGam,MD.gam);
+  gl.uniform1f(US.uVig,MD.vig);gl.uniform1f(US.uVigS,.25);gl.uniform1f(US.uPulse,0);
+  gl.uniform1f(US.uGrain,MD.grain*(1+sp)*(1-.6*still));gl.uniform1f(US.uFlash,MD.flash);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  fb.i=1-fb.i;
+}
+requestAnimationFrame(frame);
+</script></body></html>
