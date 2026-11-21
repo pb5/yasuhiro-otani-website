@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Silver Relief — 空間の穴</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#aaa;font:12px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#ov{pointer-events:none}
+#ui{position:fixed;left:14px;bottom:14px;z-index:3;display:flex;flex-wrap:wrap;gap:8px;align-items:center;transition:opacity .6s}
+#ui.hid{opacity:0;pointer-events:none}
+select,button{background:rgba(0,0,0,.6);color:#ccc;border:1px solid #444;font:inherit;padding:4px 10px}
+button.on{border-color:#aaa;color:#fff}
+#help{position:fixed;left:16px;top:14px;z-index:3;color:#777;transition:opacity .6s;pointer-events:none;max-width:40em}
+#help.hid{opacity:0}
+</style></head><body>
+<canvas id="c"></canvas><canvas id="ov"></canvas>
+<div id="help">空間の穴 — 配置モード：穴をドラッグで移動、縁をドラッグかホイールで大きさ。H：表示を消す　F：全画面</div>
+<div id="ui">
+  <select id="n"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+  <select id="surf"><option value="black" selected>投影面：黒幕・紗</option><option value="grey">投影面：灰</option><option value="white">投影面：白</option></select>
+  <select id="q"><option value="0.6">軽い</option><option value="0.85" selected>標準</option><option value="1">最高</option></select>
+  <button id="lay">配置</button>
+  <button id="mic">マイクで</button>
+  <button id="fs">全画面</button>
+</div>
+<script src="../coaster/img/data.js"></script>
+<script>
+"use strict";
+
+/* ===== 空間の穴 =====
+   会場のあちこちに、底のない銀の竪穴を開ける。穴ごとに自分の重力で落ちつづけ、
+   マイクを使うと、穴ごとに受け持つ周波数帯の強さがその穴の重力になる。 */
+const TAU=Math.PI*2,sm=x=>x*x*(3-2*x);
+const cv=document.getElementById('c'),gl=cv.getContext('webgl2',{antialias:false,premultipliedAlpha:false});
+const ov=document.getElementById('ov'),ox=ov.getContext('2d');
+const shc=(k,s)=>{const x=gl.createShader(k);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(x);return x;};
+function prog(vs,fs){const p=gl.createProgram();gl.attachShader(p,shc(gl.VERTEX_SHADER,vs));gl.attachShader(p,shc(gl.FRAGMENT_SHADER,fs));gl.bindAttribLocation(p,0,'a');gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw gl.getProgramInfoLog(p);return p;}
+const uni=(p,ns)=>{const o={};for(const n of ns)o[n]=gl.getUniformLocation(p,n);return o;};
+const PATH=`
+uniform float uWob,uHelix,uPh;
+vec2 path(float s){
+  s+=uPh;
+  return uWob*vec2(sin(s*.11)+.55*sin(s*.047+1.7)+.3*sin(s*.23+.4), cos(s*.09+.5)+.5*sin(s*.061+2.9)+.3*cos(s*.19))
+        +uHelix*vec2(cos(s*.42),sin(s*.42));
+}
+float hs(float n){return fract(sin(n*12.9898)*43758.5453);}
+float vn1(float x){float i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(hs(i),hs(i+1.),f);}
+`;
+const TVS2=`#version 300 es
+precision highp float;
+layout(location=0) in vec2 a;
+uniform mat4 uVP;uniform float uS0,uSp;
+${PATH}
+/* 竪穴の太さ：いまより太くはならず、ところどころで細く締まる */
+float rad(float s){float a=sin(s*.045+uPh*.37)*.6+sin(s*.017+1.3+uPh*.11)*.4;return 1.1*(1.-.66*pow(max(0.,a),1.6));}
+out vec3 vN,vW,vTu,vTv;out vec2 vUV;
+void main(){
+  float s=uS0+(float(gl_InstanceID)+a.y)*uSp;
+  vec3 c=vec3(path(s),-s);
+  vec3 t=normalize(vec3(path(s+.4)-path(s-.4),-.8));
+  vec3 up=abs(t.y)>.9?vec3(1,0,0):vec3(0,1,0);
+  vec3 bx=normalize(cross(up,t)),by=cross(t,bx);
+  vec3 dir=bx*cos(a.x)+by*sin(a.x);
+  vec3 w=c+dir*rad(s);
+  vN=-dir;vTu=-bx*sin(a.x)+by*cos(a.x);vTv=t;vW=w;
+  vUV=vec2(a.x/6.2832*2.,s*.12);
+  gl_Position=uVP*vec4(w,1.);
+}`;
+const TFS2=`#version 300 es
+precision highp float;
+uniform sampler2D I0,I1,I2,I3;uniform vec3 uCam,uLp;uniform float uFog,uDepth;
+in vec3 vN,vW,vTu,vTv;in vec2 vUV;out vec4 o;
+float L(float k,vec2 u,float b){u=fract(u);if(k<.5)return texture(I0,u,b).r;if(k<1.5)return texture(I1,u,b).r;if(k<2.5)return texture(I2,u,b).r;return texture(I3,u,b).r;}
+float hh(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
+/* 壁の高さ：コラージュは形の手がかりだけ。ぼかしの段（b）を変えて読むと、縁がなだらかな面取りになる */
+float H(vec2 uv,float b){
+  float k=mod(floor(uv.y),4.),k2=mod(k+2.,4.);
+  vec2 a=vec2(uv.x*.4+.21*k,fract(uv.y)*.36+.32);
+  vec2 c=vec2(uv.y*2.3,uv.x*1.7);
+  float h1=smoothstep(.38,.62,L(k,a,b)),h2=smoothstep(.25,.75,L(k2,c,b));
+  return h1*.85+h2*.15;
+}
+vec2 G(vec2 uv,float e,float b){return vec2(H(uv+vec2(e,0.),b)-H(uv-vec2(e,0.),b),H(uv+vec2(0.,e),b)-H(uv-vec2(0.,e),b))/(2.*e);}
+void main(){
+  float h=H(vUV,0.);
+  /* 三つの幅の傾きを重ねる：広い面取り＋中くらい＋鋭い稜線 */
+  vec2 g=G(vUV,1./1600.,0.)*.0007+G(vUV,1./600.,1.5)*.0016+G(vUV,1./220.,3.)*.003;
+  float sc=hh(floor(vec2(vUV.x*900.,vUV.y*60.)))-.5;
+  vec3 N=normalize(normalize(vN)-(g.x*vTu+g.y*vTv)*uDepth+vTu*sc*.01);
+  vec3 V=normalize(uCam-vW);
+  vec3 Ld=uLp-vW;float ld=length(Ld);vec3 Lt=Ld/ld;
+  float att=1./(1.+ld*ld*.012)+.06;              /* 遠くの壁もかすかに残る：穴の先が見え隠れする */
+  float dif=max(dot(N,Lt),0.);
+  vec3 Hh=normalize(Lt+V);float nh=max(dot(N,Hh),0.);
+  float fr=.35+.65*pow(1.-max(dot(N,V),0.),4.);
+  /* 金属：広い照りと鋭い照りを重ね、縁の明暗を細かく段階づける */
+  float c=dif*dif*.18*(.15+.85*h) + (pow(nh,18.)*.35+pow(nh,90.)*.9+pow(nh,400.)*1.6)*fr;
+  c*=att*1.7;
+  float dist=length(uCam-vW);
+  c*=exp(-dist*uFog);
+  /* 穴の先：継ぎ目の細い線が奥まで続き、見え隠れする（霧や灯の届かない深さでも消えない） */
+  float t1=vUV.y*3.,w1=fwidth(t1),d1=abs(fract(t1+.5)-.5);
+  float t2=vUV.x*3.,w2=fwidth(t2),d2=abs(fract(t2+.5)-.5);
+  float ln=max(1.-smoothstep(w1*.4,w1*1.4,d1),.7*(1.-smoothstep(w2*.4,w2*1.4,d2)));
+  float flick=smoothstep(.35,.8,hh(vec2(floor(vUV.y*3.),floor(uFog*0.+vUV.x*3.)))+.25*sin(vUV.y*.7));
+  c+=ln*flick*.22*exp(-dist*.025)*(1.-exp(-dist*.25));
+  c=c/(1.+c)*1.35;                                       /* なだらかな肩：白を飛ばさず、黒は深いまま */
+  o=vec4(c,c,c,1.);
+}`;
+const QVS=`#version 300 es
+layout(location=0) in vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`;
+const TRAIL=`#version 300 es
+precision highp float;uniform sampler2D S,P;uniform vec2 r;uniform float uTr,uZb,uRot;out vec4 o;
+void main(){vec2 u=gl_FragCoord.xy/r,c=u-.5;float cs=cos(uRot),sn=sin(uRot);c=mat2(cs,-sn,sn,cs)*c;
+  vec3 s=texture(S,u).rgb,p=texture(P,.5+c*(1.-uZb)).rgb;
+  o=vec4(min(s,mix(vec3(1.),p,uTr)),1.);}`;
+/* 穴を画面に置く：円の内側だけ。縁は奥へ沈む暗さで閉じる。投影面に合わせて黒を決める */
+const HOLE=`#version 300 es
+precision highp float;uniform sampler2D A;uniform vec4 uBox;uniform vec2 r;uniform float uGam,uVig,uLift,uGain,uT,uGrain;out vec4 o;
+float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
+void main(){
+  vec2 u=(gl_FragCoord.xy-uBox.xy)/uBox.zw;
+  vec2 q=u*2.-1.;float d=length(q);
+  if(d>1.){o=vec4(0.,0.,0.,1.);return;}
+  float c=texture(A,u).r;
+  c=pow(max(c,0.),uGam)*uGain;
+  c*=smoothstep(uVig,uVig*.25,d);                 /* 強いGで視野が閉じる */
+  c*=smoothstep(1.,.78,d);                        /* 穴の縁：外へ向かって闇に閉じる */
+  c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
+  c=uLift+(1.-uLift)*max(c,0.);
+  o=vec4(vec3(c)*vec3(.95,.97,1.),1.);
+}`;
+const pTube=prog(TVS2,TFS2),pTr=prog(QVS,TRAIL),pH=prog(QVS,HOLE);
+const U2=uni(pTube,['uVP','uS0','uSp','uWob','uHelix','uPh','I0','I1','I2','I3','uCam','uLp','uFog','uDepth']);
+const UR=uni(pTr,['S','P','r','uTr','uZb','uRot']);
+const UH=uni(pH,['A','uBox','r','uGam','uVig','uLift','uGain','uT','uGrain']);
+
+const NA=160,tuv=[],tix=[];
+for(let i=0;i<=NA;i++)for(let j=0;j<=1;j++)tuv.push(i/NA*TAU,j);
+for(let i=0;i<NA;i++){const a=i*2,b=a+2;tix.push(a,b,a+1,b,b+1,a+1);}
+const vaoTube=gl.createVertexArray();gl.bindVertexArray(vaoTube);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(tuv),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(tix),gl.STATIC_DRAW);
+const vaoQ=gl.createVertexArray();gl.bindVertexArray(vaoQ);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+gl.bindVertexArray(null);
+
+/* コラージュ（壁の起伏の素） */
+const MT=[];
+(window.IMGDATA||[]).forEach((src,i)=>{const im=new Image();im.onload=()=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);MT[i]=t;};im.src=src;});
+
+function mkT(w,h,depth){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  for(const[k,v]of[[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]])gl.texParameteri(gl.TEXTURE_2D,k,v);
+  const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  if(depth){const rb=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,rb);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,rb);}
+  return{t,f};}
+
+const norm=v=>{const l=Math.hypot(...v)||1;return v.map(x=>x/l);};
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+function persp(fy,as,n,f){const t=1/Math.tan(fy/2);return[t/as,0,0,0,0,t,0,0,0,0,(f+n)/(n-f),-1,0,0,2*f*n/(n-f),0];}
+function mul(a,b){const o=new Array(16).fill(0);for(let i=0;i<4;i++)for(let j=0;j<4;j++)for(let k=0;k<4;k++)o[j*4+i]+=a[k*4+i]*b[j*4+k];return o;}
+function view(eye,fw,up){const z=norm(fw.map(x=>-x)),x=norm(cross(up,z)),y=cross(z,x);
+  return[x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1];}
+const n1=(x,sd)=>{const i=Math.floor(x),f=x-i,h=k=>{const v=Math.sin(k*127.1+sd)*43758.5453;return v-Math.floor(v);};const u=f*f*(3-2*f);return h(i)*(1-u)+h(i+1)*u;};
+const pathH=(s,H)=>{s+=H.ph;return[H.wob*(Math.sin(s*.11)+.55*Math.sin(s*.047+1.7)+.3*Math.sin(s*.23+.4))+H.hel*Math.cos(s*.42),
+                               H.wob*(Math.cos(s*.09+.5)+.5*Math.sin(s*.061+2.9)+.3*Math.cos(s*.19))+H.hel*Math.sin(s*.42)];};
+const radH=(s,H)=>{const a=Math.sin(s*.045+H.ph*.37)*.6+Math.sin(s*.017+1.3+H.ph*.11)*.4;return 1.1*(1-.66*Math.pow(Math.max(0,a),1.6));};
+
+/* 穴の配置（会場で合わせたものは、このブラウザに覚えておく） */
+const DEF=[[.5,.5,.3],[.3,.38,.22],[.72,.3,.15],[.6,.74,.19],[.18,.72,.13]];
+const BANDN=['低','中低','中','中高','高'];
+let holes=[];
+function load(){try{return JSON.parse(localStorage.getItem('sr-holes')||'null');}catch(e){return null;}}
+function save(){try{localStorage.setItem('sr-holes',JSON.stringify(holes.map(h=>[h.x,h.y,h.r])));}catch(e){}}
+function build(n){
+  const saved=load()||[];
+  const base=n===1?[DEF[0]]:DEF.slice(1,1+n).concat(DEF).slice(0,n);
+  holes=[];
+  for(let i=0;i<n;i++){const p=saved[i]||base[i];
+    holes.push({x:p[0],y:p[1],r:p[2],band:Math.round(i*(4/(Math.max(1,n-1)))),seed:13.7*i+3.1,
+      camS:40*i,vel:1+i*.3,g:1,burn:0,burnCool:20+i*17,ph:i*91.3,wob:1.4,hel:0,lamp:i*1.7,
+      gam:1.9,vig:1.4,fb:null,lvl:0,kick:0});}
+}
+build(3);
+document.getElementById('n').onchange=e=>build(+e.target.value);
+
+/* 音（任意）：穴ごとに受け持つ帯域の強さを取る */
+let an=null,fd=null,sr=48000;
+const btop=[-50,-50,-50,-50,-50],bprev=[0,0,0,0,0];
+document.getElementById('mic').onclick=async()=>{
+  try{const ac=new (window.AudioContext||window.webkitAudioContext)();await ac.resume();
+    const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    an=ac.createAnalyser();an.fftSize=4096;an.smoothingTimeConstant=.5;fd=new Float32Array(an.frequencyBinCount);sr=ac.sampleRate;
+    ac.createMediaStreamSource(st).connect(an);document.getElementById('mic').textContent='マイク：入';document.getElementById('mic').classList.add('on');}
+  catch(e){document.getElementById('mic').textContent='マイク不可';}};
+function bands(dt){
+  if(!an)return null;
+  an.getFloatFrequencyData(fd);
+  const out=[],N=an.fftSize,f0=60,f1=12000;
+  for(let b=0;b<5;b++){
+    const lo=Math.floor(f0*Math.pow(f1/f0,b/5)/sr*N),hi=Math.max(lo+1,Math.ceil(f0*Math.pow(f1/f0,(b+1)/5)/sr*N));
+    let s=0;for(let k=lo;k<hi;k++)s+=Math.pow(10,fd[k]/10);
+    const db=10*Math.log10(s/(hi-lo)+1e-14);
+    btop[b]=Math.max(btop[b]-dt*1.5,db,-60);
+    const v=Math.max(0,Math.min(1,(db-(btop[b]-45))/45));
+    const kick=v>bprev[b]+.2?1:0;bprev[b]+=(v-bprev[b])*.15;
+    out.push([v,kick]);
+  }
+  return out;
+}
+
+/* 配置モード */
+let layout=false,drag=null;
+const lay=document.getElementById('lay');
+lay.onclick=()=>{layout=!layout;lay.classList.toggle('on',layout);ov.style.pointerEvents=layout?'auto':'none';};
+function hit(px,py){const W=innerWidth,H=innerHeight;for(let i=holes.length-1;i>=0;i--){const h=holes[i],dx=px-h.x*W,dy=py-h.y*H,d=Math.hypot(dx,dy),R=h.r*H;if(d<R*1.08)return{i,edge:d>R*.82};}return null;}
+ov.addEventListener('pointerdown',e=>{const t=hit(e.clientX,e.clientY);if(!t)return;drag={...t,sx:e.clientX,sy:e.clientY,h0:{...holes[t.i]}};ov.setPointerCapture(e.pointerId);});
+ov.addEventListener('pointermove',e=>{if(!drag)return;const h=holes[drag.i],W=innerWidth,H=innerHeight;
+  if(drag.edge){h.r=Math.max(.04,Math.hypot(e.clientX-h.x*W,e.clientY-h.y*H)/H);}
+  else{h.x=drag.h0.x+(e.clientX-drag.sx)/W;h.y=drag.h0.y+(e.clientY-drag.sy)/H;}});
+ov.addEventListener('pointerup',()=>{if(drag){drag=null;save();}});
+ov.addEventListener('wheel',e=>{const t=hit(e.clientX,e.clientY);if(!t)return;e.preventDefault();const h=holes[t.i];h.r=Math.max(.04,h.r*(1-e.deltaY*.001));save();},{passive:false});
+document.getElementById('fs').onclick=()=>{const d=document.documentElement;(d.requestFullscreen||d.webkitRequestFullscreen||(()=>{})).call(d);};
+let ui=true;addEventListener('keydown',e=>{
+  if(e.key==='h'||e.key==='H'){ui=!ui;document.getElementById('ui').classList.toggle('hid',!ui);document.getElementById('help').classList.toggle('hid',!ui);}
+  if(e.key==='f'||e.key==='F')document.getElementById('fs').click();});
+
+const SURF={black:{lift:0,gain:1.35,gam:1.},grey:{lift:.0,gain:1.15,gam:.9},white:{lift:.035,gain:1.,gam:.78}};
+const SPEED=4.2;let T=0,last=0;
+
+function renderHole(h,dt,B,q,dpr){
+  /* 重力 */
+  let gt;
+  if(B){const[v,k]=B[h.band];h.lvl+=(v-h.lvl)*.3;h.kick=Math.max(h.kick*Math.exp(-dt*2.5),k);gt=.1+9*h.lvl*h.lvl+4*h.kick+.25*n1(T*.2,h.seed);}
+  else{const a=n1(T*.06,h.seed),b=n1(T*.23,h.seed+5);gt=.12*Math.exp(3.6*Math.pow(a,1.4))+1.5*Math.pow(b,4);
+    h.burn-=dt;h.burnCool-=dt;if(h.burn<=0&&h.burnCool<=0&&Math.random()<dt/20){h.burn=2.5+Math.random()*3;h.burnCool=60+Math.random()*40;}
+    if(h.burn>0)gt+=9*Math.sin(Math.min(1,h.burn/1.2)*Math.PI/2);}
+  h.g+=(gt-h.g)*Math.min(1,dt*1.2);
+  h.vel+=(h.g-.025*h.vel*Math.abs(h.vel))*dt;
+  const v=h.vel,narrow=1.1/radH(h.camS,h);
+  h.camS+=v*SPEED*dt*Math.pow(narrow,.9);
+  const spd=Math.min(1,Math.abs(v)/14),G=Math.max(0,h.g),gl_=Math.min(1,Math.max(0,(G-2.5)/7));
+  const slow=1-Math.min(1,Math.abs(v)/3);
+  h.wob=1.4*(1+.8*slow);
+  h.gam+=((1.35+.9*spd)-h.gam)*Math.min(1,dt*1.5);
+  h.vig+=(Math.max(.2,1.5-1.3*gl_)-h.vig)*Math.min(1,dt*1.5);
+
+  /* 目 */
+  const p0=pathH(h.camS,h),p1=pathH(h.camS+2.5,h);
+  const eye=[p0[0],p0[1],-h.camS];
+  const ax=(n1(T*.07,h.seed+11)-.5)*2*(.25+1.1*slow),ay=(n1(T*.05,h.seed+23)-.5)*2*(.25+1.1*slow);
+  const fw=norm([p1[0]-p0[0]+ax*2.5,p1[1]-p0[1]+ay*2.5,-2.5]);
+  const sh=.002+.012*gl_*gl_+.004*spd,up=[Math.sin(T*.03+h.seed),Math.cos(T*.03+h.seed),0];
+  const fw2=norm(fw.map((x,i)=>x+[sh*Math.sin(T*71),sh*Math.sin(T*67),0][i]));
+
+  /* 描く先 */
+  const px=Math.max(64,Math.min(1400,Math.round(2*h.r*innerHeight*dpr*q)));
+  if(!h.fb||h.fb.w!==px){h.fb={w:px,s:mkT(px,px,true),a:[mkT(px,px),mkT(px,px)],i:0};}
+  const fb=h.fb;
+  const fovy=.9+1.44*Math.pow(spd,1.3);
+  const VP=mul(persp(Math.min(2.4,fovy),1,.02,200),view(eye,fw2,up));
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb.s.f);gl.viewport(0,0,px,px);
+  gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
+  gl.useProgram(pTube);gl.bindVertexArray(vaoTube);
+  const sp2=.6,N2=Math.round(90/sp2);
+  gl.uniformMatrix4fv(U2.uVP,false,VP);gl.uniform1f(U2.uS0,Math.floor(h.camS/sp2)*sp2-2*sp2);gl.uniform1f(U2.uSp,sp2);
+  gl.uniform1f(U2.uWob,h.wob);gl.uniform1f(U2.uHelix,h.hel);gl.uniform1f(U2.uPh,h.ph);gl.uniform3f(U2.uCam,...eye);
+  gl.uniform1f(U2.uFog,.045*(.35+.65*Math.min(1,spd*3)));gl.uniform1f(U2.uDepth,1);
+  {const ls=h.camS+1.6+.4*Math.sin(T*.3),pl=pathH(ls,h),rl=radH(ls,h)*.62;gl.uniform3f(U2.uLp,pl[0]+rl*Math.cos(h.lamp+T*.2),pl[1]+rl*Math.sin(h.lamp+T*.2),-ls);}
+  for(let i=0;i<4;i++){gl.activeTexture(gl.TEXTURE2+i);gl.bindTexture(gl.TEXTURE_2D,MT[i]||null);gl.uniform1i(U2['I'+i],2+i);}
+  gl.drawElementsInstanced(gl.TRIANGLES,tix.length,gl.UNSIGNED_SHORT,0,N2);
+  gl.disable(gl.DEPTH_TEST);gl.bindVertexArray(vaoQ);
+  /* 黒の尾 */
+  const A=fb.a[fb.i],Bt=fb.a[1-fb.i];
+  gl.useProgram(pTr);gl.bindFramebuffer(gl.FRAMEBUFFER,A.f);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fb.s.t);gl.uniform1i(UR.S,0);
+  gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,Bt.t);gl.uniform1i(UR.P,1);
+  gl.uniform2f(UR.r,px,px);gl.uniform1f(UR.uTr,Math.min(.97,.05+.95*spd));gl.uniform1f(UR.uZb,(.003+.09*spd*spd)*Math.sign(v||1));gl.uniform1f(UR.uRot,0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  fb.i=1-fb.i;
+  return A;
+}
+
+function frame(ms){
+  requestAnimationFrame(frame);
+  const dt=Math.min(.1,(ms-last)/1000||0);last=ms;T+=dt;
+  const q=+document.getElementById('q').value,dpr=Math.min(2,devicePixelRatio||1);
+  const W=Math.round(innerWidth*dpr),H=Math.round(innerHeight*dpr);
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
+  if(ov.width!==innerWidth||ov.height!==innerHeight){ov.width=innerWidth;ov.height=innerHeight;}
+  const B=bands(dt);
+  const res=holes.map(h=>renderHole(h,dt,B,q,dpr));
+  /* 画面：黒の上に穴だけを置く */
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,W,H);
+  const S=SURF[document.getElementById('surf').value];
+  gl.clearColor(S.lift,S.lift,S.lift,1);gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(pH);gl.bindVertexArray(vaoQ);gl.enable(gl.SCISSOR_TEST);
+  holes.forEach((h,i)=>{
+    const R=h.r*H,cx=h.x*W,cy=(1-h.y)*H,bx=Math.round(cx-R),by=Math.round(cy-R),bs=Math.round(2*R);
+    gl.viewport(0,0,W,H);gl.scissor(Math.max(0,bx),Math.max(0,by),bs,bs);
+    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,res[i].t);gl.uniform1i(UH.A,0);
+    gl.uniform4f(UH.uBox,bx,by,bs,bs);gl.uniform2f(UH.r,W,H);
+    gl.uniform1f(UH.uGam,h.gam*.85*S.gam);gl.uniform1f(UH.uVig,h.vig);gl.uniform1f(UH.uLift,S.lift);gl.uniform1f(UH.uGain,S.gain);
+    gl.uniform1f(UH.uT,T);gl.uniform1f(UH.uGrain,.012);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  });
+  gl.disable(gl.SCISSOR_TEST);
+  /* 配置モードの目印 */
+  ox.clearRect(0,0,ov.width,ov.height);
+  if(layout){ox.strokeStyle='rgba(255,255,255,.5)';ox.fillStyle='rgba(255,255,255,.7)';ox.font='12px sans-serif';ox.setLineDash([4,4]);
+    holes.forEach((h,i)=>{const R=h.r*innerHeight;ox.beginPath();ox.arc(h.x*innerWidth,h.y*innerHeight,R,0,TAU);ox.stroke();
+      ox.fillText(`穴${i+1}　帯域：${BANDN[h.band]}　重力 ${h.g.toFixed(1)}G`,h.x*innerWidth-R,h.y*innerHeight-R-6);});}
+}
+requestAnimationFrame(frame);
+</script></body></html>
