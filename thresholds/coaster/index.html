@@ -368,7 +368,7 @@ function frame(ms){
      マイクでは、静かな間に浮き、強い立ち上がりで落ちる */
   if(mode!=='sink'&&phase==='fall'){
     dpT+=dt;const live_=!!(an||(typeof AUD!=='undefined'&&AUD));
-    if(dp==='rise'){vel+=(-.75*(1-sm(Math.min(1,dpT/dpLen)))-vel)*Math.min(1,dt*2.2);g=-.4;
+    if(dp==='rise'){vel+=(.45*(1-sm(Math.min(1,dpT/dpLen)))+.08-vel)*Math.min(1,dt*1.5);g=.3;   /* 浮上はやめ、ゆっくり漂って溜める */
       if(dpT>dpLen||(live_&&kick>.6&&dpT>.8)){dp='hang';dpT=0;dpLen=live_?.35:.4+rnd()*.7;}}
     else if(dp==='hang'){vel*=Math.exp(-dt*6);g=0;if(dpT>dpLen){dp='plunge';dpT=0;dpG=live_?4+6*lvl+4*kick:5+rnd()*5;dpLen=live_?1.5+2*lvl:1.8+rnd()*2.4;}}
     else if(dp==='plunge'){g=dpG*(live_?(.5+.8*lvl+kick):1);vel+=g*dt;vel=Math.min(vel,26);
@@ -383,14 +383,14 @@ function frame(ms){
   camS+=v*SPEED*dt*Math.pow(narrow,.9);            /* 狭いところでは加速する */
   roll+=dt*(.12+.3*Math.min(1,Math.abs(v)/8))*(n1(T*.03+2)>.5?1:-1)*(.6+.4*Math.sin(T*.11));   /* 落ちる体は軸のまわりで回る */
 
-  WOB=WD.wob*.22;HEL=WD.hel*.5;PH=WD.ph;          /* 竪穴はほぼまっすぐ下へ：曲がると横に進んで見える */
+  WOB=WD.wob*(1+.8*(1-Math.min(1,Math.abs(vel)/3)));HEL=WD.hel;PH=WD.ph;      /* 竪穴はうねって曲がる（遅いほど強く） */
   const sp=WD.sp,tube=WD.tube,jit=WD.jit;
   const spd=Math.min(1,Math.abs(v)/14),warpK=phase==='warp'?Math.sin(Math.min(1,wT/1.8)*Math.PI):0;
   const G=Math.max(0,g),gl_=Math.min(1,Math.max(0,(G-2.5)/7));
   const calm=floating||phase==='enter';
   const tg={gam:calm?1.25:1.35+.9*spd,vig:calm?1.6:Math.max(.2,1.5-1.3*gl_-.9*warpK),grain:.01+.05*spd,flash:0};
   for(const k in MD){const a=k==='flash'?1:Math.min(1,dt*1.5);MD[k]+=(tg[k]-MD[k])*a;}
-  const name=mode==='sink'?'ただ落ちつづける':(phase==='warp'?'ワープ':phase==='inside'?'球の中 — 無重力':floating?'球':phase==='enter'?'球の中へ':phase==='approach'?'球へ  '+g.toFixed(1)+' G':({rise:'浮上',hang:'頂点',plunge:'落下 '+g.toFixed(1)+' G',ease:'ほどける'}[dp]||g.toFixed(1)+' G'));
+  const name=mode==='sink'?'ただ落ちつづける':(phase==='warp'?'ワープ':phase==='inside'?'球の中 — 無重力':floating?'球':phase==='enter'?'球の中へ':phase==='approach'?'球へ  '+g.toFixed(1)+' G':({rise:'溜め',hang:'頂点',plunge:'落下 '+g.toFixed(1)+' G',ease:'ほどける'}[dp]||g.toFixed(1)+' G'));
   if(name!==shown){shown=name;document.getElementById('vn').textContent=name;}
 
   const p0=path(camS),p1=path(camS+2.5);
