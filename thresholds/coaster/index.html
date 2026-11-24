@@ -219,23 +219,22 @@ void main(){
   float sc=hh(floor(vec2(vUV.x*900.,vUV.y*60.)))-.5;
   vec3 N=normalize(normalize(vN)-(g.x*vTu+g.y*vTv)*uDepth+vTu*sc*.01);
   vec3 V=normalize(uCam-vW);
-  vec2 rp=vW.xy-uLp.xy;vec3 Lr=uLp+vec3(normalize(rp+1e-5)*.62*length(rp),0.);   /* 頭上の環状の灯：壁を周囲から均等に、上から舐める */
-  vec3 Ld=Lr-vW;float ld=length(Ld);vec3 Lt=Ld/ld;
+  vec3 Ld=uLp-vW;float ld=length(Ld);vec3 Lt=Ld/ld;
   float att=1./(1.+ld*ld*.012)+.06;              /* 遠くの壁もかすかに残る：穴の先が見え隠れする */
   float dif=max(dot(N,Lt),0.);
   vec3 Hh=normalize(Lt+V);float nh=max(dot(N,Hh),0.);
   float fr=.35+.65*pow(1.-max(dot(N,V),0.),4.);
   /* 金属：広い照りと鋭い照りを重ね、縁の明暗を細かく段階づける */
   float c=dif*dif*.18*(.15+.85*h) + (pow(nh,18.)*.35+pow(nh,90.)*.9+pow(nh,400.)*1.6)*fr;
-  c*=att*2.6;
+  c*=att*1.7;
   float dist=length(uCam-vW);
   c*=exp(-dist*uFog);
   /* 穴の先：継ぎ目の細い線が奥まで続き、見え隠れする（霧や灯の届かない深さでも消えない） */
   float t1=vUV.y*3.,w1=fwidth(t1),d1=abs(fract(t1+.5)-.5);
   float t2=vUV.x*3.,w2=fwidth(t2),d2=abs(fract(t2+.5)-.5);
-  float ln=1.-smoothstep(w1*.4,w1*1.4,d1);
+  float ln=max(1.-smoothstep(w1*.4,w1*1.4,d1),.7*(1.-smoothstep(w2*.4,w2*1.4,d2)));
   float flick=smoothstep(.35,.8,hh(vec2(floor(vUV.y*3.),floor(uFog*0.+vUV.x*3.)))+.25*sin(vUV.y*.7));
-  c+=ln*flick*.1*exp(-dist*.03)*(1.-exp(-dist*.25));
+  c+=ln*flick*.22*exp(-dist*.025)*(1.-exp(-dist*.25));
   c=c/(1.+c)*1.35;                                       /* なだらかな肩：白を飛ばさず、黒は深いまま */
   o=vec4(c,c,c,1.);
 }`;
@@ -328,7 +327,7 @@ function switchWorld(){
 const SPEED=4.2;
 const radAt=s=>{const a=Math.sin(s*.045+PH*.37)*.6+Math.sin(s*.017+1.3+PH*.11)*.4;return 1.1*(1-.66*Math.pow(Math.max(0,a),1.6));};
 /* 落ちた先に球がある。球に着くと無重力で浮き、上から眺め、やがて球の中へ落ちこむ。球の中で次の竪穴に変わり、また次の球へ */
-let dp='rise',dpT=0,dpLen=2.5,dpG=7,memW=1,memS=0,memRot=0,memTh=.5,warpT=30,wT=0,warped=false,inT=0,inLen=0,exitFw=null,exitT=9,memT=5,memOn=0,memI=0,memR=[.5,.5,1],memLeft=0,memGap=0,post=false,phase='fall',sS=1e9,sphOn=false,sphT=14,phT=0,phLen=0,orbE=null;
+let memW=1,memS=0,memRot=0,memTh=.5,warpT=30,wT=0,warped=false,inT=0,inLen=0,exitFw=null,exitT=9,memT=5,memOn=0,memI=0,memR=[.5,.5,1],memLeft=0,memGap=0,post=false,phase='fall',sS=1e9,sphOn=false,sphT=14,phT=0,phLen=0,orbE=null;
 function frame(ms){
   requestAnimationFrame(frame);
   const dt=Math.min(.1,(ms-last)/1000||0);last=ms;T+=dt;Tm+=dt;
@@ -343,7 +342,7 @@ function frame(ms){
   else{
     const a=n1(T*.06),b=n1(T*.23+7),c=n1(T*.011+3);
     gt=.12*Math.exp(3.6*Math.pow(a,1.4))+1.5*Math.pow(b,4)+kick*4+lvl*2;
-    burn-=dt;burnCool-=dt;if(false){burn=2.5+rnd()*3;burnCool=60+rnd()*40;}
+    burn-=dt;burnCool-=dt;if(phase==='fall'&&burn<=0&&burnCool<=0&&rnd()<dt/20){burn=2.5+rnd()*3;burnCool=60+rnd()*40;}
     if(burn>0)gt+=9*Math.sin(Math.min(1,burn/1.2)*Math.PI/2);
     if(c<.18)gt=-.6*(1-c/.18);
   }
@@ -364,41 +363,29 @@ function frame(ms){
     if(dd<.04){camS=sS;phase='inside';inT=0;inLen=8+rnd()*4;vel=0;}
   }
   if(floating||phase==='enter')vel=0;
-  /* ふわっと上がり、高速に落ちる：浮上→頂点で止まる→自由落下→ほどける、を繰り返す。
-     マイクでは、静かな間に浮き、強い立ち上がりで落ちる */
-  if(mode!=='sink'&&phase==='fall'){
-    dpT+=dt;const live_=!!(an||(typeof AUD!=='undefined'&&AUD));
-    if(dp==='rise'){vel+=(.45*(1-sm(Math.min(1,dpT/dpLen)))+.08-vel)*Math.min(1,dt*1.5);g=.3;   /* 浮上はやめ、ゆっくり漂って溜める */
-      if(dpT>dpLen||(live_&&kick>.6&&dpT>.8)){dp='hang';dpT=0;dpLen=live_?.35:.4+rnd()*.7;}}
-    else if(dp==='hang'){vel*=Math.exp(-dt*6);g=0;if(dpT>dpLen){dp='plunge';dpT=0;dpG=live_?4+6*lvl+4*kick:5+rnd()*5;dpLen=live_?1.5+2*lvl:1.8+rnd()*2.4;}}
-    else if(dp==='plunge'){g=dpG*(live_?(.5+.8*lvl+kick):1);vel+=g*dt;vel=Math.min(vel,26);
-      if(dpT>dpLen&&(!live_||lvl<.55)){dp='ease';dpT=0;}}
-    else if(dp==='ease'){vel+=(.6-vel)*Math.min(1,dt*1.3);g=1;if(dpT>1.6+rnd()*.01){dp='rise';dpT=0;dpLen=live_?2+3*(1-lvl):2.2+rnd()*2.5;}}
-  }
   if(phase==='warp'){const x=wT/1.8;vel=3+70*Math.sin(Math.min(1,x)*Math.PI)**2;
     if(!warped&&x>.55){warped=true;switchWorld();}
     if(x>=1){phase='fall';vel=3.2;warpT=40+rnd()*45;}}
   const v=vel;
   const rNow=radAt(camS),narrow=1.1/rNow;
   camS+=v*SPEED*dt*Math.pow(narrow,.9);            /* 狭いところでは加速する */
-  roll+=dt*(.12+.3*Math.min(1,Math.abs(v)/8))*(n1(T*.03+2)>.5?1:-1)*(.6+.4*Math.sin(T*.11));   /* 落ちる体は軸のまわりで回る */
+  roll+=dt*(.05*Math.sin(T*.13))*Math.min(1,Math.abs(v));
 
-  WOB=WD.wob*(1+.8*(1-Math.min(1,Math.abs(vel)/3)));HEL=WD.hel;PH=WD.ph;      /* 竪穴はうねって曲がる（遅いほど強く） */
+  WOB=WD.wob*(1+.8*(1-Math.min(1,Math.abs(vel)/3)));HEL=WD.hel;PH=WD.ph;
   const sp=WD.sp,tube=WD.tube,jit=WD.jit;
   const spd=Math.min(1,Math.abs(v)/14),warpK=phase==='warp'?Math.sin(Math.min(1,wT/1.8)*Math.PI):0;
   const G=Math.max(0,g),gl_=Math.min(1,Math.max(0,(G-2.5)/7));
   const calm=floating||phase==='enter';
   const tg={gam:calm?1.25:1.35+.9*spd,vig:calm?1.6:Math.max(.2,1.5-1.3*gl_-.9*warpK),grain:.01+.05*spd,flash:0};
   for(const k in MD){const a=k==='flash'?1:Math.min(1,dt*1.5);MD[k]+=(tg[k]-MD[k])*a;}
-  const name=mode==='sink'?'ただ落ちつづける':(phase==='warp'?'ワープ':phase==='inside'?'球の中 — 無重力':floating?'球':phase==='enter'?'球の中へ':phase==='approach'?'球へ  '+g.toFixed(1)+' G':({rise:'溜め',hang:'頂点',plunge:'落下 '+g.toFixed(1)+' G',ease:'ほどける'}[dp]||g.toFixed(1)+' G'));
+  const name=mode==='sink'?'ただ落ちつづける':(phase==='warp'?'ワープ':phase==='inside'?'球の中 — 無重力':floating?'球':phase==='enter'?'球の中へ':phase==='approach'?'球へ  '+g.toFixed(1)+' G':(g<0?'重力が反転しかける':g.toFixed(1)+' G'+(burn>0?'  限界':'')));
   if(name!==shown){shown=name;document.getElementById('vn').textContent=name;}
 
   const p0=path(camS),p1=path(camS+2.5);
   const eye=[p0[0],p0[1],-camS];
   /* 消失点のずれ：見る先が道筋から外れて漂う。遅いほど大きくずれ、穴の先が見え隠れする */
   const slow=1-Math.min(1,Math.abs(vel)/3);
-  const orb=.06+.16*slow*(n1(T*.05+7)), oa=T*.09+n1(T*.02+3)*6.28;
-  const ax=orb*Math.cos(oa), ay=orb*Math.sin(oa);          /* 穴の先は中心のまわりを小さく巡る */
+  const ax=(n1(T*.07+11)-.5)*2*(.25+1.1*slow)+(n1(T*.31+5)-.5)*.35, ay=(n1(T*.05+23)-.5)*2*(.25+1.1*slow)+(n1(T*.27+9)-.5)*.35;
   let fw=norm([p1[0]-p0[0]+ax*2.5,p1[1]-p0[1]+ay*2.5,-2.5]),up=[Math.sin(roll),Math.cos(roll),0];
   const rightAx=norm(cross(fw,up));
   const shk=calm?0:.002+.012*gl_*gl_+.004*spd;
@@ -457,7 +444,7 @@ function frame(ms){
     gl.uniformMatrix4fv(U2.uVP,false,VP);gl.uniform1f(U2.uS0,Math.floor(camS/sp2)*sp2-2*sp2);gl.uniform1f(U2.uSp,sp2);
     gl.uniform1f(U2.uWob,WOB);gl.uniform1f(U2.uHelix,HEL);gl.uniform1f(U2.uPh,PH);gl.uniform3f(U2.uCam,...eyeV);
     gl.uniform1f(U2.uFog,WD.fog*(.35+.65*Math.min(1,spd*3)));gl.uniform1f(U2.uDepth,1);
-    {const ls=camS+1.3,pl=path(ls),rl=radAt(ls)*.12;gl.uniform3f(U2.uLp,pl[0]+rl*Math.cos(WD.lamp+Tm*.2),pl[1]+rl*Math.sin(WD.lamp+Tm*.2),-ls);}   /* 灯は頭上：軸の上から壁を舐め下ろす。下は闇 */
+    {const ls=camS+1.6+.4*Math.sin(Tm*.3),pl=path(ls),rl=radAt(ls)*.62;gl.uniform3f(U2.uLp,pl[0]+rl*Math.cos(WD.lamp+Tm*.2),pl[1]+rl*Math.sin(WD.lamp+Tm*.2),-ls);}
     for(let i=0;i<4;i++){gl.activeTexture(gl.TEXTURE2+i);gl.bindTexture(gl.TEXTURE_2D,MT[i]||null);gl.uniform1i(U2['I'+i],2+i);}
     gl.activeTexture(gl.TEXTURE0);
     gl.drawElementsInstanced(gl.TRIANGLES,tix.length,gl.UNSIGNED_SHORT,0,N2);
