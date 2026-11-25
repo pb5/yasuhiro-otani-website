@@ -147,11 +147,24 @@ void main(){vec2 u=gl_FragCoord.xy/r,c=u-.5;float cs=cos(uRot),sn=sin(uRot);c=ma
   vec3 s=texture(S,u).rgb,p=texture(P,.5+c*(1.-uZb)).rgb;
   o=vec4(min(s,mix(vec3(1.),p,uTr)),1.);}`;              /* 黒が尾を引く */
 const SHOW=`#version 300 es
-precision highp float;uniform sampler2D A,M;uniform vec2 r;uniform float uT,uGam,uVig,uGrain,uFlash,uMemA,uMemAsp,uMemRot,uMemTh,uSpd,uMemW,uMemS;uniform vec3 uMemR;out vec4 o;
+precision highp float;uniform sampler2D A,M;uniform vec2 r;uniform float uSlip,uPulse,uT,uGam,uVig,uGrain,uFlash,uMemA,uMemAsp,uMemRot,uMemTh,uSpd,uMemW,uMemS;uniform vec3 uMemR;out vec4 o;
 float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
 void main(){vec2 u=gl_FragCoord.xy/r;float c=texture(A,u).r;
+  if(uSlip>0.){
+    /* 10Gを超えて、意識がぎりぎり持ちこたえている：焦点がほどけ、像が二重にずれ、輪郭が溶ける */
+    float bl=0.,rad=uSlip*.018;
+    for(int k=0;k<8;k++){float a=float(k)*.785+uT*.7;bl+=texture(A,u+vec2(cos(a),sin(a))*rad*(r.y/r.x,1.)).r;}
+    bl/=8.;
+    vec2 gofs=vec2(.012*sin(uT*1.7),-.006*cos(uT*1.3))*uSlip;
+    float gh=texture(A,u+gofs).r;
+    c=mix(c,bl,.75*uSlip);
+    c=max(c,gh*.55*uSlip+c*(1.-.3*uSlip));
+  }
   c=pow(max(c,0.),uGam);
   vec2 q=(gl_FragCoord.xy-.5*r)/r.y;c*=smoothstep(uVig,uVig*.25,length(q));
+  c*=1.-uPulse;                                            /* 鼓動のたびに視界が沈む */
+  c*=1.+.9*uSlip;
+  c=mix(c,.03+.5*c,uSlip*.45);                              /* 階調が抜けて平たくなる（グレーアウト） */
   if(uMemA>0.){
     /* 瞬間記憶：コラージュが一瞬だけ差しこまれる */
     /* 意識が飛ぶ一瞬：コラージュの断片が、落下の勢いで中心へ引き伸ばされ、光と闇だけになる */
@@ -242,7 +255,7 @@ const pT=prog(TVS,TFS),pT2=prog(TVS2,TFS2),pTr=prog(QVS,TRAIL),pS=prog(QVS,SHOW)
 const uni=(p,ns)=>{const o={};for(const n of ns)o[n]=gl.getUniformLocation(p,n);return o;};
 const UT=uni(pT,['uSCf','uSC','uCut0','uCut1','uLd','uNtF','uEye','uFw','uRt','uUpv','uNt','uNC','uNN','uCamS','uFree','uFT','uPt','uMode','uPh','uGs','uVP','uS0','uSp','uTube','uJit','uWob','uHelix','uCam','uFog','uLampA']);
 const UR=uni(pTr,['S','P','r','uTr','uZb','uRot']);
-const US=uni(pS,['uMemW','uMemS','uMemRot','uMemTh','uSpd','M','uMemA','uMemAsp','uMemR','A','r','uT','uGam','uVig','uGrain','uFlash']);
+const US=uni(pS,['uSlip','uPulse','uMemW','uMemS','uMemRot','uMemTh','uSpd','M','uMemA','uMemAsp','uMemR','A','r','uT','uGam','uVig','uGrain','uFlash']);
 
 /* トーラスの網 */
 const NU=96,NV=18,uv=[],ix=[];
@@ -327,7 +340,7 @@ function switchWorld(){
 const SPEED=4.2;
 const radAt=s=>{const a=Math.sin(s*.045+PH*.37)*.6+Math.sin(s*.017+1.3+PH*.11)*.4;return 1.1*(1-.66*Math.pow(Math.max(0,a),1.6));};
 /* 落ちた先に球がある。球に着くと無重力で浮き、上から眺め、やがて球の中へ落ちこむ。球の中で次の竪穴に変わり、また次の球へ */
-let memW=1,memS=0,memRot=0,memTh=.5,warpT=30,wT=0,warped=false,inT=0,inLen=0,exitFw=null,exitT=9,memT=5,memOn=0,memI=0,memR=[.5,.5,1],memLeft=0,memGap=0,post=false,phase='fall',sS=1e9,sphOn=false,sphT=14,phT=0,phLen=0,orbE=null;
+let slip=0,hbP=0,pulse=0,dipT=0,frz=0,memW=1,memS=0,memRot=0,memTh=.5,warpT=30,wT=0,warped=false,inT=0,inLen=0,exitFw=null,exitT=9,memT=5,memOn=0,memI=0,memR=[.5,.5,1],memLeft=0,memGap=0,post=false,phase='fall',sS=1e9,sphOn=false,sphT=14,phT=0,phLen=0,orbE=null;
 function frame(ms){
   requestAnimationFrame(frame);
   const dt=Math.min(.1,(ms-last)/1000||0);last=ms;T+=dt;Tm+=dt;
@@ -343,7 +356,7 @@ function frame(ms){
     const a=n1(T*.06),b=n1(T*.23+7),c=n1(T*.011+3);
     gt=.12*Math.exp(3.6*Math.pow(a,1.4))+1.5*Math.pow(b,4)+kick*4+lvl*2;
     burn-=dt;burnCool-=dt;if(phase==='fall'&&burn<=0&&burnCool<=0&&rnd()<dt/20){burn=2.5+rnd()*3;burnCool=60+rnd()*40;}
-    if(burn>0)gt+=9*Math.sin(Math.min(1,burn/1.2)*Math.PI/2);
+    if(burn>0)gt+=12*Math.sin(Math.min(1,burn/1.2)*Math.PI/2);
     if(c<.18)gt=-.6*(1-c/.18);
   }
   /* 段階 */
@@ -375,10 +388,19 @@ function frame(ms){
   const sp=WD.sp,tube=WD.tube,jit=WD.jit;
   const spd=Math.min(1,Math.abs(v)/14),warpK=phase==='warp'?Math.sin(Math.min(1,wT/1.8)*Math.PI):0;
   const G=Math.max(0,g),gl_=Math.min(1,Math.max(0,(G-2.5)/7));
+  /* 意識の揺らぎ：10Gを超えると、持ちこたえようとする意識が揺れる。完全には落ちない */
+  {const Lg=Math.min(1,Math.max(0,(G-9.5)/3)),st=n1(T*.45+40);
+   slip+=(Math.min(.85,Lg*(.4+.6*st))-slip)*Math.min(1,dt*2.5);
+   hbP+=dt*TAU*(1.15+1.5*slip);
+   pulse=slip*.45*Math.pow(Math.max(0,Math.sin(hbP)),10);
+   if(slip>.25&&dipT<=0&&rnd()<dt*2*slip)dipT=.04+rnd()*.07;                 /* ほんの一瞬、視界が落ちる */
+   if(dipT>0){dipT-=dt;MD.flash=-.9;}
+   if(slip>.35&&frz<=0&&rnd()<dt*1.4*slip)frz=.06+rnd()*.12;               /* 知覚が遅れ、像が一瞬止まる */
+   else if(frz>0)frz-=dt;}
   const calm=floating||phase==='enter';
   const tg={gam:calm?1.25:1.35+.9*spd,vig:calm?1.6:Math.max(.2,1.5-1.3*gl_-.9*warpK),grain:.01+.05*spd,flash:0};
   for(const k in MD){const a=k==='flash'?1:Math.min(1,dt*1.5);MD[k]+=(tg[k]-MD[k])*a;}
-  const name=mode==='sink'?'ただ落ちつづける':(phase==='warp'?'ワープ':phase==='inside'?'球の中 — 無重力':floating?'球':phase==='enter'?'球の中へ':phase==='approach'?'球へ  '+g.toFixed(1)+' G':(g<0?'重力が反転しかける':g.toFixed(1)+' G'+(burn>0?'  限界':'')));
+  const name=mode==='sink'?'ただ落ちつづける':(phase==='warp'?'ワープ':phase==='inside'?'球の中 — 無重力':floating?'球':phase==='enter'?'球の中へ':phase==='approach'?'球へ  '+g.toFixed(1)+' G':(g<0?'重力が反転しかける':g.toFixed(1)+' G'+(slip>.05?'  意識が揺らぐ':burn>0?'  限界':'')));
   if(name!==shown){shown=name;document.getElementById('vn').textContent=name;}
 
   const p0=path(camS),p1=path(camS+2.5);
@@ -455,17 +477,20 @@ function frame(ms){
     gl.drawElementsInstanced(gl.TRIANGLES,NIDX,gl.UNSIGNED_SHORT,0,480);}
   gl.disable(gl.DEPTH_TEST);gl.bindVertexArray(vaoQ);
 
-  const A=fb.a[fb.i],B=fb.a[1-fb.i];
+  const frozen=frz>0;
+  const A=frozen?fb.a[1-fb.i]:fb.a[fb.i],B=fb.a[1-fb.i];
+  if(!frozen){
   gl.useProgram(pTr);gl.bindFramebuffer(gl.FRAMEBUFFER,A.f);
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fb.s.t);gl.uniform1i(UR.S,0);
   gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,B.t);gl.uniform1i(UR.P,1);
-  gl.uniform2f(UR.r,W,H);gl.uniform1f(UR.uTr,calm?0:Math.min(.985,.05+.95*spd+.3*warpK));gl.uniform1f(UR.uZb,(.003+.09*spd*spd+.06*warpK)*Math.sign(v||1));
+  gl.uniform2f(UR.r,W,H);gl.uniform1f(UR.uTr,calm?0:Math.min(.985,.05+.95*spd+.3*warpK)*(1-.45*slip));gl.uniform1f(UR.uZb,(.003+.09*spd*spd+.06*warpK)*Math.sign(v||1));
   gl.uniform1f(UR.uRot,0);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  }
 
   gl.useProgram(pS);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,W,H);
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,A.t);gl.uniform1i(US.A,0);
-  gl.uniform2f(US.r,W,H);gl.uniform1f(US.uT,Tm);gl.uniform1f(US.uGam,calm?1:MD.gam*.85);gl.uniform1f(US.uVig,MD.vig);
+  gl.uniform2f(US.r,W,H);gl.uniform1f(US.uT,Tm);gl.uniform1f(US.uGam,calm?1:MD.gam*.85);gl.uniform1f(US.uVig,slip>.02?Math.max(.34,MD.vig)*(1-.12*pulse/(.45*Math.max(slip,.01))):MD.vig);gl.uniform1f(US.uSlip,slip);gl.uniform1f(US.uPulse,pulse);
   gl.uniform1f(US.uGrain,MD.grain);gl.uniform1f(US.uFlash,MD.flash);
   /* 瞬間記憶：強いGや加速の極みで、意識が飛びかける一瞬にだけ見える。1〜3コマ */
   let ma=0;
@@ -483,7 +508,7 @@ function frame(ms){
   gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,MT[memI]||null);gl.uniform1i(US.M,1);
   gl.uniform1f(US.uMemA,ma);gl.uniform1f(US.uMemAsp,ASPI[memI]);gl.uniform3f(US.uMemR,...memR);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-  fb.i=1-fb.i;
+  if(!frozen)fb.i=1-fb.i;
 }
 requestAnimationFrame(frame);
 </script></body></html>
