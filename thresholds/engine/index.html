@@ -1965,6 +1965,9 @@ const DEF=[
  ['trail','黒の尾',1,0,1,2],
  ['vig','視野',1,.3,1.5,2],
  ['grain','粒子（フィルム）',.012,0,.1,2],
+ ['投影'],
+ ['bright','明るさ',1,.5,5,4],
+ ['mid','中間を持ち上げる',0,0,1,4],
  ['音'],
  ['amt','音の効き',.7,0,1.5,5],
 ];
@@ -2110,7 +2113,7 @@ void main(){vec2 u=gl_FragCoord.xy/r;vec3 s=texture(S,u).rgb,p=texture(P,.5+(u-.
   o=vec4(min(s,mix(vec3(1.),p,uTr)),1.);}`;
 const SHOW=`#version 300 es
 precision highp float;uniform sampler2D A;uniform vec2 r;
-uniform float uPlanet,uBurn,uDrill,uPart,uPartV,uPartLen,uSlip,uPulse,uT,uGam,uVig,uGrain,uFlash;out vec4 o;
+uniform float uBright,uMid,uPlanet,uBurn,uDrill,uPart,uPartV,uPartLen,uSlip,uPulse,uT,uGam,uVig,uGrain,uFlash;out vec4 o;
 float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
 float parts(vec2 q){
   float a=atan(q.y,q.x),rr=length(q),acc=0.;
@@ -2144,6 +2147,7 @@ void main(){vec2 u=gl_FragCoord.xy/r;
   c+=uBurn*.16*exp(-length(q)*4.)*(.75+.25*sin(uT*47.));
   if(false)c+=parts(q)*(.22+.35*uBurn+.6*uDrill)*(.6+.4*hash(vec2(floor(uT*24.),3.)))*smoothstep(uVig*1.2,uVig*.3,length(q));
   c*=1.+.9*uSlip;c=mix(c,.03+.5*c,uSlip*.45);
+  c=c*uBright;c=mix(c,pow(clamp(c,0.,1.),.45),uMid);c=c/(1.+max(c-1.,0.));   /* 投影向け：暗部を潰さず持ち上げる */
   c+=uFlash;c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
   o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);}`;
 /* 横切る層：竪穴を横に塞ぐ膜。迫ってきて、突き抜ける（雲・地面・地層・溶けた層）。落ちる感覚の手がかり */
@@ -2188,7 +2192,7 @@ const pBake=prog(QVS,BAKE),pT=prog(TVS,TFS),pTr=prog(QVS,TRAIL),pS=prog(QVS,SHOW
 const UB=uni(pBake,['S','r']);
 const UT=uni(pT,['uVP','uS0','uSp','uWob','uPh','uRadK','I0','I1','I2','I3','uCam','uLp','uFog','uDepth','uWall']);
 const UR=uni(pTr,['S','P','r','uTr','uZb']);
-const US=uni(pS,['uPlanet','A','r','uBurn','uDrill','uPart','uPartV','uPartLen','uSlip','uPulse','uT','uGam','uVig','uGrain','uFlash']);
+const US=uni(pS,['uBright','uMid','uPlanet','A','r','uBurn','uDrill','uPart','uPartV','uPartLen','uSlip','uPulse','uT','uGam','uVig','uGrain','uFlash']);
 
 const NA=160,tuv=[],tix=[];
 for(let i=0;i<=NA;i++)for(let j=0;j<=1;j++)tuv.push(i/NA*TAU,j);
@@ -2260,8 +2264,10 @@ let PRE=loadPre();
 $('pre').innerHTML='<div style="color:#666;margin-top:6px">プリセット（Shift＋クリックで保存）</div>'+[1,2,3,4,5,6].map(i=>`<button data-i="${i}">${i}</button>`).join('');
 /* 組み込みの設定：PBが見つけた「壁際」（2026-11-26） */
 const KABE={speed:1.3,G:2.7,spin:4,wob:3,radK:.54,wall:1,depth:3,fog:.3,burn:0,drill:.7,part:0,plen:0,trail:.58,vig:.3,grain:.09};
-$('pre').insertAdjacentHTML('beforeend','<div style="color:#666;margin-top:6px">組み込み</div><button id="kabe">壁際（11/26）</button>');
+$('pre').insertAdjacentHTML('beforeend','<div style="color:#666;margin-top:6px">組み込み</div><button id="kabe">壁際（11/26）</button><button id="proj">投影向け</button>');
+$('proj').onclick=()=>{set('bright',2.4);set('mid',.7);};
 $('kabe').onclick=()=>{$('mode').value='manual';for(const k in KABE)set(k,KABE[k]);};
+if(/[?&]proj/.test(location.search)){set('bright',2.4);set('mid',.7);}
 if(/[?&]kabe/.test(location.search)){$('mode').value='manual';for(const k in KABE){set(k,KABE[k]);P[k].cur=KABE[k];}}
 $('pre').querySelectorAll('button').forEach(b=>{const i=b.dataset.i;if(PRE[i])b.classList.add('on');
   b.onclick=e=>{if(e.shiftKey){PRE[i]={};for(const k of PRE_KEYS)PRE[i][k]=P[k].tgt;savePre(PRE);b.classList.add('on');}
@@ -2406,9 +2412,9 @@ function frame(ms){
   const shown=fb.a[1-fb.i];
   gl.useProgram(pS);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,W,H);gl.bindVertexArray(vaoQ);
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shown.t);gl.uniform1i(US.A,0);
-  gl.uniform2f(US.r,W,H);gl.uniform1f(US.uT,Tm);gl.uniform1f(US.uGam,(1.35+.9*spd)*.85);
-  gl.uniform1f(US.uVig,slip>.02?Math.max(.34,MDvig):MDvig);gl.uniform1f(US.uSlip,slip);gl.uniform1f(US.uPulse,pulse);
-  gl.uniform1f(US.uPlanet,get('planet'));gl.uniform1f(US.uBurn,get('burn'));gl.uniform1f(US.uDrill,get('drill'));gl.uniform1f(US.uPart,get('part'));gl.uniform1f(US.uPartV,partV);gl.uniform1f(US.uPartLen,get('plen'));
+  gl.uniform2f(US.r,W,H);gl.uniform1f(US.uT,Tm);gl.uniform1f(US.uGam,(1.35+.9*spd)*.85*(1-.45*get('mid')));
+  gl.uniform1f(US.uVig,(slip>.02?Math.max(.34,MDvig):MDvig)*(1+get('mid')*1.6));gl.uniform1f(US.uSlip,slip);gl.uniform1f(US.uPulse,pulse);
+  gl.uniform1f(US.uBright,get('bright'));gl.uniform1f(US.uMid,get('mid'));gl.uniform1f(US.uPlanet,get('planet'));gl.uniform1f(US.uBurn,get('burn'));gl.uniform1f(US.uDrill,get('drill'));gl.uniform1f(US.uPart,get('part'));gl.uniform1f(US.uPartV,partV);gl.uniform1f(US.uPartLen,get('plen'));
   gl.uniform1f(US.uGrain,get('grain'));gl.uniform1f(US.uFlash,flash);flash=0;
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   if(rec)recFrame();
