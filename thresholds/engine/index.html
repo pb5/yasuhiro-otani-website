@@ -68,25 +68,28 @@ const get=k=>P[k].cur;
 function tickParams(dt){for(const k in P){const p=P[k];const t=clamp(p.tgt+p.mod,p.mn,p.mx);p.cur+=(t-p.cur)*Math.min(1,dt*p.rate);}}
 
 /* ---------- 2. 台本：旅（宇宙→地球の裏側→宇宙） ---------- */
+/* 旅の各区間は、PBの「壁際」（11/26）を基準にして、そこから広げたり締めたりする */
+const KB={spin:4,wob:3,radK:.54,wall:1,depth:3,fog:.3,vig:.3,trail:.58,grain:.09,part:0,plen:0,lay:0,planet:0};
+const st_=(o)=>Object.assign({},KB,{burn:0,drill:0},o);
 const J=[
- {n:'大気圏外 — 無重力',d:40,speed:[.3,5],G:0,burn:0,drill:0,wall:0,radK:1,depth:1,part:.08,plen:.05,wob:.2,lay:0,lgap:[30,14],planet:[0,1]},
- {n:'熱圏 — 燃えはじめる',d:20,speed:[5,8.5],G:[.3,2],burn:[.1,.5],drill:0,wall:[0,.2],radK:1,depth:.6,part:.6,plen:.35,wob:.2,lay:0,lgap:[14,9],planet:[1,1.5]},
- {n:'中間圏 — 燃え尽きる層',d:25,speed:[8.5,5],G:[2,7],burn:[.6,1,.7],drill:0,wall:[.2,.4],radK:1,depth:.5,part:.8,plen:.6,wob:.25,lay:0,lgap:[9,7],planet:0},
- {n:'成層圏 — 空気の壁',d:25,speed:[5,2.4],G:[6,11.5,5],burn:[.7,.1],drill:0,wall:[.4,.65],radK:[1,.9],depth:.6,part:.5,plen:.4,wob:.35,lay:0,lgap:[7,5]},
- {n:'対流圏 — 揺さぶられる',d:30,speed:[2.4,2.2],G:1.3,buffet:1,burn:0,drill:0,wall:[.65,.9],radK:[.9,.8],depth:.8,part:.2,plen:.2,wob:.7,lay:0,lgap:[5,3.5]},
- {n:'地表 — 衝突',d:1.4,speed:[2.2,.6],G:16,burn:0,drill:1,wall:1,radK:.6,depth:2,part:1,plen:.2,wob:.4,flash:1,lay:0,lgap:2},
- {n:'地殻 — 掘る',d:35,speed:[.7,1],G:3,burn:0,drill:1,wall:1,radK:.5,depth:2.4,part:.8,plen:.15,wob:.5,lay:0,lgap:2.6},
- {n:'マントル — 押し分ける',d:30,speed:[1.2,2.6],G:2,burn:.15,drill:.4,wall:1,radK:.65,depth:1.6,part:.4,plen:.25,wob:.9,lay:0,lgap:4},
- {n:'外核 — 溶けた鉄を泳ぐ',d:25,speed:[2.6,4.2],G:1,burn:.35,drill:.08,wall:1,radK:.85,depth:.6,part:.2,plen:.5,wob:1.3,lay:0,lgap:5.5},
- {n:'内核 — 掘る',d:20,speed:[3,1.4],G:4,burn:.1,drill:.9,wall:1,radK:.5,depth:2.6,part:.9,plen:.15,wob:.5,lay:0,lgap:2.6},
- {n:'中心 — 重力が消える',d:10,speed:[1,.8],G:0,burn:0,drill:0,wall:1,radK:.9,depth:.8,part:.05,plen:.1,wob:.3,lay:0,lgap:20},
- {n:'内核 — 掘る',d:18,speed:[1,1.6],G:4,burn:.1,drill:.9,wall:1,radK:.5,depth:2.6,part:.9,plen:.15,wob:.5,lay:0,lgap:2.6},
- {n:'外核 — 溶けた鉄を泳ぐ',d:18,speed:[2.5,4],G:1,burn:.35,drill:.08,wall:1,radK:.85,depth:.6,part:.2,plen:.5,wob:1.3,lay:0,lgap:5.5},
- {n:'マントル — 押し分ける',d:22,speed:[2.4,1.4],G:2,burn:.15,drill:.4,wall:1,radK:.65,depth:1.6,part:.4,plen:.25,wob:.9,lay:0,lgap:4},
- {n:'地殻 — 掘る',d:22,speed:[1,.8],G:3,burn:0,drill:1,wall:1,radK:.5,depth:2.4,part:.8,plen:.15,wob:.5,lay:0,lgap:2.6},
- {n:'裏側 — 脱出',d:12,speed:[1,16],G:[4,12.5,3],burn:[0,.5],drill:[.7,0],wall:[1,.6],radK:[.5,1.1],depth:[2,.6],part:.8,plen:.6,wob:.3,flash:1,lay:0,lgap:[2.5,8]},
- {n:'大気を突き抜けて上昇',d:25,speed:[16,3],G:[6,1],burn:[.9,.1],drill:0,wall:[.6,0],radK:1,depth:.6,part:[.7,.2],plen:[.6,.2],wob:.25,lay:0,lgap:[6,20]},
- {n:'宇宙 — 止まって、また落ちる',d:8,speed:[3,.3],G:0,burn:0,drill:0,wall:0,radK:1,depth:1,part:.08,plen:.05,wob:.2,lay:0,lgap:30,planet:0},
+ st_({n:'大気圏外 — 無重力',d:40,speed:[.3,2],G:0,wall:0,radK:1,vig:1.2,fog:.05,spin:.3,wob:.5,trail:.2,planet:[0,1]}),
+ st_({n:'熱圏 — 燃えはじめる',d:20,speed:[2,3],G:[.3,2],burn:[.1,.5],wall:[0,.7],radK:[1,.8],vig:[1,.7],fog:[.08,.15],spin:[.3,1],wob:[.5,1.2],planet:[1,1.5]}),
+ st_({n:'中間圏 — 燃え尽きる層',d:25,speed:[3,2],G:[2,7],burn:[.6,1,.7],wall:[.7,1],radK:[.8,.7],vig:[.7,.5],fog:[.15,.22],spin:[1,2.5],wob:[1.2,2]}),
+ st_({n:'成層圏 — 空気の壁',d:25,speed:[2,1.1],G:[6,11.5,5],burn:[.7,.1],radK:[.7,.45],vig:[.5,.3],spin:[2.5,4]}),
+ st_({n:'対流圏 — 揺さぶられる',d:30,speed:1.3,G:1.3,buffet:1}),
+ st_({n:'地表 — 衝突',d:1.4,speed:[1.3,.5],G:16,drill:1,radK:.4,flash:1}),
+ st_({n:'地殻 — 掘る',d:35,speed:[.6,1.3],G:2.7,drill:.7}),
+ st_({n:'マントル — 押し分ける',d:30,speed:[1.4,2.2],G:2,drill:.3,radK:.65,spin:2.5,vig:.45,fog:.25,burn:.15}),
+ st_({n:'外核 — 溶けた鉄を泳ぐ',d:25,speed:[2.2,3],G:1,burn:.3,radK:.9,depth:1,spin:1,vig:.6,fog:.15}),
+ st_({n:'内核 — 掘る',d:20,speed:[2,1],G:4,drill:.9,radK:.45}),
+ st_({n:'中心 — 重力が消える',d:12,speed:[.8,.3],G:0,radK:1.1,depth:.6,spin:0,wob:.4,vig:1.2,fog:.04,trail:0,grain:.03}),
+ st_({n:'内核 — 掘る',d:18,speed:[.8,1.3],G:4,drill:.9,radK:.45}),
+ st_({n:'外核 — 溶けた鉄を泳ぐ',d:18,speed:[2,3],G:1,burn:.3,radK:.9,depth:1,spin:1,vig:.6,fog:.15}),
+ st_({n:'マントル — 押し分ける',d:22,speed:[2,1.4],G:2,drill:.3,radK:.65,spin:2.5,vig:.45,fog:.25,burn:.15}),
+ st_({n:'地殻 — 掘る',d:22,speed:[1.3,.7],G:2.7,drill:.7}),
+ st_({n:'裏側 — 脱出',d:12,speed:[.7,12],G:[4,12.5,3],burn:[0,.5],drill:[.7,0],radK:[.45,1.1],vig:[.3,.7],fog:[.3,.1],spin:[4,1],flash:1}),
+ st_({n:'大気を突き抜けて上昇',d:25,speed:[12,2],G:[6,1],burn:[.9,.1],wall:[1,0],radK:1,vig:[.7,1.1],fog:[.15,.05],spin:[1,.3],wob:[1,.5]}),
+ st_({n:'宇宙 — 止まって、また落ちる',d:8,speed:[2,.3],G:0,wall:0,radK:1,vig:1.2,fog:.05,spin:.3,wob:.5,trail:.2}),
 ];
 const jv=(p,x)=>{if(!Array.isArray(p))return p;if(p.length===2)return p[0]+(p[1]-p[0])*sm(x);return x<.5?p[0]+(p[1]-p[0])*sm(x*2):p[1]+(p[2]-p[1])*sm(x*2-1);};
 let jI=0,jT=0,stageName='';
@@ -94,7 +97,7 @@ function script(dt,ts){
   let st=J[jI];jT+=dt/ts;
   if(jT>st.d){jT=0;jI=(jI+1)%J.length;st=J[jI];if(st.flash)flash=-1;}
   const x=Math.min(1,jT/st.d);
-  for(const k of['speed','G','burn','drill','wall','radK','depth','part','plen','wob','lay','lgap','planet'])if(st[k]!==undefined)set(k,jv(st[k],x));
+  for(const k of['speed','G','burn','drill','wall','radK','depth','part','plen','wob','lay','planet','spin','fog','vig','trail','grain'])if(st[k]!==undefined)set(k,jv(st[k],x));
   if(st.buffet)set('G',jv(st.G,x)+(n1(T*2.3+5)-.5)*1.6);
   stageName=st.n;
 }
@@ -221,7 +224,7 @@ void main(){vec2 u=gl_FragCoord.xy/r;
   vec2 q=(gl_FragCoord.xy-.5*r)/r.y;
   if(uPlanet>.06){
     /* 真下の地球：近づくほど大きくなり、縁（大気）が細い銀の弧として光る。やがて視野からはみ出す */
-    float R=.035+1.25*pow(uPlanet,2.6),d=length(q);
+    float R=.03+.6*pow(uPlanet,2.2),d=length(q);
     float disk=smoothstep(R,R-.003-.01*R,d);
     float lit=.5+.5*dot(normalize(q+1e-5),normalize(vec2(-.55,.85)));
     float rim=exp(-abs(d-R)*(260./(.6+R)))*(.25+.75*lit);
@@ -398,7 +401,7 @@ function frame(ms){
   if(slip>.25&&dipT<=0&&rnd()<dt*2*slip)dipT=.04+rnd()*.07;
   if(dipT>0){dipT-=dt;flash=-.9;}
   if(slip>.35&&frz<=0&&rnd()<dt*1.4*slip)frz=.06+rnd()*.12;else if(frz>0)frz-=dt;
-  MDvig+=(Math.max(.2,1.5-1.3*gl_)*get('vig')-MDvig)*Math.min(1,dt*1.5);
+  MDvig+=(Math.max(.3,Math.max(.2,1.5-1.3*gl_)*get('vig')*1.3)-MDvig)*Math.min(1,dt*1.5);
 
   /* 目 */
   const p0=path(camS),p1=path(camS+2.5),eye=[p0[0],p0[1],-camS];
