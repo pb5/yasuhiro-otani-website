@@ -46,6 +46,9 @@ const DEF=[
  ['wall','壁の見え方',1,0,1,1.5],
  ['depth','起伏の深さ',1,0,3,1.5],
  ['fog','奥の闇',.045,0,.3,1.5],
+ ['lay','横切る層',0,0,1,1.5],
+ ['planet','真下の地球',0,0,1.5,3],
+ ['lgap','層の間隔',6,1.5,40,1.5],
  ['効果'],
  ['burn','燃える',0,0,1,2],
  ['drill','掘る',0,0,1,2],
@@ -66,24 +69,24 @@ function tickParams(dt){for(const k in P){const p=P[k];const t=clamp(p.tgt+p.mod
 
 /* ---------- 2. 台本：旅（宇宙→地球の裏側→宇宙） ---------- */
 const J=[
- {n:'大気圏外 — 無重力',d:40,speed:[.3,5],G:0,burn:0,drill:0,wall:0,radK:1,depth:1,part:.35,plen:.25,wob:.2},
- {n:'熱圏 — 燃えはじめる',d:20,speed:[5,8.5],G:[.3,2],burn:[.1,.5],drill:0,wall:[0,.2],radK:1,depth:.6,part:.8,plen:.6,wob:.2},
- {n:'中間圏 — 燃え尽きる層',d:25,speed:[8.5,5],G:[2,7],burn:[.6,1,.7],drill:0,wall:[.2,.4],radK:1,depth:.5,part:1,plen:1,wob:.25},
- {n:'成層圏 — 空気の壁',d:25,speed:[5,2.4],G:[6,11.5,5],burn:[.7,.1],drill:0,wall:[.4,.65],radK:[1,.9],depth:.6,part:.6,plen:.6,wob:.35},
- {n:'対流圏 — 揺さぶられる',d:30,speed:[2.4,2.2],G:1.3,buffet:1,burn:0,drill:0,wall:[.65,.9],radK:[.9,.8],depth:.8,part:.25,plen:.3,wob:.7},
- {n:'地表 — 衝突',d:1.4,speed:[2.2,.6],G:16,burn:0,drill:1,wall:1,radK:.6,depth:2,part:1,plen:.2,wob:.4,flash:1},
- {n:'地殻 — 掘る',d:35,speed:[.7,1],G:3,burn:0,drill:1,wall:1,radK:.5,depth:2.4,part:.8,plen:.15,wob:.5},
- {n:'マントル — 押し分ける',d:30,speed:[1.2,2.6],G:2,burn:.15,drill:.4,wall:1,radK:.65,depth:1.6,part:.4,plen:.25,wob:.9},
- {n:'外核 — 溶けた鉄を泳ぐ',d:25,speed:[2.6,4.2],G:1,burn:.35,drill:.08,wall:1,radK:.85,depth:.6,part:.2,plen:.5,wob:1.3},
- {n:'内核 — 掘る',d:20,speed:[3,1.4],G:4,burn:.1,drill:.9,wall:1,radK:.5,depth:2.6,part:.9,plen:.15,wob:.5},
- {n:'中心 — 重力が消える',d:10,speed:[1,.8],G:0,burn:0,drill:0,wall:1,radK:.9,depth:.8,part:.05,plen:.1,wob:.3},
- {n:'内核 — 掘る',d:18,speed:[1,1.6],G:4,burn:.1,drill:.9,wall:1,radK:.5,depth:2.6,part:.9,plen:.15,wob:.5},
- {n:'外核 — 溶けた鉄を泳ぐ',d:18,speed:[2.5,4],G:1,burn:.35,drill:.08,wall:1,radK:.85,depth:.6,part:.2,plen:.5,wob:1.3},
- {n:'マントル — 押し分ける',d:22,speed:[2.4,1.4],G:2,burn:.15,drill:.4,wall:1,radK:.65,depth:1.6,part:.4,plen:.25,wob:.9},
- {n:'地殻 — 掘る',d:22,speed:[1,.8],G:3,burn:0,drill:1,wall:1,radK:.5,depth:2.4,part:.8,plen:.15,wob:.5},
- {n:'裏側 — 脱出',d:12,speed:[1,16],G:[4,12.5,3],burn:[0,.5],drill:[.7,0],wall:[1,.6],radK:[.5,1.1],depth:[2,.6],part:1,plen:1,wob:.3,flash:1},
- {n:'大気を突き抜けて上昇',d:25,speed:[16,3],G:[6,1],burn:[.9,.1],drill:0,wall:[.6,0],radK:1,depth:.6,part:[1,.3],plen:[1,.3],wob:.25},
- {n:'宇宙 — 止まって、また落ちる',d:8,speed:[3,.3],G:0,burn:0,drill:0,wall:0,radK:1,depth:1,part:.3,plen:.2,wob:.2},
+ {n:'大気圏外 — 無重力',d:40,speed:[.3,5],G:0,burn:0,drill:0,wall:0,radK:1,depth:1,part:.08,plen:.05,wob:.2,lay:0,lgap:[30,14],planet:[0,1]},
+ {n:'熱圏 — 燃えはじめる',d:20,speed:[5,8.5],G:[.3,2],burn:[.1,.5],drill:0,wall:[0,.2],radK:1,depth:.6,part:.6,plen:.35,wob:.2,lay:0,lgap:[14,9],planet:[1,1.5]},
+ {n:'中間圏 — 燃え尽きる層',d:25,speed:[8.5,5],G:[2,7],burn:[.6,1,.7],drill:0,wall:[.2,.4],radK:1,depth:.5,part:.8,plen:.6,wob:.25,lay:0,lgap:[9,7],planet:0},
+ {n:'成層圏 — 空気の壁',d:25,speed:[5,2.4],G:[6,11.5,5],burn:[.7,.1],drill:0,wall:[.4,.65],radK:[1,.9],depth:.6,part:.5,plen:.4,wob:.35,lay:0,lgap:[7,5]},
+ {n:'対流圏 — 揺さぶられる',d:30,speed:[2.4,2.2],G:1.3,buffet:1,burn:0,drill:0,wall:[.65,.9],radK:[.9,.8],depth:.8,part:.2,plen:.2,wob:.7,lay:0,lgap:[5,3.5]},
+ {n:'地表 — 衝突',d:1.4,speed:[2.2,.6],G:16,burn:0,drill:1,wall:1,radK:.6,depth:2,part:1,plen:.2,wob:.4,flash:1,lay:0,lgap:2},
+ {n:'地殻 — 掘る',d:35,speed:[.7,1],G:3,burn:0,drill:1,wall:1,radK:.5,depth:2.4,part:.8,plen:.15,wob:.5,lay:0,lgap:2.6},
+ {n:'マントル — 押し分ける',d:30,speed:[1.2,2.6],G:2,burn:.15,drill:.4,wall:1,radK:.65,depth:1.6,part:.4,plen:.25,wob:.9,lay:0,lgap:4},
+ {n:'外核 — 溶けた鉄を泳ぐ',d:25,speed:[2.6,4.2],G:1,burn:.35,drill:.08,wall:1,radK:.85,depth:.6,part:.2,plen:.5,wob:1.3,lay:0,lgap:5.5},
+ {n:'内核 — 掘る',d:20,speed:[3,1.4],G:4,burn:.1,drill:.9,wall:1,radK:.5,depth:2.6,part:.9,plen:.15,wob:.5,lay:0,lgap:2.6},
+ {n:'中心 — 重力が消える',d:10,speed:[1,.8],G:0,burn:0,drill:0,wall:1,radK:.9,depth:.8,part:.05,plen:.1,wob:.3,lay:0,lgap:20},
+ {n:'内核 — 掘る',d:18,speed:[1,1.6],G:4,burn:.1,drill:.9,wall:1,radK:.5,depth:2.6,part:.9,plen:.15,wob:.5,lay:0,lgap:2.6},
+ {n:'外核 — 溶けた鉄を泳ぐ',d:18,speed:[2.5,4],G:1,burn:.35,drill:.08,wall:1,radK:.85,depth:.6,part:.2,plen:.5,wob:1.3,lay:0,lgap:5.5},
+ {n:'マントル — 押し分ける',d:22,speed:[2.4,1.4],G:2,burn:.15,drill:.4,wall:1,radK:.65,depth:1.6,part:.4,plen:.25,wob:.9,lay:0,lgap:4},
+ {n:'地殻 — 掘る',d:22,speed:[1,.8],G:3,burn:0,drill:1,wall:1,radK:.5,depth:2.4,part:.8,plen:.15,wob:.5,lay:0,lgap:2.6},
+ {n:'裏側 — 脱出',d:12,speed:[1,16],G:[4,12.5,3],burn:[0,.5],drill:[.7,0],wall:[1,.6],radK:[.5,1.1],depth:[2,.6],part:.8,plen:.6,wob:.3,flash:1,lay:0,lgap:[2.5,8]},
+ {n:'大気を突き抜けて上昇',d:25,speed:[16,3],G:[6,1],burn:[.9,.1],drill:0,wall:[.6,0],radK:1,depth:.6,part:[.7,.2],plen:[.6,.2],wob:.25,lay:0,lgap:[6,20]},
+ {n:'宇宙 — 止まって、また落ちる',d:8,speed:[3,.3],G:0,burn:0,drill:0,wall:0,radK:1,depth:1,part:.08,plen:.05,wob:.2,lay:0,lgap:30,planet:0},
 ];
 const jv=(p,x)=>{if(!Array.isArray(p))return p;if(p.length===2)return p[0]+(p[1]-p[0])*sm(x);return x<.5?p[0]+(p[1]-p[0])*sm(x*2):p[1]+(p[2]-p[1])*sm(x*2-1);};
 let jI=0,jT=0,stageName='';
@@ -91,7 +94,7 @@ function script(dt,ts){
   let st=J[jI];jT+=dt/ts;
   if(jT>st.d){jT=0;jI=(jI+1)%J.length;st=J[jI];if(st.flash)flash=-1;}
   const x=Math.min(1,jT/st.d);
-  for(const k of['speed','G','burn','drill','wall','radK','depth','part','plen','wob'])if(st[k]!==undefined)set(k,jv(st[k],x));
+  for(const k of['speed','G','burn','drill','wall','radK','depth','part','plen','wob','lay','lgap','planet'])if(st[k]!==undefined)set(k,jv(st[k],x));
   if(st.buffet)set('G',jv(st.G,x)+(n1(T*2.3+5)-.5)*1.6);
   stageName=st.n;
 }
@@ -196,7 +199,7 @@ void main(){vec2 u=gl_FragCoord.xy/r;vec3 s=texture(S,u).rgb,p=texture(P,.5+(u-.
   o=vec4(min(s,mix(vec3(1.),p,uTr)),1.);}`;
 const SHOW=`#version 300 es
 precision highp float;uniform sampler2D A;uniform vec2 r;
-uniform float uBurn,uDrill,uPart,uPartV,uPartLen,uSlip,uPulse,uT,uGam,uVig,uGrain,uFlash;out vec4 o;
+uniform float uPlanet,uBurn,uDrill,uPart,uPartV,uPartLen,uSlip,uPulse,uT,uGam,uVig,uGrain,uFlash;out vec4 o;
 float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
 float parts(vec2 q){
   float a=atan(q.y,q.x),rr=length(q),acc=0.;
@@ -215,19 +218,66 @@ void main(){vec2 u=gl_FragCoord.xy/r;
     bl/=8.;float gh=texture(A,u+vec2(.012*sin(uT*1.7),-.006*cos(uT*1.3))*uSlip).r;
     c=mix(c,bl,.75*uSlip);c=max(c,gh*.55*uSlip+c*(1.-.3*uSlip));}
   c=pow(max(c,0.),uGam);
-  vec2 q=(gl_FragCoord.xy-.5*r)/r.y;c*=smoothstep(uVig,uVig*.25,length(q));
+  vec2 q=(gl_FragCoord.xy-.5*r)/r.y;
+  if(uPlanet>.06){
+    /* 真下の地球：近づくほど大きくなり、縁（大気）が細い銀の弧として光る。やがて視野からはみ出す */
+    float R=.035+1.25*pow(uPlanet,2.6),d=length(q);
+    float disk=smoothstep(R,R-.003-.01*R,d);
+    float lit=.5+.5*dot(normalize(q+1e-5),normalize(vec2(-.55,.85)));
+    float rim=exp(-abs(d-R)*(260./(.6+R)))*(.25+.75*lit);
+    float tex=hash(floor(q*90./(.2+R)))*.025*smoothstep(R,R*.2,d);
+    c=c*(1.-disk)+disk*(.012+tex+.05*lit*smoothstep(R*.6,R,d))+rim*.55;
+  }c*=smoothstep(uVig,uVig*.25,length(q));
   c*=1.-uPulse;
-  if(uDrill>0.){float ang=atan(q.y,q.x);c*=1.-.28*uDrill*(.5+.5*sin(ang*240.+uT*70.));c+=(hash(gl_FragCoord.xy+fract(uT*13.)*77.)-.5)*.12*uDrill;}
+  if(uDrill>0.){float ang=atan(q.y,q.x);c*=1.-.28*uDrill*(.5+.5*sin(ang*240.+uT*70.));}
   c+=uBurn*.16*exp(-length(q)*4.)*(.75+.25*sin(uT*47.));
-  if(uPart>0.)c+=parts(q)*(.22+.35*uBurn+.6*uDrill)*(.6+.4*hash(vec2(floor(uT*24.),3.)))*smoothstep(uVig*1.2,uVig*.3,length(q));
+  if(false)c+=parts(q)*(.22+.35*uBurn+.6*uDrill)*(.6+.4*hash(vec2(floor(uT*24.),3.)))*smoothstep(uVig*1.2,uVig*.3,length(q));
   c*=1.+.9*uSlip;c=mix(c,.03+.5*c,uSlip*.45);
   c+=uFlash;c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
   o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);}`;
+/* 横切る層：竪穴を横に塞ぐ膜。迫ってきて、突き抜ける（雲・地面・地層・溶けた層）。落ちる感覚の手がかり */
+const LVS=`#version 300 es
+precision highp float;layout(location=0) in vec2 a;
+uniform mat4 uVP;uniform float uL0,uLg;${PATH}
+out vec3 vW,vTu,vTv,vN;out vec2 vUV,vA;flat out float vK;
+void main(){
+  float k=floor(uL0/uLg)+1.+float(gl_InstanceID),s=k*uLg;
+  vec3 c=vec3(path(s),-s),t=normalize(vec3(path(s+.4)-path(s-.4),-.8));
+  vec3 up=abs(t.y)>.9?vec3(1,0,0):vec3(0,1,0),bx=normalize(cross(up,t)),by=cross(t,bx);
+  float R=rad(s)*uRadK*1.08;
+  vec3 w=c+(bx*a.x+by*a.y)*R;
+  vW=w;vTu=bx;vTv=by;vN=t;vK=k;vA=a;
+  float an=k*2.399;vec2 q=mat2(cos(an),-sin(an),sin(an),cos(an))*a;
+  vUV=q*.35+vec2(.5+.13*k,.5+.29*k);
+  gl_Position=uVP*vec4(w,1.);}`;
+const LFS=`#version 300 es
+precision highp float;
+uniform sampler2D I0,I1,I2,I3;uniform vec3 uCam,uLp;uniform float uFog,uLay,uDepth;
+in vec3 vW,vTu,vTv,vN;in vec2 vUV,vA;flat in float vK;out vec4 o;
+vec3 B(float k,vec2 u,float b){u=fract(u);if(k<.5)return texture(I0,u,b).rgb;if(k<1.5)return texture(I1,u,b).rgb;if(k<2.5)return texture(I2,u,b).rgb;return texture(I3,u,b).rgb;}
+void main(){
+  float k=mod(vK,4.);
+  float m=B(k,vUV,3.).x*.7+B(mod(k+1.,4.),vUV*2.3+.17,2.).x*.3;
+  float ra=length(vA),hole=.18+.5*(1.-uLay)+.12*(m-.5);   /* 中央の穴：その先に次の層が見える */
+  if(ra<hole||ra>1.)discard;
+  if(m<.6-.55*uLay)discard;                                 /* 層がうすいほど穴が多い */
+  float dc=length(uCam-vW);if(dc<.6)discard;                /* 突き抜ける瞬間は透ける */
+  vec3 A=B(k,vUV,0.);vec2 g=(A.yz-.5)*4.;
+  vec3 N=normalize(normalize(vN)-(g.x*vTu+g.y*vTv)*uDepth*.6);
+  vec3 V=normalize(uCam-vW),Ld=uLp-vW;float ld=length(Ld);vec3 L=Ld/ld;
+  float dif=max(dot(N,L),0.),nh=max(dot(N,normalize(L+V)),0.);
+  float edge=smoothstep(.6-.55*uLay,.66-.55*uLay,m)*smoothstep(hole,hole+.05,ra)*smoothstep(.6,1.4,dc);
+  float c=(dif*.35*(.2+.8*A.x)+pow(nh,40.)*.7+pow(nh,200.)*1.2)*(1./(1.+ld*ld*.015)+.05);
+  c*=edge*exp(-length(uCam-vW)*uFog*.8);
+  c=c/(1.+c)*1.35;
+  o=vec4(c,c,c,1.);}`;
+const pL=prog(LVS,LFS);
+const UL=uni(pL,['uVP','uL0','uLg','uWob','uPh','uRadK','I0','I1','I2','I3','uCam','uLp','uFog','uLay','uDepth']);
 const pBake=prog(QVS,BAKE),pT=prog(TVS,TFS),pTr=prog(QVS,TRAIL),pS=prog(QVS,SHOW);
 const UB=uni(pBake,['S','r']);
 const UT=uni(pT,['uVP','uS0','uSp','uWob','uPh','uRadK','I0','I1','I2','I3','uCam','uLp','uFog','uDepth','uWall']);
 const UR=uni(pTr,['S','P','r','uTr','uZb']);
-const US=uni(pS,['A','r','uBurn','uDrill','uPart','uPartV','uPartLen','uSlip','uPulse','uT','uGam','uVig','uGrain','uFlash']);
+const US=uni(pS,['uPlanet','A','r','uBurn','uDrill','uPart','uPartV','uPartLen','uSlip','uPulse','uT','uGam','uVig','uGrain','uFlash']);
 
 const NA=160,tuv=[],tix=[];
 for(let i=0;i<=NA;i++)for(let j=0;j<=1;j++)tuv.push(i/NA*TAU,j);
@@ -370,6 +420,15 @@ function frame(ms){
     {const ls=camS+1.6+.4*Math.sin(Tm*.3),pl=path(ls),rl=radAt(ls)*get('radK')*.62;gl.uniform3f(UT.uLp,pl[0]+rl*Math.cos(Tm*.2),pl[1]+rl*Math.sin(Tm*.2),-ls);}
     for(let i=0;i<4;i++){gl.activeTexture(gl.TEXTURE2+i);gl.bindTexture(gl.TEXTURE_2D,BT[i]);gl.uniform1i(UT['I'+i],2+i);}
     gl.drawElementsInstanced(gl.TRIANGLES,tix.length,gl.UNSIGNED_SHORT,0,N);
+    if(get('lay')>.01){
+      gl.useProgram(pL);gl.bindVertexArray(vaoQ);
+      gl.uniformMatrix4fv(UL.uVP,false,VP);gl.uniform1f(UL.uL0,camS);gl.uniform1f(UL.uLg,get('lgap'));
+      gl.uniform1f(UL.uWob,WOB());gl.uniform1f(UL.uPh,PH);gl.uniform1f(UL.uRadK,get('radK'));gl.uniform3f(UL.uCam,...eye);
+      {const ls=camS+1.6,pl=path(ls);gl.uniform3f(UL.uLp,pl[0],pl[1],-camS+.3);}
+      gl.uniform1f(UL.uFog,get('fog')+.01);gl.uniform1f(UL.uLay,get('lay'));gl.uniform1f(UL.uDepth,get('depth'));
+      for(let i=0;i<4;i++){gl.activeTexture(gl.TEXTURE2+i);gl.bindTexture(gl.TEXTURE_2D,BT[i]);gl.uniform1i(UL['I'+i],2+i);}
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,Math.min(24,Math.ceil(60/get('lgap'))));
+    }
     gl.disable(gl.DEPTH_TEST);gl.bindVertexArray(vaoQ);
     const A=fb.a[fb.i],Bf=fb.a[1-fb.i];
     gl.useProgram(pTr);gl.bindFramebuffer(gl.FRAMEBUFFER,A.f);
@@ -384,7 +443,7 @@ function frame(ms){
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shown.t);gl.uniform1i(US.A,0);
   gl.uniform2f(US.r,W,H);gl.uniform1f(US.uT,Tm);gl.uniform1f(US.uGam,(1.35+.9*spd)*.85);
   gl.uniform1f(US.uVig,slip>.02?Math.max(.34,MDvig):MDvig);gl.uniform1f(US.uSlip,slip);gl.uniform1f(US.uPulse,pulse);
-  gl.uniform1f(US.uBurn,get('burn'));gl.uniform1f(US.uDrill,get('drill'));gl.uniform1f(US.uPart,get('part'));gl.uniform1f(US.uPartV,partV);gl.uniform1f(US.uPartLen,get('plen'));
+  gl.uniform1f(US.uPlanet,get('planet'));gl.uniform1f(US.uBurn,get('burn'));gl.uniform1f(US.uDrill,get('drill'));gl.uniform1f(US.uPart,get('part'));gl.uniform1f(US.uPartV,partV);gl.uniform1f(US.uPartLen,get('plen'));
   gl.uniform1f(US.uGrain,get('grain'));gl.uniform1f(US.uFlash,flash);flash=0;
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
 
