@@ -30,6 +30,7 @@ button.on{border-color:#aaa;color:#fff}
  <option value="1">下がるほど、何も見えなくなる</option>
  <option value="2">下がるほど、周りが歪んで見える</option>
  <option value="3">下がるほど、過去が見える（囚われた過去）</option>
+ <option value="4">ゼンタングル（断たれた区画）</option>
 </select></div>
 <div><label style="color:#999"><input type="checkbox" id="nest" checked> 入れ子（奥行き）</label></div>
 <div><button id="midiB">MIDI</button><span id="midiS" style="color:#666"></span></div>
@@ -2031,6 +2032,58 @@ float relief(vec2 x,float sel,float b){
   float d=max(dot(N,L),0.);
   return d*d*.25*(.2+.8*h)+pow(d,24.)*.9+pow(d,120.)*1.2;
 }
+/* ===== ゼンタングル：画面を区画に割り、区画ごとに別の模様で埋める。区画の中にまた区画。区画どうしはつながらない ===== */
+vec2 h22(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}
+/* ボロノイ：いちばん近い種の位置と、境界までの距離 */
+vec3 vor(vec2 x,float sd,out vec2 cid){
+  vec2 n=floor(x),f=fract(x),mg,mr;float md=8.;
+  for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){vec2 g=vec2(i,j),o=.15+.7*h22(n+g+sd*17.3),r=g+o-f;float d=dot(r,r);if(d<md){md=d;mr=r;mg=g;}}
+  md=8.;
+  for(int j=-2;j<=2;j++)for(int i=-2;i<=2;i++){vec2 g=mg+vec2(i,j),o=.15+.7*h22(n+g+sd*17.3),r=g+o-f;if(dot(mr-r,mr-r)>1e-5)md=min(md,dot(.5*(mr+r),normalize(r-mr)));}
+  cid=n+mg;return vec3(mr,md);
+}
+/* タングル（模様）：局所座標 q で高さ0〜1 */
+float tangle(float k,vec2 q,float f){
+  k=mod(k,9.);
+  if(k<1.)return .5+.5*sin(q.y*f);                                         /* 平行線 */
+  if(k<2.)return .5+.5*sin(length(q)*f);                                   /* 同心円 */
+  if(k<3.)return .5+.5*sin(q.x*f)*sin(q.y*f);                              /* 格子 */
+  if(k<4.){vec2 g=q*f/6.28;g.x+=.5*mod(floor(g.y),2.);vec2 c=fract(g)-vec2(.5,0.);return smoothstep(.55,.45,length(c))*(1.-length(c));}  /* うろこ */
+  if(k<5.)return .5+.5*sin(atan(q.y,q.x)*3.+log(length(q)+.01)*f*.35);     /* 渦 */
+  if(k<6.){vec2 c=fract(q*f/6.28)-.5;return smoothstep(.32,.18,length(c));}  /* 点 */
+  if(k<7.)return .5+.5*sin(q.y*f+2.*sin(q.x*f*.35));                       /* 波 */
+  if(k<8.)return .5+.5*sin(atan(q.y,q.x)*floor(6.+f*.15));                 /* 放射 */
+  vec2 c=abs(fract(q*f/6.28)-.5);return smoothstep(.05,.0,abs(c.x-c.y)*.7); /* 菱 */
+}
+float zenH(vec2 x,float z,out float gapo){
+  float h=0.,gap=1.,sc=2.2,amp=1.;vec2 cid;float seed=floor(z*.5)*3.7;
+  vec2 lx=x;
+  for(int L=0;L<3;L++){
+    vec3 v=vor(lx*sc,seed+float(L)*11.,cid);
+    float edge=v.z/sc;
+    float gw=.006/(1.+float(L)*1.2);
+    gap*=smoothstep(gw,gw*1.8,edge);                                       /* 区画のあいだの黒い溝（断たれている） */
+    float hk=dot(h22(cid+seed),vec2(9.,7.));
+    if(L==2||fract(hk*.37)<.45){                                           /* この区画は模様で埋める */
+      float an=hk*6.28;vec2 q=mat2(cos(an),-sin(an),sin(an),cos(an))*(v.xy/sc);
+      float f=(22.+46.*fract(hk*1.7))*(1.+float(L)*.6);
+      h=tangle(floor(hk),q,f)*smoothstep(.0,gw*4.,edge);
+      break;
+    }
+    lx=v.xy/sc*1.9+h22(cid)*3.;                              /* さらに中の区画へ */
+    sc*=1.;
+  }
+  gapo=gap;return h;
+}
+float zen(vec2 x,float z){
+  float g,gx,gy;float e=.0014;
+  float h=zenH(x,z,g),hx=zenH(x+vec2(e,0.),z,gx),hy=zenH(x+vec2(0.,e),z,gy);
+  vec3 N=normalize(vec3(h-hx,h-hy,e*14./max(uRel,.05)));
+  vec3 L=normalize(vec3(cos(uLamp),sin(uLamp),.35));
+  float d=max(dot(N,L),0.);
+  float c=d*d*.35*(.25+.75*h)+pow(d,30.)*.8+pow(d,120.)*.9;
+  return c*g;
+}
 /* 星と細い線：遠くの微かな光 */
 float field(vec2 x){
   vec2 g=floor(x*24.),f=fract(x*24.)-.5;float s=0.;
@@ -2046,13 +2099,17 @@ void main(){
   if(uMode<.5){rc=.11*uCore;thE=.16*uMass;}
   else if(uMode<1.5){rc=.2*uCore*exp(-uZ);thE=.2*uMass*exp(-uZ*.5);}
   else if(uMode<2.5){rc=.2*uCore*exp(-uZ);thE=max(.06,.24*exp(-uZ*.3))*uMass;}
-  else{rc=.0;thE=.05*uMass;}
+  else if(uMode<3.5){rc=.0;thE=.05*uMass;}
+  else{rc=.08*uCore;thE=.14*uMass;}
   /* 質量による光の曲がり（点の重力レンズ） */
   vec2 be=th-thE*thE*th/max(rr*rr,1e-6);
   /* 引き寄せ：中心に近いほど強く渦を巻く */
   float br=length(be),ph=atan(be.y,be.x)+uPull*uT*.15/(br*br*8.+.08);
   be=br*vec2(cos(ph),sin(ph));
-  if(uMode<.5){
+  if(uMode>3.5){
+    /* 5：ゼンタングル。質量に曲げられ、渦に引かれる区画の群れ。下がると区画が切り替わる */
+    c=zen(be*(1.+.15*fract(uZ*.5)),uZ)*1.2;
+  }else if(uMode<.5){
     /* 1：下がるたびに、さっきまでの世界が次の世界の一つの溝になる（自己相似） */
     float L=2.0794,f=mod(uZ,L);
     for(int k=0;k<4;k++){
@@ -2167,7 +2224,7 @@ $('cutB').onclick=cutNow;addEventListener('keydown',e=>{if(e.key==='c'||e.key===
 function afterCut(){
   /* 断たれた後：糸はない。世界は別の距離・別の見え方に移っている */
   threads=[];thA=0;Z+=1+Math.random()*4;
-  if(Math.random()<.4)$('mode').value=Math.random()<.7?'0':'2';   /* 質量の見える世界のまま、別の距離へ */
+  if($('mode').value!=='4'&&Math.random()<.4)$('mode').value=Math.random()<.7?'0':'2';   /* 質量の見える世界のまま、別の距離へ */
   for(const k of['mass','pull','core'])set(k,P[k].mn+(P[k].mx-P[k].mn)*(.15+.5*Math.random()));
   for(const k of['mass','pull','core'])P[k].cur=P[k].tgt;
   cutWait=6+Math.random()*14;setTimeout(growThreads,2500+Math.random()*4000);
