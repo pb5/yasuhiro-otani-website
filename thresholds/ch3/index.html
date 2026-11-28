@@ -31,7 +31,7 @@ button.on{border-color:#aaa;color:#fff}
  <option value="2">下がるほど、周りが歪んで見える</option>
  <option value="3">下がるほど、過去が見える（囚われた過去）</option>
 </select></div>
-<div><label style="color:#999"><input type="checkbox" id="nest" checked> 入れ子（奥行き）</label> <label style="color:#999"><input type="checkbox" id="ret" checked> 網膜</label></div>
+<div><label style="color:#999"><input type="checkbox" id="nest" checked> 入れ子（奥行き）</label></div>
 <div><button id="midiB">MIDI</button><span id="midiS" style="color:#666"></span></div>
 <div><button id="reset">最初から</button><button id="mic">マイク</button><button id="fs">全画面</button></div>
 <div><select id="outR"><option value="1920x1080">1920×1080</option><option value="2560x1440" selected>2560×1440</option><option value="3840x2160">3840×2160</option></select><button id="recB">● 書き出し</button></div>
@@ -39,7 +39,7 @@ button.on{border-color:#aaa;color:#fff}
 <div id="sl"></div>
 <div style="color:#555;margin-top:8px">H：表示を消す　F：全画面</div>
 </div>
-<script src="img/data3.js"></script>
+<script src="../coaster/img/data.js"></script>
 <script>
 /* mp4-muxer 5.2.2 — MIT License, Copyright (c) 2023 Vanilagy — https://github.com/Vanilagy/mp4-muxer */
 "use strict";
@@ -1962,14 +1962,9 @@ const DEF=[
  ['bright','明るさ',1,.3,5],
  ['mid','中間を持ち上げる',0,0,1],
  ['grain','粒子（フィルム）',.015,0,.1],
- ['ves','血管の濃さ',.8,0,1.5],
- ['disc','視神経乳頭',.6,0,1.5],
- ['blink','まばたきの間隔（秒）',14,3,60],
- ['prog','失明までの時間（秒）',180,30,900],
- ['laser','レーザーの頻度',1,0,4],
  ['nper','入れ子の間隔（秒）',14,4,60],
  ['nback','下がる時間（秒）',4,1,12],
- ['nsize','前の世界の大きさ',.22,.05,.4],
+ ['nsize','前の世界の大きさ',.14,.05,.3],
  ['amt','音の効き',.7,0,2],
 ];
 const P={};for(const[k,l,v,mn,mx]of DEF)P[k]={l,v,mn,mx,cur:v,tgt:v};
@@ -2017,7 +2012,7 @@ const VS=`#version 300 es
 layout(location=0) in vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`;
 const FS=`#version 300 es
 precision highp float;
-uniform sampler2D I0,I1,I2,PV,NS;uniform float uRet,uVes,uDisc,uProg;uniform vec4 uBurn[64];uniform int uNB;uniform float uNest,uNr;uniform vec2 r;uniform float uK;
+uniform sampler2D I0,I1,PV,NS;uniform float uNest,uNr;uniform vec2 r;uniform float uK;
 uniform float uZ,uMode,uMass,uPull,uCore,uRel,uLamp,uT,uBright,uMid,uGrain;
 out vec4 o;
 float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
@@ -2027,35 +2022,11 @@ float relief(vec2 x,float sel,float b){
   vec2 u=x*.5+.5;float e=.0025*exp2(b*.5);
   float h,hx,hy;
   if(sel<.5){h=H(I0,u,b);hx=H(I0,u+vec2(e,0.),b);hy=H(I0,u+vec2(0.,e),b);}
-  else if(sel<1.5){h=H(I1,u,b);hx=H(I1,u+vec2(e,0.),b);hy=H(I1,u+vec2(0.,e),b);}
-  else{h=H(I2,u,b);hx=H(I2,u+vec2(e,0.),b);hy=H(I2,u+vec2(0.,e),b);}
+  else{h=H(I1,u,b);hx=H(I1,u+vec2(e,0.),b);hy=H(I1,u+vec2(0.,e),b);}
   vec3 N=normalize(vec3(h-hx,h-hy,e*3./max(uRel,.05)));
   vec3 L=normalize(vec3(cos(uLamp),sin(uLamp),.32));
   float d=max(dot(N,L),0.);
-  return d*d*.22*(.2+.8*h)+pow(d,40.)*.75+pow(d,160.)*.9;
-}
-/* 網膜：視神経乳頭から出て、中心（中心窩）をよけて弧を描き、枝分かれしながら細くなる血管 */
-float vn(float x){float i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(hash(vec2(i,7.1)),hash(vec2(i+1.,7.1)),f);}
-float vessels(vec2 q,vec2 D){
-  /* 血管は行き止まりで枝分かれし、増殖する。進むほど本数が増え、中心窩へも入りこむ */
-  vec2 p=q-D;float r=length(p),a=atan(p.y,p.x),acc=0.;
-  float oct=2.+uProg*6.;
-  for(int o=0;o<8;o++){
-    float fo=float(o);if(fo>oct)break;
-    float fade=clamp(oct-fo,0.,1.);
-    float n=3.+fo*3.;
-    float on=smoothstep(.04+fo*.09,.08+fo*.11,r);
-    float bend=-sign(sin(a))*.9*r*(1.-.4*min(fo,3.)/3.)*(1.-.75*uProg);
-    float t=(a+bend)/6.2832*n+vn(r*6.+fo*13.)*.35+fo*.37;
-    float id=floor(t+.5);
-    float endR=.12+hash(vec2(id,fo+.3))*(.25+uProg*1.1)+fo*.08;   /* 行き止まり */
-    on*=smoothstep(endR,endR-.02,r);
-    float d=abs(fract(t)-.5)/n*6.2832*r;
-    float w=max(.0025,(.009-.0012*fo))*(1.2-r*.5)*(1.+.5*uProg);
-    float x=d/w;
-    acc=max(acc,fade*on*(1.-smoothstep(.75,1.,x))*(.35+.65*pow(max(1.-x*x,0.),.5)*smoothstep(1.,.0,abs(x-.45)*2.))*smoothstep(1.4,.2,r)*(1.-.08*fo));
-  }
-  return acc;
+  return d*d*.25*(.2+.8*h)+pow(d,24.)*.9+pow(d,120.)*1.2;
 }
 /* 星と細い線：遠くの微かな光 */
 float field(vec2 x){
@@ -2087,95 +2058,66 @@ void main(){
       vec2 x=be*sc;
       float lay=floor((uZ-f)/L)-float(k);
       x=mat2(cos(lay*2.4),-sin(lay*2.4),sin(lay*2.4),cos(lay*2.4))*x;
-      c+=w*mix(1.,.3,a)*relief(x,mod(lay,3.),log2(1.+sc*.6)+1.5);
+      c+=w*relief(x,mod(lay,2.),log2(1.+sc*.6));
     }
-    c*=1.25*(.14+.86*exp(-rr*rr*2.));                  /* 中心に近いほど見え、遠いほど闇に溶ける */
+    c*=.7;
   }else if(uMode<1.5){
     /* 2：何も見えなくなっていく。散った光の筋と、遠ざかる点だけ */
     vec2 x=be*exp(uZ);
     c=field(x*.3)*.25*exp(-uZ*.15);
-    float band=exp(-pow((th.x*.8+th.y*.6-.12)*9.,2.))*.12;c+=band*(.6+.4*sin(th.y*40.+th.x*12.));
+    float band=exp(-pow((th.x*.8+th.y*.6-.12)*9.,2.))*.05;c+=band*(.6+.4*sin(th.y*40.+th.x*12.));
   }else if(uMode>2.5){
     /* 4：今は外側にだけある。内側へ行くほど前の瞬間、さらに前の瞬間。下がるほど、過去が中に積もっていく */
     vec2 x=be*1.5;
-    c=relief(x,0.,2.)*1.5;
+    c=relief(x,0.,1.)*.55;
     float ring=smoothstep(.34,.42,rr);
     vec2 pu=.5+(th*uK)*vec2(r.y/r.x,1.);
     float past=texture(PV,pu).r;
     float pb=0.;for(int k=0;k<4;k++){float a=float(k)*1.57+uT;pb+=texture(PV,pu+vec2(cos(a),sin(a))*.0025).r;}
-    past=mix(past,pb*.25,.35)*.965;
+    past=mix(past,pb*.25,.5)*.93;
     c=mix(past,c,ring);
   }else{
     /* 3：中心は小さくなるのに、その重さで曲げられた周りが広がって見える */
     vec2 x=be*(1.+uZ*.6);
-    c=field(x)*.8+relief(x*.35,mod(floor(uZ*.3),3.),2.)*.35;
+    c=field(x)*.8+relief(x*.35,mod(floor(uZ*.3),2.),2.)*.35;
   }
   /* 中心：密度の高い黒。縁だけがかすかに光る */
   float px=1./r.y;
-  float big=smoothstep(px*2.,px*5.,rc);                 /* 小さくなった核は輪をやめ、光の点になる */
-  float core=smoothstep(rc+px*1.5,rc-px*.5,rr)*big;
-  float rim=exp(-abs(rr-rc)/(px*2.+rc*.04))*.35*big;
+  float core=smoothstep(rc+px*1.5,rc-px*.5,rr);
+  float rim=exp(-abs(rr-rc)/(px*2.+rc*.04))*.35;
   c=c*(1.-core)+rim*(1.-core*.5);
   if(uNest>.5){
     /* 入れ子：中心の密度の高い黒は、前の世界への窓。下がるほど、閉じ込められた前の世界が奥へ積もる */
     float m=smoothstep(uNr,uNr*.94,rr);
     vec2 nu=.5+th/(2.*uNr)*vec2(r.y/r.x,1.)*.98;
     float pv=texture(NS,nu).r;
-    c=mix(c,pv*.92,m);
+    float rimN=exp(-abs(rr-uNr)/(px*2.+uNr*.03))*.3;
+    c=mix(c,pv*.9,m)+rimN;
   }
-  if(uMode>.5&&uMode<1.5&&big<1.){float pt=exp(-rr*rr/(px*px*.7));c+=pt*(1.-big)*clamp(.35+rc/px*.3,.35,1.)*(.85+.15*sin(uT*3.1));}
-  if(uRet>.5){
-    vec2 D=vec2(.36,.04);
-    /* レーザーで焼いた跡：丸い凝固斑。焼いた所の血管は消える。撃った瞬間は白く灼ける */
-    float scar=0.,ring=0.,hot=0.;
-    for(int i=0;i<64;i++){if(i>=uNB)break;vec4 B=uBurn[i];float d=length(th-B.xy),R=B.z;
-      float age=uT-B.w;
-      scar=max(scar,smoothstep(R,R*.6,d));
-      ring=max(ring,exp(-pow((d-R*.95)/(R*.18),2.))*(.6+.4*hash(B.xy*91.)));
-      if(age<.5)hot+=exp(-d*d/(R*R*.25))*exp(-age*9.)*2.5+exp(-d*d/(R*R*6.))*exp(-age*14.)*.4;}
-    float vs=vessels(th,D)*uVes*(1.-smoothstep(rc*1.6,rc*1.05,rr)*(1.-uProg))*(1.-smoothstep(.2,.9,scar+ring*.5));
-    c=c*(1.-.7*vs)+vs*.16;                                    /* 血管：鈍く光る管 */
-    float dd=length(th-D);
-    float disc=smoothstep(.075,.055,dd)*(.55+.45*smoothstep(.02,.06,dd))*uDisc;   /* 乳頭：淡く明るい円、中央はわずかに凹む */
-    c=c*(1.-.85*scar)+ring*.13+scar*.03*hash(floor(th*500.));   /* 斑：中は黒く焦げ、縁が淡く残る */
-    c+=hot;
-    c+=disc*(.18+.06*hash(floor(th*300.)));
-    /* 見えない場所（暗点）が増えていき、やがて全体が闇に閉じる＝失明 */
-    float sc=vn(th.x*3.1+7.)*.5+vn(th.y*2.7+3.)*.3+vn((th.x+th.y)*6.+1.)*.2;
-    float blind=smoothstep(1.05-uProg*.9,.95-uProg*.9,sc);
-    c*=1.-blind*.92;
-    c*=1.-smoothstep(.86,1.,uProg);
-  }
-  o=vec4(vec3(max(c,0.)),1.);
+  if(rc<px*1.5){float pt=exp(-rr*rr/(px*px*1.2));c+=pt*clamp(rc/px*1.5,.15,1.)*(.8+.2*sin(uT*3.1));}
+  /* 仕上げ */
+  c=c*uBright;c=mix(c,pow(clamp(c,0.,1.),.45),uMid);c=c/(1.+max(c-1.,0.));
+  c*=smoothstep(1.3,.35,rr);
+  c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
+  o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);
 }`;
 const shc=(k,s)=>{const x=gl.createShader(k);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(x);return x;};
 const pr=gl.createProgram();gl.attachShader(pr,shc(gl.VERTEX_SHADER,VS));gl.attachShader(pr,shc(gl.FRAGMENT_SHADER,FS));gl.bindAttribLocation(pr,0,'a');gl.linkProgram(pr);gl.useProgram(pr);
-const UBN=gl.getUniformLocation(pr,'uBurn[0]'),UNB=gl.getUniformLocation(pr,'uNB');
-const U={};for(const n of['uProg','uRet','uVes','uDisc','I2','NS','uNest','uNr','PV','uK','I0','I1','r','uZ','uMode','uMass','uPull','uCore','uRel','uLamp','uT','uBright','uMid','uGrain'])U[n]=gl.getUniformLocation(pr,n);
+const U={};for(const n of['NS','uNest','uNr','PV','uK','I0','I1','r','uZ','uMode','uMass','uPull','uCore','uRel','uLamp','uT','uBright','uMid','uGrain'])U[n]=gl.getUniformLocation(pr,n);
 gl.bindVertexArray(gl.createVertexArray());gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
 gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
 const BL=`#version 300 es
-precision highp float;uniform sampler2D A;uniform vec2 r;uniform float uBright,uMid,uGrain,uT,uNr,uNon,uLid;out vec4 o;
-float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
-void main(){vec2 th=(gl_FragCoord.xy-.5*r)/r.y;float rr=length(th),px=1./r.y;
-  float c=texture(A,gl_FragCoord.xy/r).r;
-  c+=uNon*exp(-abs(rr-uNr)/(px*2.+uNr*.03))*.3;            /* 入れ子の縁は、いちばん外の窓に一本だけ */
-  c=c*uBright;c=mix(c,pow(clamp(c,0.,1.),.45),uMid);c=c/(1.+max(c-1.,0.));
-  c*=smoothstep(1.3,.35,rr);
-  if(uLid>0.){float e=.5*(1.-uLid)*(1.-th.x*th.x*.9);c*=smoothstep(e+.02,e-.01,abs(th.y));}   /* まばたき：上下から閉じる */
-  c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;     /* 粒は表示のときだけ（溜まらない） */
-  o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);}`;
+precision highp float;uniform sampler2D A;uniform vec2 r;out vec4 o;void main(){o=texture(A,gl_FragCoord.xy/r);}`;
 const pb=gl.createProgram();gl.attachShader(pb,shc(gl.VERTEX_SHADER,VS));gl.attachShader(pb,shc(gl.FRAGMENT_SHADER,BL));gl.bindAttribLocation(pb,0,'a');gl.linkProgram(pb);
-const UBA=gl.getUniformLocation(pb,'A'),UBR=gl.getUniformLocation(pb,'r');const UBX={};for(const n of['uBright','uMid','uGrain','uT','uNr','uNon','uLid'])UBX[n]=gl.getUniformLocation(pb,n);
-const F16=!!gl.getExtension('EXT_color_buffer_float');
+const UBA=gl.getUniformLocation(pb,'A'),UBR=gl.getUniformLocation(pb,'r');
 let fb=null;
-function mkT(w,h){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);if(F16)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,w,h,0,gl.RGBA,gl.HALF_FLOAT,null);else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+function mkT(w,h){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
   const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);return{t,f};}
-let burns=[],laserT=4,laserRow=null,progT=0,prog=0,blT=8,blS=-1,lid=0,NST=null,nT=0,nS=0,nState=0;
+let NST=null,nT=0,nS=0,nState=0;
 const TX=[];let loaded=0;
-(window.IMGDATA3||[]).forEach((src,i)=>{const im=new Image();im.onload=()=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+(window.IMGDATA||[]).slice(0,2).forEach((src,i)=>{const im=new Image();im.onload=()=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im);gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
@@ -2189,12 +2131,7 @@ $('mic').onclick=async()=>{try{ac=ac||new (window.AudioContext||window.webkitAud
   catch(e){$('mic').textContent='マイク不可';}};
 $('fs').onclick=()=>{const d=document.documentElement;(d.requestFullscreen||d.webkitRequestFullscreen||(()=>{})).call(d);};
 let Z=0,T=0,last=0,ui=true,scale=1,ft=16;
-$('reset').onclick=()=>{Z=0;nState=0;nT=0;progT=0;prog=0;burns=[];};
-addEventListener('keydown',e=>{if(e.key==='l'||e.key==='L')fireLaser();});
-function fireLaser(){
-  if(!laserRow||laserRow.n<=0){const a=Math.random()*TAU,r=.32+Math.random()*.5;laserRow={x:Math.cos(a)*r*1.4,y:Math.sin(a)*r*.8,dx:-Math.sin(a)*.05,dy:Math.cos(a)*.05,n:3+Math.random()*6|0};}
-  const R=.013+Math.random()*.008;burns.push([laserRow.x+(Math.random()-.5)*.01,laserRow.y+(Math.random()-.5)*.01,R,T]);
-  laserRow.x+=laserRow.dx;laserRow.y+=laserRow.dy;laserRow.n--;if(burns.length>64)burns.shift();}$('mode').onchange=()=>{Z=0;};
+$('reset').onclick=()=>{Z=0;nState=0;nT=0;};$('mode').onchange=()=>{Z=0;};
 addEventListener('keydown',e=>{if(e.key==='h'||e.key==='H'){ui=!ui;$('panel').classList.toggle('hid',!ui);$('hud').classList.toggle('hid',!ui);}
   if(e.key==='f'||e.key==='F')$('fs').click();});
 /* ---------- 書き出し：画と音を同じ瞬間から一本のmp4へ（MacのChrome、WebCodecs＋mp4-muxer） ---------- */
@@ -2250,19 +2187,12 @@ function frame(ms){
   if(an){an.getFloatTimeDomainData(tb);let s=0;for(const x of tb)s+=x*x;const l=clamp((10*Math.log10(s/tb.length+1e-12)+60)/50,0,1);lvl+=(l-lvl)*(l>lvl?.3:.05);}
   const a=an?get('amt')*lvl:0;
   Z+=dt*get('back')*(1+a);
-  if(loaded<3)return;
+  if(loaded<2)return;
   const dpr=Math.min(2,devicePixelRatio||1),W=OUT?OUT[0]:Math.max(2,innerWidth*dpr*scale|0),H=OUT?OUT[1]:Math.max(2,innerHeight*dpr*scale|0);
   if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
   if(!fb||fb.w!==W||fb.h!==H){fb={w:W,h:H,a:[mkT(W,H),mkT(W,H)],i:0};NST=mkT(W,H);}
   /* 入れ子の段取り：間隔ごとに今の画を写し取り、それが画面いっぱいから中心の窓まで縮んでいく */
   const nestOn=$('nest').checked;
-  if($('ret').checked){blT-=dt;if(blT<=0&&blS<0){blS=0;blT=get('blink')*(.6+.8*Math.random());}}
-  if($('ret').checked){progT+=dt;prog=Math.min(1,progT/get('prog'));
-    if(progT>get('prog')+8){progT=0;prog=0;blS=0;burns=[];}
-    /* 増殖が進むと、レーザーで焼く。何発かずつ、列をなして周辺から。音が強いときも撃つ */
-    laserT-=dt*get('laser')*(prog>.25&&prog<.92?1:0);
-    if(laserT<=0||(an&&lvl>.6&&Math.random()<dt*3*get('laser')&&prog>.2&&prog<.92)){fireLaser();laserT=.35+Math.random()*(laserRow&&laserRow.n>0?.3:3);}}    /* 失明の闇が続いたあと、まばたきで新しい目が開く */
-  if(blS>=0){blS+=dt;lid=blS<.12?blS/.12:Math.max(0,1-(blS-.16)/.26);if(blS>.45){blS=-1;lid=0;}}
   if(nestOn){nT+=dt;if(nT>get('nper')){nT=0;nState=1;nS=0;
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb.a[1-fb.i].f);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,NST.f);gl.blitFramebuffer(0,0,W,H,0,0,W,H,gl.COLOR_BUFFER_BIT,gl.LINEAR);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER,null);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,null);}}
@@ -2272,18 +2202,16 @@ function frame(ms){
   gl.useProgram(pr);gl.bindFramebuffer(gl.FRAMEBUFFER,A.f);
   gl.viewport(0,0,W,H);
   gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,B.t);gl.uniform1i(U.PV,2);
-  gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,NST.t);gl.uniform1i(U.NS,3);gl.uniform1f(U.uProg,prog);{const a=new Float32Array(256);burns.forEach((b,i)=>a.set(b,i*4));gl.uniform4fv(UBN,a);gl.uniform1i(UNB,burns.length);}gl.uniform1f(U.uRet,$('ret').checked?1:0);gl.uniform1f(U.uVes,get('ves'));gl.uniform1f(U.uDisc,get('disc'));gl.uniform1f(U.uNest,nestOn&&nState>0?1:0);gl.uniform1f(U.uNr,nr);
+  gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,NST.t);gl.uniform1i(U.NS,3);gl.uniform1f(U.uNest,nestOn&&nState>0?1:0);gl.uniform1f(U.uNr,nr);
   gl.uniform1f(U.uK,1+.06*(1+get('back')*20)*(1+a)*Math.min(1,dt*30));
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,TX[0]);gl.uniform1i(U.I0,0);
   gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,TX[1]);gl.uniform1i(U.I1,1);
-  gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,TX[2]);gl.uniform1i(U.I2,4);
   gl.uniform2f(U.r,W,H);gl.uniform1f(U.uZ,Z);gl.uniform1f(U.uMode,+$('mode').value);
   gl.uniform1f(U.uMass,get('mass')*(1+.8*a));gl.uniform1f(U.uPull,get('pull')*(1+a));gl.uniform1f(U.uCore,get('core'));
   gl.uniform1f(U.uRel,get('rel'));gl.uniform1f(U.uLamp,T*get('lamp')+2.2);gl.uniform1f(U.uT,T);
   gl.uniform1f(U.uBright,get('bright'));gl.uniform1f(U.uMid,get('mid'));gl.uniform1f(U.uGrain,get('grain'));
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   gl.useProgram(pb);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,A.t);gl.uniform1i(UBA,0);gl.uniform2f(UBR,W,H);
-  gl.uniform1f(UBX.uBright,get('bright'));gl.uniform1f(UBX.uMid,get('mid'));gl.uniform1f(UBX.uGrain,get('grain'));gl.uniform1f(UBX.uT,T);gl.uniform1f(UBX.uNr,nr);gl.uniform1f(UBX.uLid,lid);gl.uniform1f(UBX.uNon,nestOn&&nState>0?1:0);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);fb.i=1-fb.i;
   if(rec)recFrame();
   if(ui){$('hn').textContent='傾注の果て — '+NAMES[+$('mode').value];
