@@ -26,11 +26,11 @@ button.on{border-color:#aaa;color:#fff}
 <div id="panel">
 <h3>傾注の果て</h3>
 <div><select id="mode">
- <option value="0" selected>下がるほど、同じものが見える</option>
+ <option value="0">下がるほど、同じものが見える</option>
  <option value="1">下がるほど、何も見えなくなる</option>
  <option value="2">下がるほど、周りが歪んで見える</option>
  <option value="3">下がるほど、過去が見える（囚われた過去）</option>
- <option value="4">ゼンタングル（断たれた区画）</option>
+ <option value="4" selected>ゼンタングル（断たれた区画）</option>
 </select></div>
 <div><label style="color:#999"><input type="checkbox" id="nest" checked> 入れ子（奥行き）</label></div>
 <div><button id="midiB">MIDI</button><span id="midiS" style="color:#666"></span></div>
@@ -2055,34 +2055,48 @@ float tangle(float k,vec2 q,float f){
   if(k<8.)return .5+.5*sin(atan(q.y,q.x)*floor(6.+f*.15));                 /* 放射 */
   vec2 c=abs(fract(q*f/6.28)-.5);return smoothstep(.05,.0,abs(c.x-c.y)*.7); /* 菱 */
 }
-float zenH(vec2 x,float z,out float gapo){
-  float h=0.,gap=1.,sc=2.2,amp=1.;vec2 cid;float seed=floor(z*.5)*3.7;
-  vec2 lx=x;
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+float ink(float d,float w,float aa){return 1.-smoothstep(w-aa,w+aa,d);}
+float lns(float t,float f,float w,float aa){return ink(abs(fract(t*f)-.5)/f,w,aa);}
+/* タングル：ペンの線で描く模様。1=インク */
+float tink(float k,vec2 q,float edge,float f,float w,float aa,float hk){
+  k=mod(k,9.);
+  if(k<1.)return lns(edge,f,w,aa);                                            /* オーラ：輪郭が内側へ何重にも（形の中の形） */
+  if(k<2.)return lns(length(q),f,w,aa);                                       /* 同心円 */
+  if(k<3.){vec2 g=q*f*.5;vec2 fr=abs(fract(g)-.5)/(f*.5);return max(ink(min(fr.x,fr.y),w,aa),mod(floor(g.x)+floor(g.y),2.));} /* 市松 */
+  if(k<4.){vec2 g=q*f*.5;g.x+=.5*mod(floor(g.y),2.);vec2 c=fract(g)-vec2(.5,0.);return ink(abs(length(c)-.5)/(f*.5),w,aa);}  /* うろこ */
+  if(k<5.){vec2 g=q*f*.4;vec2 c=fract(g)-.5;float l=length(c)/(f*.4);return max(ink(abs(l-.36/(f*.4)),w,aa),ink(l,.13/(f*.4),aa));} /* 玉 */
+  if(k<6.){float t=length(q)*f-atan(q.y,q.x)/6.2832;return ink(abs(fract(t)-.5)/f,w,aa);}  /* 渦 */
+  if(k<7.)return lns(q.y+.3/f*sin(q.x*f*1.4),f,w,aa);                         /* 波 */
+  if(k<8.){float a=atan(q.y,q.x),l=length(q),n=floor(10.+hk*10.);return max(ink(abs(fract(a/6.2832*n)-.5)*l*6.2832/n,w,aa),lns(l,f*.35,w,aa));} /* 花弁 */
+  vec2 g=q*f*.35;vec2 c=fract(g)-.5;return 1.-ink(length(c)/(f*.35),.16/(f*.35),aa); /* 黒地に白い粒 */
+}
+/* ゼンタングル：紙のタイルにペン。ストリング（曲がった区画線）で割り、区画ごとに模様、区画の中にまた区画。模様は区画線に触れない */
+float zen(vec2 x,float z,float pw){
+  float seed=floor(z*.5)*3.7;
+  x+=.007*vec2(vn(x*31.+seed)-.5,vn(x*31.+seed+7.)-.5);                     /* 手のゆらぎ */
+  vec2 lx=x,cid;float sc=1.6,ws=1.,iv=0.,tone=0.;
+  float w0=max(.0016,pw*.7),aa=pw*.8+1e-5;
   for(int L=0;L<3;L++){
-    vec3 v=vor(lx*sc,seed+float(L)*11.,cid);
-    float edge=v.z/sc;
-    float gw=.006/(1.+float(L)*1.2);
-    gap*=smoothstep(gw,gw*1.8,edge);                                       /* 区画のあいだの黒い溝（断たれている） */
+    vec2 wx=lx*sc;wx+=.3*vec2(sin(wx.y*1.3+seed),sin(wx.x*1.1-seed*.7));     /* ストリングは曲線 */
+    vec3 v=vor(wx,seed+float(L)*11.,cid);
+    float edge=v.z/sc*ws;
+    float lw=w0*(1.7-float(L)*.4);
+    iv=max(iv,ink(edge,lw,aa));
+    tone=max(tone,(1.-smoothstep(0.,.03*ws,edge))*.32);                      /* 鉛筆の陰影（線の際） */
     float hk=dot(h22(cid+seed),vec2(9.,7.));
-    if(L==2||fract(hk*.37)<.45){                                           /* この区画は模様で埋める */
-      float an=hk*6.28;vec2 q=mat2(cos(an),-sin(an),sin(an),cos(an))*(v.xy/sc);
-      float f=(22.+46.*fract(hk*1.7))*(1.+float(L)*.6);
-      h=tangle(floor(hk),q,f)*smoothstep(.0,gw*4.,edge);
+    if(L==2||fract(hk*.37)<.6){
+      float an=hk*6.28;vec2 q=mat2(cos(an),-sin(an),sin(an),cos(an))*(v.xy/sc*ws);
+      float f=(22.+30.*fract(hk*1.7))/ws*.5;
+      float m=smoothstep(lw*2.5,lw*4.5,edge);                                /* 余白：断たれている */
+      iv=max(iv,tink(floor(hk),q,edge,f,w0*.75,aa,fract(hk))*m);
       break;
     }
-    lx=v.xy/sc*1.9+h22(cid)*3.;                              /* さらに中の区画へ */
-    sc*=1.;
+    lx=v.xy/sc*2.2+h22(cid)*3.;ws/=2.2;
   }
-  gapo=gap;return h;
-}
-float zen(vec2 x,float z){
-  float g,gx,gy;float e=.0014;
-  float h=zenH(x,z,g),hx=zenH(x+vec2(e,0.),z,gx),hy=zenH(x+vec2(0.,e),z,gy);
-  vec3 N=normalize(vec3(h-hx,h-hy,e*14./max(uRel,.05)));
-  vec3 L=normalize(vec3(cos(uLamp),sin(uLamp),.35));
-  float d=max(dot(N,L),0.);
-  float c=d*d*.35*(.25+.75*h)+pow(d,30.)*.8+pow(d,120.)*.9;
-  return c*g;
+  float paper=.88+.05*(vn(x*260.)-.5)+.03*(vn(x*23.)-.5);
+  return paper*(1.-tone)*(1.-iv)+iv*.03;
 }
 /* 星と細い線：遠くの微かな光 */
 float field(vec2 x){
@@ -2103,12 +2117,13 @@ void main(){
   else{rc=.08*uCore;thE=.14*uMass;}
   /* 質量による光の曲がり（点の重力レンズ） */
   vec2 be=th-thE*thE*th/max(rr*rr,1e-6);
+  vec2 be0=be;
   /* 引き寄せ：中心に近いほど強く渦を巻く */
-  float br=length(be),ph=atan(be.y,be.x)+uPull*uT*.15/(br*br*8.+.08);
+  float br=length(be),ph=atan(be.y,be.x)+uPull*(uMode>3.5?(.9+.4*sin(uT*.15))*.25:uT*.15)/(br*br*8.+.08);
   be=br*vec2(cos(ph),sin(ph));
   if(uMode>3.5){
     /* 5：ゼンタングル。質量に曲げられ、渦に引かれる区画の群れ。下がると区画が切り替わる */
-    c=zen(be*(1.+.15*fract(uZ*.5)),uZ)*1.2;
+    float zs=1.+.15*fract(uZ*.5);vec2 zb=be*zs;c=zen(zb,uZ,length(fwidth(zb)));
   }else if(uMode<.5){
     /* 1：下がるたびに、さっきまでの世界が次の世界の一つの溝になる（自己相似） */
     float L=2.0794,f=mod(uZ,L);
@@ -2176,7 +2191,7 @@ void main(){
   }
   /* 仕上げ */
   c=c*uBright;c=mix(c,pow(clamp(c,0.,1.),.45),uMid);c=c/(1.+max(c-1.,0.));
-  c*=smoothstep(1.3,.35,rr);
+  c*=uMode>3.5?smoothstep(1.6,.5,rr):smoothstep(1.3,.35,rr);
   c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
   o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);
 }`;
@@ -2276,7 +2291,7 @@ async function stopRec(){if(!rec)return;const r=rec;rec=null;clearInterval(r.iv)
   r.muxer.finalize();await r.writer.close();r.ve.close();if(r.ae)r.ae.close();OUT=null;
   msg('保存しました'+(r.drop?`（${r.drop}コマ落ち）`:''));}
 $('recB').onclick=()=>rec?stopRec():startRec();
-const NAMES=['下がるほど、同じものが見える','下がるほど、何も見えなくなる','下がるほど、周りが歪んで見える','下がるほど、過去が見える'];
+const NAMES=['下がるほど、同じものが見える','下がるほど、何も見えなくなる','下がるほど、周りが歪んで見える','下がるほど、過去が見える','ゼンタングル — 断たれた区画'];
 function frame(ms){
   requestAnimationFrame(frame);
   const dt=Math.min(.1,(ms-last)/1000||0);ft+=((ms-last)-ft)*.05;last=ms;T+=dt;
