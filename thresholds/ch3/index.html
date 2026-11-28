@@ -1964,7 +1964,7 @@ const DEF=[
  ['grain','粒子（フィルム）',.015,0,.1],
  ['nper','入れ子の間隔（秒）',14,4,60],
  ['nback','下がる時間（秒）',4,1,12],
- ['nsize','前の世界の大きさ',.14,.05,.3],
+ ['nsize','前の世界の大きさ',.22,.05,.4],
  ['amt','音の効き',.7,0,2],
 ];
 const P={};for(const[k,l,v,mn,mx]of DEF)P[k]={l,v,mn,mx,cur:v,tgt:v};
@@ -2026,7 +2026,7 @@ float relief(vec2 x,float sel,float b){
   vec3 N=normalize(vec3(h-hx,h-hy,e*3./max(uRel,.05)));
   vec3 L=normalize(vec3(cos(uLamp),sin(uLamp),.32));
   float d=max(dot(N,L),0.);
-  return d*d*.25*(.2+.8*h)+pow(d,24.)*.9+pow(d,120.)*1.2;
+  return d*d*.22*(.2+.8*h)+pow(d,40.)*.75+pow(d,160.)*.9;
 }
 /* 星と細い線：遠くの微かな光 */
 float field(vec2 x){
@@ -2058,23 +2058,23 @@ void main(){
       vec2 x=be*sc;
       float lay=floor((uZ-f)/L)-float(k);
       x=mat2(cos(lay*2.4),-sin(lay*2.4),sin(lay*2.4),cos(lay*2.4))*x;
-      c+=w*relief(x,mod(lay,2.),log2(1.+sc*.6));
+      c+=w*mix(1.,.3,a)*relief(x,mod(lay,2.),log2(1.+sc*.6)+1.5);
     }
-    c*=.7;
+    c*=1.25*(.14+.86*exp(-rr*rr*2.));                  /* 中心に近いほど見え、遠いほど闇に溶ける */
   }else if(uMode<1.5){
     /* 2：何も見えなくなっていく。散った光の筋と、遠ざかる点だけ */
     vec2 x=be*exp(uZ);
     c=field(x*.3)*.25*exp(-uZ*.15);
-    float band=exp(-pow((th.x*.8+th.y*.6-.12)*9.,2.))*.05;c+=band*(.6+.4*sin(th.y*40.+th.x*12.));
+    float band=exp(-pow((th.x*.8+th.y*.6-.12)*9.,2.))*.12;c+=band*(.6+.4*sin(th.y*40.+th.x*12.));
   }else if(uMode>2.5){
     /* 4：今は外側にだけある。内側へ行くほど前の瞬間、さらに前の瞬間。下がるほど、過去が中に積もっていく */
     vec2 x=be*1.5;
-    c=relief(x,0.,1.)*.55;
+    c=relief(x,0.,2.)*1.5;
     float ring=smoothstep(.34,.42,rr);
     vec2 pu=.5+(th*uK)*vec2(r.y/r.x,1.);
     float past=texture(PV,pu).r;
     float pb=0.;for(int k=0;k<4;k++){float a=float(k)*1.57+uT;pb+=texture(PV,pu+vec2(cos(a),sin(a))*.0025).r;}
-    past=mix(past,pb*.25,.5)*.93;
+    past=mix(past,pb*.25,.35)*.965;
     c=mix(past,c,ring);
   }else{
     /* 3：中心は小さくなるのに、その重さで曲げられた周りが広がって見える */
@@ -2083,23 +2083,19 @@ void main(){
   }
   /* 中心：密度の高い黒。縁だけがかすかに光る */
   float px=1./r.y;
-  float core=smoothstep(rc+px*1.5,rc-px*.5,rr);
-  float rim=exp(-abs(rr-rc)/(px*2.+rc*.04))*.35;
+  float big=smoothstep(px*2.,px*5.,rc);                 /* 小さくなった核は輪をやめ、光の点になる */
+  float core=smoothstep(rc+px*1.5,rc-px*.5,rr)*big;
+  float rim=exp(-abs(rr-rc)/(px*2.+rc*.04))*.35*big;
   c=c*(1.-core)+rim*(1.-core*.5);
   if(uNest>.5){
     /* 入れ子：中心の密度の高い黒は、前の世界への窓。下がるほど、閉じ込められた前の世界が奥へ積もる */
     float m=smoothstep(uNr,uNr*.94,rr);
     vec2 nu=.5+th/(2.*uNr)*vec2(r.y/r.x,1.)*.98;
     float pv=texture(NS,nu).r;
-    float rimN=exp(-abs(rr-uNr)/(px*2.+uNr*.03))*.3;
-    c=mix(c,pv*.9,m)+rimN;
+    c=mix(c,pv*.92,m);
   }
-  if(rc<px*1.5){float pt=exp(-rr*rr/(px*px*1.2));c+=pt*clamp(rc/px*1.5,.15,1.)*(.8+.2*sin(uT*3.1));}
-  /* 仕上げ */
-  c=c*uBright;c=mix(c,pow(clamp(c,0.,1.),.45),uMid);c=c/(1.+max(c-1.,0.));
-  c*=smoothstep(1.3,.35,rr);
-  c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
-  o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);
+  if(uMode>.5&&uMode<1.5&&big<1.){float pt=exp(-rr*rr/(px*px*.7));c+=pt*(1.-big)*clamp(.35+rc/px*.3,.35,1.)*(.85+.15*sin(uT*3.1));}
+  o=vec4(vec3(max(c,0.)),1.);
 }`;
 const shc=(k,s)=>{const x=gl.createShader(k);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(x);return x;};
 const pr=gl.createProgram();gl.attachShader(pr,shc(gl.VERTEX_SHADER,VS));gl.attachShader(pr,shc(gl.FRAGMENT_SHADER,FS));gl.bindAttribLocation(pr,0,'a');gl.linkProgram(pr);gl.useProgram(pr);
@@ -2107,17 +2103,26 @@ const U={};for(const n of['NS','uNest','uNr','PV','uK','I0','I1','r','uZ','uMode
 gl.bindVertexArray(gl.createVertexArray());gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
 gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
 const BL=`#version 300 es
-precision highp float;uniform sampler2D A;uniform vec2 r;out vec4 o;void main(){o=texture(A,gl_FragCoord.xy/r);}`;
+precision highp float;uniform sampler2D A;uniform vec2 r;uniform float uBright,uMid,uGrain,uT,uNr,uNon;out vec4 o;
+float hash(vec2 p){p=fract(p*vec2(443.897,441.423));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
+void main(){vec2 th=(gl_FragCoord.xy-.5*r)/r.y;float rr=length(th),px=1./r.y;
+  float c=texture(A,gl_FragCoord.xy/r).r;
+  c+=uNon*exp(-abs(rr-uNr)/(px*2.+uNr*.03))*.3;            /* 入れ子の縁は、いちばん外の窓に一本だけ */
+  c=c*uBright;c=mix(c,pow(clamp(c,0.,1.),.45),uMid);c=c/(1.+max(c-1.,0.));
+  c*=smoothstep(1.3,.35,rr);
+  c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;     /* 粒は表示のときだけ（溜まらない） */
+  o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);}`;
 const pb=gl.createProgram();gl.attachShader(pb,shc(gl.VERTEX_SHADER,VS));gl.attachShader(pb,shc(gl.FRAGMENT_SHADER,BL));gl.bindAttribLocation(pb,0,'a');gl.linkProgram(pb);
-const UBA=gl.getUniformLocation(pb,'A'),UBR=gl.getUniformLocation(pb,'r');
+const UBA=gl.getUniformLocation(pb,'A'),UBR=gl.getUniformLocation(pb,'r');const UBX={};for(const n of['uBright','uMid','uGrain','uT','uNr','uNon'])UBX[n]=gl.getUniformLocation(pb,n);
+const F16=!!gl.getExtension('EXT_color_buffer_float');
 let fb=null;
-function mkT(w,h){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+function mkT(w,h){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);if(F16)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,w,h,0,gl.RGBA,gl.HALF_FLOAT,null);else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
   const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);return{t,f};}
 let NST=null,nT=0,nS=0,nState=0;
 const TX=[];let loaded=0;
-(window.IMGDATA||[]).slice(0,2).forEach((src,i)=>{const im=new Image();im.onload=()=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+(window.IMGDATA||[]).slice(2,4).forEach((src,i)=>{const im=new Image();im.onload=()=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im);gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
@@ -2212,6 +2217,7 @@ function frame(ms){
   gl.uniform1f(U.uBright,get('bright'));gl.uniform1f(U.uMid,get('mid'));gl.uniform1f(U.uGrain,get('grain'));
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   gl.useProgram(pb);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,A.t);gl.uniform1i(UBA,0);gl.uniform2f(UBR,W,H);
+  gl.uniform1f(UBX.uBright,get('bright'));gl.uniform1f(UBX.uMid,get('mid'));gl.uniform1f(UBX.uGrain,get('grain'));gl.uniform1f(UBX.uT,T);gl.uniform1f(UBX.uNr,nr);gl.uniform1f(UBX.uNon,nestOn&&nState>0?1:0);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);fb.i=1-fb.i;
   if(rec)recFrame();
   if(ui){$('hn').textContent='傾注の果て — '+NAMES[+$('mode').value];
