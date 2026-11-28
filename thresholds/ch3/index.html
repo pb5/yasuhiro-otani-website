@@ -2072,29 +2072,50 @@ float tink(float k,vec2 q,float edge,float f,float w,float aa,float hk){
   if(k<8.){float a=atan(q.y,q.x),l=length(q),n=floor(10.+hk*10.);return max(ink(abs(fract(a/6.2832*n)-.5)*l*6.2832/n,w,aa),lns(l,f*.35,w,aa));} /* 花弁 */
   vec2 g=q*f*.35;vec2 c=fract(g)-.5;return 1.-ink(length(c)/(f*.35),.16/(f*.35),aa); /* 黒地に白い粒 */
 }
-/* ゼンタングル：紙のタイルにペン。ストリング（曲がった区画線）で割り、区画ごとに模様、区画の中にまた区画。模様は区画線に触れない */
+float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vn(p);p=p*2.03+17.1;a*=.5;}return s;}
+/* ゼンタングル v10：画像は使わない。生成した「かたち」の等高線がストリングになり、区画は形から生まれる。
+   区画の中は小石・格子・輪郭に沿う線・枠とハッチ・黒い菱・細い縦線。線は太さが揺れ、塗りは途中で止まり、時間とともに描き込まれる */
 float zen(vec2 x,float z,float pw){
   float seed=floor(z*.5)*3.7;
-  x+=.007*vec2(vn(x*31.+seed)-.5,vn(x*31.+seed+7.)-.5);                     /* 手のゆらぎ */
-  vec2 lx=x,cid;float sc=1.6,ws=1.,iv=0.,tone=0.;
-  float w0=max(.0016,pw*.7),aa=pw*.8+1e-5;
-  for(int L=0;L<3;L++){
-    vec2 wx=lx*sc;wx+=.3*vec2(sin(wx.y*1.3+seed),sin(wx.x*1.1-seed*.7));     /* ストリングは曲線 */
-    vec3 v=vor(wx,seed+float(L)*11.,cid);
-    float edge=v.z/sc*ws;
-    float lw=w0*(1.7-float(L)*.4);
-    iv=max(iv,ink(edge,lw,aa));
-    tone=max(tone,(1.-smoothstep(0.,.03*ws,edge))*.32);                      /* 鉛筆の陰影（線の際） */
-    float hk=dot(h22(cid+seed),vec2(9.,7.));
-    if(L==2||fract(hk*.37)<.6){
-      float an=hk*6.28;vec2 q=mat2(cos(an),-sin(an),sin(an),cos(an))*(v.xy/sc*ws);
-      float f=(22.+30.*fract(hk*1.7))/ws*.5;
-      float m=smoothstep(lw*2.5,lw*4.5,edge);                                /* 余白：断たれている */
-      iv=max(iv,tink(floor(hk),q,edge,f,w0*.75,aa,fract(hk))*m);
-      break;
-    }
-    lx=v.xy/sc*2.2+h22(cid)*3.;ws/=2.2;
-  }
+  x+=.006*vec2(vn(x*29.+seed)-.5,vn(x*29.+seed+7.)-.5);                     /* 手のゆらぎ */
+  float e=.002;
+  vec2 p=x*1.25+seed;
+  float F=fbm(p),Fx=fbm(p+vec2(e,0.)),Fy=fbm(p+vec2(0.,e));
+  vec2 gF=vec2(Fx-F,Fy-F)/e*1.25;
+  vec2 p2=x*.9+seed*1.7+vec2(5.2,1.3);
+  float G=fbm(p2),Gx=fbm(p2+vec2(e,0.)),Gy=fbm(p2+vec2(0.,e));
+  vec2 gG=vec2(Gx-G,Gy-G)/e*.9;
+  float N=9.,M=3.,tF=F*N,tG=G*M;
+  float dF=min(fract(tF),1.-fract(tF))/(N*length(gF)+1e-3);
+  float dG=min(fract(tG),1.-fract(tG))/(M*length(gG)+1e-3);
+  float edge=min(dF,dG);
+  vec2 cid=vec2(floor(tF),floor(tG))+seed;
+  float hk=hash(cid*1.37+.5),hk2=hash(cid*2.11+3.3);
+  float w0=max(.0014,pw*.65),aa=pw*.8+1e-5;
+  float wv=.65+.7*vn(x*11.+hk*20.);                                          /* 筆圧 */
+  float iv=ink(edge,w0*1.1*wv,aa);                                           /* ストリング */
+  float tone=(1.-smoothstep(0.,.012,edge))*.14;
+  /* 描き込み：区画ごとに、インクが広がるように模様が現れ、やがて消える */
+  float ph=fract(uT*.02+hk*.9);
+  float grow=step(vn(x*5.+hk*13.)*.9+.05,ph*1.6)*(1.-smoothstep(.9,1.,ph));
+  float part=step(.22,vn(x*7.+hk2*9.));                                      /* 塗りが途中で止まる */
+  float m=smoothstep(w0*3.,w0*5.,edge)*grow*part;
+  float k=floor(hk*8.),pat=0.,w=w0*.8*wv;
+  float an=hk2*3.14;mat2 R=mat2(cos(an),-sin(an),sin(an),cos(an));vec2 q=R*x;
+  if(k<1.){float t=tF*4.;pat=ink(abs(fract(t)-.5)/(N*4.*length(gF)+1e-3),w,aa);}               /* 輪郭に沿う線 */
+  else if(k<2.){vec2 cc;vec3 v=vor(x*17.,hk*7.,cc);float rc=.3+.12*hash(cc);
+    pat=max(ink(abs(length(v.xy)-rc)/17.,w,aa),ink(abs(length(v.xy)-rc*.45)/17.,w,aa)*step(.6,hash(cc+1.)));}                                                    /* 小石（円の中の円） */
+  else if(k<3.){pat=max(lns(q.x,34.,w,aa),lns(q.y+q.x*.15,34.,w,aa));}                        /* 斜め格子 */
+  else if(k<4.){vec2 g=q*14.;vec2 fr=abs(fract(g)-.5)/14.;float cell=hash(floor(g)+hk);
+    pat=ink(.5/14.-max(fr.x,fr.y),w,aa);
+    if(cell>.55)pat=max(pat,lns(q.x+q.y,110.,w*.7,aa)*step(max(fr.x,fr.y),.36/14.));}          /* 枠とハッチ */
+  else if(k<5.){vec2 g=(mat2(.707,-.707,.707,.707)*q)*16.;vec2 fr=abs(fract(g)-.5);float cell=hash(floor(g)+hk);
+    pat=ink((.5-max(fr.x,fr.y))/16.,w,aa);if(cell>.5)pat=max(pat,step(fr.x+fr.y,.45));}      /* 黒い菱 */
+  else if(k<6.){pat=lns(q.x+.004*sin(q.y*40.),90.,w*.6,aa);}                                  /* 細い縦線 */
+  else if(k<7.){vec2 g=q*18.;g.x+=.5*mod(floor(g.y),2.);vec2 c=fract(g)-vec2(.5,0.);
+    pat=ink(abs(length(c)-.5)/18.,w,aa);}                                                       /* うろこ */
+  else{pat=0.;}                                                                                 /* 空けておく */
+  iv=max(iv,pat*m);
   float paper=.88+.05*(vn(x*260.)-.5)+.03*(vn(x*23.)-.5);
   return paper*(1.-tone)*(1.-iv)+iv*.03;
 }
@@ -2119,7 +2140,7 @@ void main(){
   vec2 be=th-thE*thE*th/max(rr*rr,1e-6);
   vec2 be0=be;
   /* 引き寄せ：中心に近いほど強く渦を巻く */
-  float br=length(be),ph=atan(be.y,be.x)+uPull*(uMode>3.5?(.9+.4*sin(uT*.15))*.25:uT*.15)/(br*br*8.+.08);
+  float br=length(be),ph=atan(be.y,be.x)+uPull*(uMode>3.5?(.9+.4*sin(uT*.15))*.07:uT*.15)/(br*br*8.+.08);
   be=br*vec2(cos(ph),sin(ph));
   if(uMode>3.5){
     /* 5：ゼンタングル。質量に曲げられ、渦に引かれる区画の群れ。下がると区画が切り替わる */
@@ -2291,7 +2312,7 @@ async function stopRec(){if(!rec)return;const r=rec;rec=null;clearInterval(r.iv)
   r.muxer.finalize();await r.writer.close();r.ve.close();if(r.ae)r.ae.close();OUT=null;
   msg('保存しました'+(r.drop?`（${r.drop}コマ落ち）`:''));}
 $('recB').onclick=()=>rec?stopRec():startRec();
-const NAMES=['下がるほど、同じものが見える','下がるほど、何も見えなくなる','下がるほど、周りが歪んで見える','下がるほど、過去が見える','ゼンタングル — 断たれた区画'];
+const NAMES=['下がるほど、同じものが見える','下がるほど、何も見えなくなる','下がるほど、周りが歪んで見える','下がるほど、過去が見える','ゼンタングル — 形から生まれる区画'];
 function frame(ms){
   requestAnimationFrame(frame);
   const dt=Math.min(.1,(ms-last)/1000||0);ft+=((ms-last)-ft)*.05;last=ms;T+=dt;
