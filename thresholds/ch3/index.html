@@ -26,11 +26,10 @@ button.on{border-color:#aaa;color:#fff}
 <div id="panel">
 <h3>傾注の果て</h3>
 <div><select id="mode">
- <option value="0">下がるほど、同じものが見える</option>
+ <option value="0" selected>下がるほど、同じものが見える</option>
  <option value="1">下がるほど、何も見えなくなる</option>
  <option value="2">下がるほど、周りが歪んで見える</option>
  <option value="3">下がるほど、過去が見える（囚われた過去）</option>
- <option value="4" selected>ゼンタングル（断たれた区画）</option>
 </select></div>
 <div><label style="color:#999"><input type="checkbox" id="nest" checked> 入れ子（奥行き）</label></div>
 <div><button id="midiB">MIDI</button><span id="midiS" style="color:#666"></span></div>
@@ -2032,93 +2031,6 @@ float relief(vec2 x,float sel,float b){
   float d=max(dot(N,L),0.);
   return d*d*.25*(.2+.8*h)+pow(d,24.)*.9+pow(d,120.)*1.2;
 }
-/* ===== ゼンタングル：画面を区画に割り、区画ごとに別の模様で埋める。区画の中にまた区画。区画どうしはつながらない ===== */
-vec2 h22(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}
-/* ボロノイ：いちばん近い種の位置と、境界までの距離 */
-vec3 vor(vec2 x,float sd,out vec2 cid){
-  vec2 n=floor(x),f=fract(x),mg,mr;float md=8.;
-  for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){vec2 g=vec2(i,j),o=.15+.7*h22(n+g+sd*17.3),r=g+o-f;float d=dot(r,r);if(d<md){md=d;mr=r;mg=g;}}
-  md=8.;
-  for(int j=-2;j<=2;j++)for(int i=-2;i<=2;i++){vec2 g=mg+vec2(i,j),o=.15+.7*h22(n+g+sd*17.3),r=g+o-f;if(dot(mr-r,mr-r)>1e-5)md=min(md,dot(.5*(mr+r),normalize(r-mr)));}
-  cid=n+mg;return vec3(mr,md);
-}
-/* タングル（模様）：局所座標 q で高さ0〜1 */
-float tangle(float k,vec2 q,float f){
-  k=mod(k,9.);
-  if(k<1.)return .5+.5*sin(q.y*f);                                         /* 平行線 */
-  if(k<2.)return .5+.5*sin(length(q)*f);                                   /* 同心円 */
-  if(k<3.)return .5+.5*sin(q.x*f)*sin(q.y*f);                              /* 格子 */
-  if(k<4.){vec2 g=q*f/6.28;g.x+=.5*mod(floor(g.y),2.);vec2 c=fract(g)-vec2(.5,0.);return smoothstep(.55,.45,length(c))*(1.-length(c));}  /* うろこ */
-  if(k<5.)return .5+.5*sin(atan(q.y,q.x)*3.+log(length(q)+.01)*f*.35);     /* 渦 */
-  if(k<6.){vec2 c=fract(q*f/6.28)-.5;return smoothstep(.32,.18,length(c));}  /* 点 */
-  if(k<7.)return .5+.5*sin(q.y*f+2.*sin(q.x*f*.35));                       /* 波 */
-  if(k<8.)return .5+.5*sin(atan(q.y,q.x)*floor(6.+f*.15));                 /* 放射 */
-  vec2 c=abs(fract(q*f/6.28)-.5);return smoothstep(.05,.0,abs(c.x-c.y)*.7); /* 菱 */
-}
-float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
-  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
-float ink(float d,float w,float aa){return 1.-smoothstep(w-aa,w+aa,d);}
-float lns(float t,float f,float w,float aa){return ink(abs(fract(t*f)-.5)/f,w,aa);}
-/* タングル：ペンの線で描く模様。1=インク */
-float tink(float k,vec2 q,float edge,float f,float w,float aa,float hk){
-  k=mod(k,9.);
-  if(k<1.)return lns(edge,f,w,aa);                                            /* オーラ：輪郭が内側へ何重にも（形の中の形） */
-  if(k<2.)return lns(length(q),f,w,aa);                                       /* 同心円 */
-  if(k<3.){vec2 g=q*f*.5;vec2 fr=abs(fract(g)-.5)/(f*.5);return max(ink(min(fr.x,fr.y),w,aa),mod(floor(g.x)+floor(g.y),2.));} /* 市松 */
-  if(k<4.){vec2 g=q*f*.5;g.x+=.5*mod(floor(g.y),2.);vec2 c=fract(g)-vec2(.5,0.);return ink(abs(length(c)-.5)/(f*.5),w,aa);}  /* うろこ */
-  if(k<5.){vec2 g=q*f*.4;vec2 c=fract(g)-.5;float l=length(c)/(f*.4);return max(ink(abs(l-.36/(f*.4)),w,aa),ink(l,.13/(f*.4),aa));} /* 玉 */
-  if(k<6.){float t=length(q)*f-atan(q.y,q.x)/6.2832;return ink(abs(fract(t)-.5)/f,w,aa);}  /* 渦 */
-  if(k<7.)return lns(q.y+.3/f*sin(q.x*f*1.4),f,w,aa);                         /* 波 */
-  if(k<8.){float a=atan(q.y,q.x),l=length(q),n=floor(10.+hk*10.);return max(ink(abs(fract(a/6.2832*n)-.5)*l*6.2832/n,w,aa),lns(l,f*.35,w,aa));} /* 花弁 */
-  vec2 g=q*f*.35;vec2 c=fract(g)-.5;return 1.-ink(length(c)/(f*.35),.16/(f*.35),aa); /* 黒地に白い粒 */
-}
-float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vn(p);p=p*2.03+17.1;a*=.5;}return s;}
-/* ゼンタングル v10：画像は使わない。生成した「かたち」の等高線がストリングになり、区画は形から生まれる。
-   区画の中は小石・格子・輪郭に沿う線・枠とハッチ・黒い菱・細い縦線。線は太さが揺れ、塗りは途中で止まり、時間とともに描き込まれる */
-float zen(vec2 x,float z,float pw){
-  float seed=floor(z*.5)*3.7;
-  x+=.006*vec2(vn(x*29.+seed)-.5,vn(x*29.+seed+7.)-.5);                     /* 手のゆらぎ */
-  float e=.002;
-  vec2 p=x*1.25+seed;
-  float F=fbm(p),Fx=fbm(p+vec2(e,0.)),Fy=fbm(p+vec2(0.,e));
-  vec2 gF=vec2(Fx-F,Fy-F)/e*1.25;
-  vec2 p2=x*.9+seed*1.7+vec2(5.2,1.3);
-  float G=fbm(p2),Gx=fbm(p2+vec2(e,0.)),Gy=fbm(p2+vec2(0.,e));
-  vec2 gG=vec2(Gx-G,Gy-G)/e*.9;
-  float N=9.,M=3.,tF=F*N,tG=G*M;
-  float dF=min(fract(tF),1.-fract(tF))/(N*length(gF)+1e-3);
-  float dG=min(fract(tG),1.-fract(tG))/(M*length(gG)+1e-3);
-  float edge=min(dF,dG);
-  vec2 cid=vec2(floor(tF),floor(tG))+seed;
-  float hk=hash(cid*1.37+.5),hk2=hash(cid*2.11+3.3);
-  float w0=max(.0014,pw*.65),aa=pw*.8+1e-5;
-  float wv=.65+.7*vn(x*11.+hk*20.);                                          /* 筆圧 */
-  float iv=ink(edge,w0*1.1*wv,aa);                                           /* ストリング */
-  float tone=(1.-smoothstep(0.,.012,edge))*.14;
-  /* 描き込み：区画ごとに、インクが広がるように模様が現れ、やがて消える */
-  float ph=fract(uT*.02+hk*.9);
-  float grow=step(vn(x*5.+hk*13.)*.9+.05,ph*1.6)*(1.-smoothstep(.9,1.,ph));
-  float part=step(.22,vn(x*7.+hk2*9.));                                      /* 塗りが途中で止まる */
-  float m=smoothstep(w0*3.,w0*5.,edge)*grow*part;
-  float k=floor(hk*8.),pat=0.,w=w0*.8*wv;
-  float an=hk2*3.14;mat2 R=mat2(cos(an),-sin(an),sin(an),cos(an));vec2 q=R*x;
-  if(k<1.){float t=tF*4.;pat=ink(abs(fract(t)-.5)/(N*4.*length(gF)+1e-3),w,aa);}               /* 輪郭に沿う線 */
-  else if(k<2.){vec2 cc;vec3 v=vor(x*17.,hk*7.,cc);float rc=.3+.12*hash(cc);
-    pat=max(ink(abs(length(v.xy)-rc)/17.,w,aa),ink(abs(length(v.xy)-rc*.45)/17.,w,aa)*step(.6,hash(cc+1.)));}                                                    /* 小石（円の中の円） */
-  else if(k<3.){pat=max(lns(q.x,34.,w,aa),lns(q.y+q.x*.15,34.,w,aa));}                        /* 斜め格子 */
-  else if(k<4.){vec2 g=q*14.;vec2 fr=abs(fract(g)-.5)/14.;float cell=hash(floor(g)+hk);
-    pat=ink(.5/14.-max(fr.x,fr.y),w,aa);
-    if(cell>.55)pat=max(pat,lns(q.x+q.y,110.,w*.7,aa)*step(max(fr.x,fr.y),.36/14.));}          /* 枠とハッチ */
-  else if(k<5.){vec2 g=(mat2(.707,-.707,.707,.707)*q)*16.;vec2 fr=abs(fract(g)-.5);float cell=hash(floor(g)+hk);
-    pat=ink((.5-max(fr.x,fr.y))/16.,w,aa);if(cell>.5)pat=max(pat,step(fr.x+fr.y,.45));}      /* 黒い菱 */
-  else if(k<6.){pat=lns(q.x+.004*sin(q.y*40.),90.,w*.6,aa);}                                  /* 細い縦線 */
-  else if(k<7.){vec2 g=q*18.;g.x+=.5*mod(floor(g.y),2.);vec2 c=fract(g)-vec2(.5,0.);
-    pat=ink(abs(length(c)-.5)/18.,w,aa);}                                                       /* うろこ */
-  else{pat=0.;}                                                                                 /* 空けておく */
-  iv=max(iv,pat*m);
-  float paper=.88+.05*(vn(x*260.)-.5)+.03*(vn(x*23.)-.5);
-  return paper*(1.-tone)*(1.-iv)+iv*.03;
-}
 /* 星と細い線：遠くの微かな光 */
 float field(vec2 x){
   vec2 g=floor(x*24.),f=fract(x*24.)-.5;float s=0.;
@@ -2134,18 +2046,13 @@ void main(){
   if(uMode<.5){rc=.11*uCore;thE=.16*uMass;}
   else if(uMode<1.5){rc=.2*uCore*exp(-uZ);thE=.2*uMass*exp(-uZ*.5);}
   else if(uMode<2.5){rc=.2*uCore*exp(-uZ);thE=max(.06,.24*exp(-uZ*.3))*uMass;}
-  else if(uMode<3.5){rc=.0;thE=.05*uMass;}
-  else{rc=.08*uCore;thE=.14*uMass;}
+  else{rc=.0;thE=.05*uMass;}
   /* 質量による光の曲がり（点の重力レンズ） */
   vec2 be=th-thE*thE*th/max(rr*rr,1e-6);
-  vec2 be0=be;
   /* 引き寄せ：中心に近いほど強く渦を巻く */
-  float br=length(be),ph=atan(be.y,be.x)+uPull*(uMode>3.5?(.9+.4*sin(uT*.15))*.07:uT*.15)/(br*br*8.+.08);
+  float br=length(be),ph=atan(be.y,be.x)+uPull*uT*.15/(br*br*8.+.08);
   be=br*vec2(cos(ph),sin(ph));
-  if(uMode>3.5){
-    /* 5：ゼンタングル。質量に曲げられ、渦に引かれる区画の群れ。下がると区画が切り替わる */
-    float zs=1.+.15*fract(uZ*.5);vec2 zb=be*zs;c=zen(zb,uZ,length(fwidth(zb)));
-  }else if(uMode<.5){
+  if(uMode<.5){
     /* 1：下がるたびに、さっきまでの世界が次の世界の一つの溝になる（自己相似） */
     float L=2.0794,f=mod(uZ,L);
     for(int k=0;k<4;k++){
@@ -2212,7 +2119,7 @@ void main(){
   }
   /* 仕上げ */
   c=c*uBright;c=mix(c,pow(clamp(c,0.,1.),.45),uMid);c=c/(1.+max(c-1.,0.));
-  c*=uMode>3.5?smoothstep(1.6,.5,rr):smoothstep(1.3,.35,rr);
+  c*=smoothstep(1.3,.35,rr);
   c+=(hash(gl_FragCoord.xy+fract(uT*7.)*91.)-.5)*uGrain;
   o=vec4(vec3(max(c,0.))*vec3(.95,.97,1.),1.);
 }`;
@@ -2260,7 +2167,7 @@ $('cutB').onclick=cutNow;addEventListener('keydown',e=>{if(e.key==='c'||e.key===
 function afterCut(){
   /* 断たれた後：糸はない。世界は別の距離・別の見え方に移っている */
   threads=[];thA=0;Z+=1+Math.random()*4;
-  if($('mode').value!=='4'&&Math.random()<.4)$('mode').value=Math.random()<.7?'0':'2';   /* 質量の見える世界のまま、別の距離へ */
+  if(Math.random()<.4)$('mode').value=Math.random()<.7?'0':'2';   /* 質量の見える世界のまま、別の距離へ */
   for(const k of['mass','pull','core'])set(k,P[k].mn+(P[k].mx-P[k].mn)*(.15+.5*Math.random()));
   for(const k of['mass','pull','core'])P[k].cur=P[k].tgt;
   cutWait=6+Math.random()*14;setTimeout(growThreads,2500+Math.random()*4000);
@@ -2312,7 +2219,7 @@ async function stopRec(){if(!rec)return;const r=rec;rec=null;clearInterval(r.iv)
   r.muxer.finalize();await r.writer.close();r.ve.close();if(r.ae)r.ae.close();OUT=null;
   msg('保存しました'+(r.drop?`（${r.drop}コマ落ち）`:''));}
 $('recB').onclick=()=>rec?stopRec():startRec();
-const NAMES=['下がるほど、同じものが見える','下がるほど、何も見えなくなる','下がるほど、周りが歪んで見える','下がるほど、過去が見える','ゼンタングル — 形から生まれる区画'];
+const NAMES=['下がるほど、同じものが見える','下がるほど、何も見えなくなる','下がるほど、周りが歪んで見える','下がるほど、過去が見える'];
 function frame(ms){
   requestAnimationFrame(frame);
   const dt=Math.min(.1,(ms-last)/1000||0);ft+=((ms-last)-ft)*.05;last=ms;T+=dt;
