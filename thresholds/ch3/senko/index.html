@@ -18,7 +18,7 @@ button{background:#111;color:#bbb;border:1px solid #333;padding:3px 8px;margin:3
 <div id="panel">
 <h3>線香花火（ペイル・ブルー・ドット）</h3>
 <label>一本の長さ（秒） <span id="vT"></span><input id="T" type="range" min="20" max="240" value="70"></label>
-<label>玉の大きさ <span id="vS"></span><input id="S" type="range" min="0.15" max="3" step="0.01" value="0.7"></label>
+<label>玉の大きさ <span id="vS"></span><input id="S" type="range" min="0.15" max="3" step="0.01" value="1"></label>
 <label>火花の量 <input id="N" type="range" min="0" max="2" step="0.01" value="1"></label>
 <label>重力 <input id="G" type="range" min="0.2" max="3" step="0.01" value="1"></label>
 <label>色（銀 ↔ 火） <input id="C" type="range" min="0" max="1" step="0.01" value="0"></label>
@@ -41,7 +41,9 @@ for(const [i,o] of [['T','vT'],['S','vS'],['D','vD']]){const f=()=>$(o).textCont
 /* 段階：蕾・牡丹・松葉・柳・散り菊（一本の長さに対する割合） */
 const PH=[0,.12,.3,.6,.78,.92];const PN=['蕾','牡丹','松葉','柳','散り菊','落ちる'];
 let t=0,last=performance.now(),state='burn',dropT=0,darkT=0;
-let bead={x:0,y:0,vy:0,r:0};
+let bead={x:0,y:0,vx:0,vy:0,r:0,m:0,sag:0,neck:0};
+/* 質量：振り子（こより）、ゆがみの揺れ（縦・横）。重いほどゆっくり揺れ、なかなか戻らない */
+let th=0,thv=0,wob=0,wobv=0,wx=0,wxv=0,tipX=0,tipY=0,thDrop=0;
 let sparks=[];
 /* 音：ごく短いノイズの粒 */
 let AC=null;function crack(gain){if(!$('snd').checked)return;if(!AC)AC=new AudioContext();
@@ -52,7 +54,7 @@ let AC=null;function crack(gain){if(!$('snd').checked)return;if(!AC)AC=new Audio
 function phase(){const f=t/v('T');let p=0;for(let i=0;i<5;i++)if(f>=PH[i])p=i;return {p,f,loc:(f-PH[p])/(PH[p+1]-PH[p])};}
 function col(heat,a){ /* heat 0..1 → 銀（白〜灰）と火（白〜橙〜赤）を混ぜる */
   const c=v('C');const s=[200+55*heat,205+50*heat,215+40*heat];const fi=[255,150+105*heat*heat,60+190*Math.pow(heat,3)];
-  return `rgba(${(s[0]*(1-c)+fi[0]*c)|0},${(s[1]*(1-c)+fi[1]*c)|0},${(s[2]*(1-c)+fi[2]*c)|0},${a})`;}
+  const k=.15+.85*heat;return `rgba(${(k*(s[0]*(1-c)+fi[0]*c))|0},${(k*(s[1]*(1-c)+fi[1]*c))|0},${(k*(s[2]*(1-c)+fi[2]*c))|0},${a})`;}
 function spawn(x,y,vx,vy,lv,life,br,w){sparks.push({x,y,px:x,py:y,vx,vy,lv,age:0,life,br,w,split:life*(.35+Math.random()*.5)});}
 function emit(p,loc,sc,dt){
   const amt=v('N');let rate=[0,3,28,16,5][p]*amt;
@@ -61,22 +63,33 @@ function emit(p,loc,sc,dt){
     const a=Math.random()*6.283,sp=[0,260,520,300,170][p]*sc*(.5+Math.random());
     const life=[0,.7,.42,1.3,.3][p]*(.6+Math.random()*.8);
     spawn(bead.x+Math.cos(a)*bead.r,bead.y+Math.sin(a)*bead.r,Math.cos(a)*sp,Math.sin(a)*sp-40*sc,p===2?0:(p===3?2:1),life,1,[0,1.4,1,.7,.6][p]);
+    const im=1/(bead.m+.25);thv-=Math.cos(a)*sp/sc*.00006*im;wobv+=(Math.random()-.5)*sp/sc*.004*im;wxv-=Math.cos(a)*sp/sc*.004*im;
     if(Math.random()<.3)crack(.04+.06*Math.random());}n-=1;}
 }
 function step(dt){
   const sc=v('S')*H/1080,gr=v('G')*420*sc;
   const T=v('T');
-  bead.x=W*.5;
-  if(state==='burn'){
+    if(state==='burn'){
     t+=dt;const {p,f,loc}=phase();
-    if(f>=PH[5]){state='drop';bead.vy=0;dropT=0;crack(.25);}
+    if(f>=PH[5]){state='drop';dropT=0;crack(.25);thv-=.4;wobv+=6;}
     /* 玉：蕾で育ち、終わりに向けて痩せる */
-    const grow=p===0?Math.pow(loc,.6):1-.35*Math.max(0,f-.6)/.32;
-    bead.r=Math.max(.6,7*sc*grow);
-    bead.y=H*.36+bead.r*.6+Math.sin(t*1.3)*.6*sc;
+    /* 質量：蕾で溜まり、火花を出すたびに減る。半径は質量の立方根 */
+    bead.m=p===0?Math.pow(loc,.7):1-.45*Math.max(0,f-.3)/.62;
+    bead.r=Math.max(.6,8*sc*Math.cbrt(bead.m));
+    /* 落ちる前のため：首が細り、玉が垂れて伸びる */
+    const pre=Math.min(1,Math.max(0,(f-.84)/.08));
+    bead.sag=.12+.22*bead.m+1.1*pre*pre;bead.neck=bead.r*(.55*(1-pre)+.06);
+    const L=70*sc,w0=1.3;thv+=(-w0*w0*Math.sin(th)-.18*thv)*dt;th+=thv*dt;
+    const w2=9/Math.sqrt(bead.m+.15);wobv+=(-w2*w2*wob-1.6*wobv)*dt;wob+=wobv*dt;wxv+=(-w2*w2*wx-1.6*wxv)*dt;wx+=wxv*dt;
+    if(pre>0)wobv+=(Math.random()-.5)*pre*3*dt*60;
+    tipX=W*.5+L*Math.sin(th);tipY=H*.36-L*.4+L*Math.cos(th)-L;
+    const dl=bead.r*(.35+1.6*pre*pre)+bead.r*(1+bead.sag);
+    bead.x=tipX+Math.sin(th)*dl;bead.y=tipY+Math.cos(th)*dl;
+    bead.vx=thv*L*Math.cos(th);bead.vy=0;thDrop=th;
     if(p>0)emit(p,loc,sc,dt);
   }else if(state==='drop'){
-    dropT+=dt;bead.vy+=gr*3*dt;bead.y+=bead.vy*dt;
+    dropT+=dt;bead.vy+=gr*3*dt;bead.y+=bead.vy*dt;bead.x+=bead.vx*dt;bead.sag=Math.min(2.5,bead.sag+bead.vy*.0004/sc);bead.neck=0;
+    wobv+=(-81*wob-1.2*wobv)*dt;wob+=wobv*dt;thv+=(-1.69*Math.sin(th)-.5*thv)*dt;th+=thv*dt;tipX=W*.5+70*sc*Math.sin(th);tipY=H*.36-28*sc+70*sc*(Math.cos(th)-1);
     if(bead.y>H+50){state='dark';darkT=0;}
   }else{darkT+=dt;if(darkT>v('D')){state='burn';t=0;sparks=[];}}
   /* 火花：飛び、重力で垂れ、途中で枝分かれし、すぐに消える。どれも元へは戻らない */
@@ -84,6 +97,7 @@ function step(dt){
   for(const s of sparks){
     s.age+=dt;s.px=s.x;s.py=s.y;
     const drag=Math.exp(-dt*2.2);s.vx*=drag;s.vy=s.vy*drag+gr*(s.lv===2?.35:.6)*dt;
+    if(state==='burn'){const dx=bead.x-s.x,dy=bead.y-s.y,d2=dx*dx+dy*dy+bead.r*bead.r*16,dd=Math.sqrt(d2),A=4e5*bead.m*sc*sc*sc/d2;s.vx+=dx/dd*A*dt;s.vy+=dy/dd*A*dt;}
     s.x+=s.vx*dt;s.y+=s.vy*dt;
     if(s.lv<3&&s.age>s.split&&!s.done){s.done=true;const k=2+(Math.random()*3|0);
       for(let i=0;i<k;i++){const a=Math.random()*6.283,sp=(120+Math.random()*240)*sc;
@@ -99,10 +113,11 @@ function draw(){
   const sc=v('S')*H/1080;
   /* こより：玉の明かりが届くところだけ見える。落ちたら端だけが残る */
   if($('str').checked){
-    const by=state==='burn'?bead.y-bead.r:H*.36;
-    const gr=g.createLinearGradient(0,by-140*sc,0,by);gr.addColorStop(0,'rgba(0,0,0,0)');
-    gr.addColorStop(1,state==='burn'?'rgba(120,115,110,.35)':`rgba(120,110,100,${Math.max(0,.3-(state==='dark'?darkT*.05:dropT))})`);
-    g.strokeStyle=gr;g.lineWidth=Math.max(1,1.1*sc);g.beginPath();g.moveTo(W*.5-1*sc,by-160*sc);g.quadraticCurveTo(W*.5+2*sc,by-60*sc,W*.5,by);g.stroke();
+    /* こより：玉の明かりが届くところだけ見える */
+    const lit=state==='burn'?.4:Math.max(0,.3-(state==='dark'?.3+darkT*.05:dropT*.25));
+    const top=tipY-170*sc,gr=g.createLinearGradient(0,top,0,tipY);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,`rgba(125,118,110,${lit})`);
+    g.strokeStyle=gr;g.lineWidth=Math.max(1,1.2*sc);g.beginPath();g.moveTo(W*.5-2*sc,top);g.quadraticCurveTo(W*.5+3*sc,tipY-80*sc,tipX,tipY);g.stroke();
+    if(state==='drop'&&dropT<1.5){g.globalCompositeOperation='lighter';g.fillStyle=col(.7,Math.max(0,.8-dropT*.6));g.beginPath();g.arc(tipX,tipY,Math.max(.6,1.2*sc),0,6.283);g.fill();}
   }
   g.globalCompositeOperation='lighter';
   for(const s of sparks){
@@ -110,13 +125,25 @@ function draw(){
     g.strokeStyle=col(heat,Math.min(1,k*1.5)*s.br);g.lineWidth=Math.max(.5,s.w*sc*1.6*k+.4);
     g.beginPath();g.moveTo(s.px,s.py);g.lineTo(s.x,s.y);g.stroke();
   }
-  if(state!=='dark'){
-    /* 玉：密度の高い、溶けた点。表面がふるえる */
-    const r=bead.r*(1+.06*Math.sin(performance.now()*.03)*Math.random());
-    const h=g.createRadialGradient(bead.x,bead.y,0,bead.x,bead.y,r*5);
-    h.addColorStop(0,col(1,.9));h.addColorStop(.18,col(.8,.6));h.addColorStop(.3,col(.4,.15));h.addColorStop(1,'rgba(0,0,0,0)');
-    g.fillStyle=h;g.beginPath();g.arc(bead.x,bead.y,r*5,0,6.283);g.fill();
-    g.fillStyle=col(1,1);g.beginPath();g.arc(bead.x,bead.y,Math.max(.6,r*.55),0,6.283);g.fill();
+  if(state!=='dark'&&bead.r>0){
+    /* 玉：溶けた重い塊。中は密度の高い暗さ、皮だけが灼ける。重さで垂れ、揺れてもなかなか戻らない */
+    const r=bead.r,ang=-(state==='burn'?th:thDrop*.5);
+    const rx=r*(1-.22*bead.sag+.18*wx)*(1+.12*wob),ry=r*(1+bead.sag)*(1-.12*wob);
+    const hg=g.createRadialGradient(bead.x,bead.y,0,bead.x,bead.y,r*7);
+    hg.addColorStop(0,col(.9,.55));hg.addColorStop(.15,col(.6,.22));hg.addColorStop(.4,col(.3,.05));hg.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=hg;g.beginPath();g.arc(bead.x,bead.y,r*7,0,6.283);g.fill();
+    g.globalCompositeOperation='source-over';
+    if(bead.neck>.1&&state==='burn'){ /* 首：こよりの先から玉へ、細くつながる */
+      const nx=Math.cos(th),ny=-Math.sin(th),tx=bead.x-Math.sin(th)*ry*.8,ty=bead.y-Math.cos(th)*ry*.8;
+      g.fillStyle=col(.75,.95);g.beginPath();g.moveTo(tipX+nx*bead.neck*.5,tipY+ny*bead.neck*.5);g.lineTo(tx+nx*rx*.7,ty+ny*rx*.7);g.lineTo(tx-nx*rx*.7,ty-ny*rx*.7);g.lineTo(tipX-nx*bead.neck*.5,tipY-ny*bead.neck*.5);g.fill();}
+    g.save();g.translate(bead.x,bead.y);g.rotate(ang);g.scale(rx/r,ry/r);
+    const bg=g.createRadialGradient(0,r*.25,0,0,0,r);
+    bg.addColorStop(0,col(.12,1));bg.addColorStop(.55,col(.22,1));bg.addColorStop(.82,col(.7,1));bg.addColorStop(1,col(1,1));
+    g.fillStyle=bg;g.beginPath();g.arc(0,0,r,0,6.283);g.fill();
+    g.globalCompositeOperation='lighter';const now=performance.now()*.001;
+    for(let i=0;i<4;i++){const a=now*(.7+i*.37)+i*1.7,rr=r*(.82+.12*Math.sin(now*3.1+i));
+      g.fillStyle=col(1,.5+.5*Math.sin(now*9+i*2.3));g.beginPath();g.arc(Math.cos(a)*rr,Math.sin(a)*rr,Math.max(.5,r*.13),0,6.283);g.fill();}
+    g.restore();
   }
   const {p}=phase();
   $('hud').textContent=state==='burn'?PN[p]:state==='drop'?'落ちる':'';
