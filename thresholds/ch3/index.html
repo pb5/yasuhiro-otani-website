@@ -13,6 +13,9 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .row{display:flex;align-items:center;gap:6px;margin:2px 0}
 .row label{width:84px;color:#999;white-space:nowrap;overflow:hidden}
 .row input[type=range]{flex:1;min-width:0}
+.row b{font-weight:400;width:34px;font-size:10px;color:#555;cursor:pointer;text-align:center;border:1px solid #333}
+.row b.learn{color:#000;background:#ccc}
+.row b.bound{color:#9c9;border-color:#363}
 .row span{width:38px;text-align:right;color:#666;font-variant-numeric:tabular-nums}
 select,button{background:#000;color:#ccc;border:1px solid #444;font:inherit;padding:3px 8px;margin:2px 2px 2px 0}
 button.on{border-color:#aaa;color:#fff}
@@ -29,6 +32,7 @@ button.on{border-color:#aaa;color:#fff}
  <option value="3">下がるほど、過去が見える（囚われた過去）</option>
 </select></div>
 <div><label style="color:#999"><input type="checkbox" id="nest" checked> 入れ子（奥行き）</label></div>
+<div><button id="midiB">MIDI</button><span id="midiS" style="color:#666"></span></div>
 <div><button id="reset">最初から</button><button id="mic">マイク</button><button id="fs">全画面</button></div>
 <div><select id="outR"><option value="1920x1080">1920×1080</option><option value="2560x1440" selected>2560×1440</option><option value="3840x2160">3840×2160</option></select><button id="recB">● 書き出し</button></div>
 <div id="recMsg" style="color:#888"></div>
@@ -1966,9 +1970,42 @@ const DEF=[
 const P={};for(const[k,l,v,mn,mx]of DEF)P[k]={l,v,mn,mx,cur:v,tgt:v};
 const get=k=>P[k].cur,set=(k,v)=>{P[k].tgt=clamp(+v,P[k].mn,P[k].mx);};
 for(const[k]of DEF){const p=P[k],row=document.createElement('div');row.className='row';
-  row.innerHTML=`<label>${p.l}</label><input type="range" min="${p.mn}" max="${p.mx}" step="${(p.mx-p.mn)/400}" value="${p.v}"><span></span>`;
-  const r=row.querySelector('input');r.oninput=()=>set(k,r.value);p.span=row.querySelector('span');$('sl').appendChild(row);}
+  row.innerHTML=`<label>${p.l}</label><input type="range" min="${p.mn}" max="${p.mx}" step="${(p.mx-p.mn)/400}" value="${p.v}"><span></span><b data-k="${k}">MIDI</b>`;
+  const r=row.querySelector('input');r.oninput=()=>set(k,r.value);p.span=row.querySelector('span');p.slider=r;$('sl').appendChild(row);}
 
+/* ---------- MIDI：つまみを学習させて割り当てる（Faderfoxなど、CCを送る機器） ----------
+   「MIDI」を押す → 割り当てたい行の「MIDI」を押す（反転表示）→ つまみを回す。割り当てはこのブラウザに保存。
+   もう一度押すと割り当てを外す。値はなめらかに追従するので、7ビットの段差は出にくい */
+const MAPKEY='sr-ch3-midi';
+let MAP={};try{MAP=JSON.parse(localStorage.getItem(MAPKEY)||'{}');}catch(e){}
+const saveMap=()=>{try{localStorage.setItem(MAPKEY,JSON.stringify(MAP));}catch(e){}};
+let learnK=null;
+const ACTIONS={_mode:'見え方の切り替え',_nest:'入れ子 オン／オフ',_reset:'最初から'};
+$('sl').insertAdjacentHTML('beforeend','<div style="color:#666;margin-top:8px">MIDIで切り替え</div>'+Object.entries(ACTIONS).map(([k,l])=>`<div class="row"><label>${l}</label><span style="flex:1"></span><b data-k="${k}">MIDI</b></div>`).join(''));
+function paintMap(){document.querySelectorAll('.row b').forEach(b=>{const k=b.dataset.k,cc=Object.keys(MAP).find(c=>MAP[c]===k);
+  b.classList.toggle('learn',learnK===k);b.classList.toggle('bound',!!cc);b.textContent=learnK===k?'回す':cc?('CC'+cc.split(':')[1]):'MIDI';b.title=cc?('ch'+(+cc.split(':')[0]+1)+' CC'+cc.split(':')[1]):'';});}
+document.querySelectorAll('.row b').forEach(b=>b.onclick=(ev)=>{const k=b.dataset.k,cc=Object.keys(MAP).find(c=>MAP[c]===k);
+  if(learnK===k)learnK=null;else if(cc&&learnK!==k&&!ev.shiftKey){delete MAP[cc];saveMap();}else learnK=k;
+  if(!midiOn)startMidi();paintMap();});
+let midiOn=false;
+async function startMidi(){
+  if(!navigator.requestMIDIAccess){$('midiS').textContent='このブラウザはMIDI非対応（Chromeで）';return;}
+  try{const acc=await navigator.requestMIDIAccess();midiOn=true;
+    const hook=()=>{const names=[];acc.inputs.forEach(i=>{i.onmidimessage=onMidi;names.push(i.name);});$('midiS').textContent=names.length?'MIDI：'+names.join('、'):'MIDI：機器が見つかりません';};
+    hook();acc.onstatechange=hook;$('midiB').classList.add('on');}
+  catch(e){$('midiS').textContent='MIDIが使えません';}}
+function onMidi(e){const[st,d1,d2]=e.data;if((st&0xf0)!==0xb0)return;
+  const id=(st&15)+':'+d1;
+  if(learnK){for(const c in MAP)if(MAP[c]===learnK)delete MAP[c];MAP[id]=learnK;learnK=null;saveMap();paintMap();}
+  const k=MAP[id];if(!k)return;const v=d2/127;
+  if(k==='_mode'){const n=$('mode').options.length,i=Math.min(n-1,Math.floor(v*n));if(+$('mode').value!==i){$('mode').value=i;$('mode').onchange&&$('mode').onchange();}}
+  else if(k==='_nest'){$('nest').checked=v>.5;}
+  else if(k==='_reset'){if(v>.5)$('reset').click();}
+  else{const p=P[k];set(k,p.mn+v*(p.mx-p.mn));p.slider.value=P[k].tgt;}
+}
+
+
+$('midiB').onclick=()=>startMidi();paintMap();
 /* 描画：画面全体を一枚のシェーダーで描く（軽い） */
 const cv=$('c'),gl=cv.getContext('webgl2',{antialias:false,powerPreference:'high-performance'});
 const VS=`#version 300 es
